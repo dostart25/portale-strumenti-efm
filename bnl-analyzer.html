@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8"><title>BNL Analyzer</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}html,body{height:100%;font-family:Arial,sans-serif}
+body{background:#0a0c14;color:#c8cce0;display:flex;flex-direction:column}
+header{background:#0d0f1a;border-bottom:1px solid #1e2340;padding:0 20px;height:50px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.logo{font-weight:700;font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#eef0fa;display:flex;align-items:center;gap:8px}
+.lbnl{background:#cc2229;color:#fff;padding:2px 6px;font-size:10px}
+.wrap{display:flex;flex:1;min-height:calc(100vh - 50px)}
+.left{width:300px;flex-shrink:0;border-right:1px solid #1e2340;background:#0d0f1a;padding:16px;display:flex;flex-direction:column;gap:12px;overflow-y:auto}
+.right{flex:1;padding:20px;overflow-y:auto}
+.card{background:#0d0f1a;border:1px solid #1e2340;border-radius:6px;padding:14px}
+h3{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#505878;margin-bottom:8px;font-family:monospace}
+.tabs{display:flex;border:1px solid #1e2340;border-radius:4px;overflow:hidden}
+.tab{flex:1;padding:7px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;text-align:center;cursor:pointer;border:none;transition:all .15s;background:#0a0c14;color:#505878}
+.tab.on{background:#cc2229;color:#fff}
+.tab-section{display:none}.tab-section.active{display:flex;flex-direction:column;gap:12px}
+.file-wrap{border:2px dashed #1e2340;border-radius:6px;padding:20px;text-align:center;background:#0a0c14;margin-bottom:10px;cursor:pointer;transition:border-color .2s}
+.file-wrap:hover{border-color:#cc2229}
+.file-ico{font-size:24px;margin-bottom:6px}.file-t{font-size:13px;font-weight:700;color:#eef0fa;margin-bottom:3px}.file-s{font-size:11px;color:#505878;margin-bottom:10px}
+input[type=file]{display:block;margin:0 auto;font-size:11px;color:#c8cce0;cursor:pointer;width:100%}
+.btn{display:block;width:100%;padding:9px;background:#cc2229;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+.btn:hover{opacity:.85}.btn:disabled{opacity:.4;cursor:not-allowed}
+.info{background:rgba(74,85,128,.08);border:1px solid #1e2340;border-radius:4px;padding:8px 10px;font-size:11px;color:#505878;line-height:1.6}
+.meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.meta-grid input,.meta-grid select{background:#0a0c14;border:1px solid #1e2340;color:#eef0fa;font-size:11px;padding:5px 7px;border-radius:3px;outline:none;width:100%}
+.meta-grid input:focus{border-color:#cc2229}
+.ph{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;text-align:center;gap:8px}
+.ph-ico{font-size:40px;opacity:.15}.ph-t{font-size:15px;color:#252840}.ph-s{font-size:12px;color:#505878;max-width:320px;line-height:1.6}
+.loading{display:none;text-align:center;padding:60px;color:#505878;font-size:13px}.loading.on{display:block}
+.score-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.scard{background:#0d0f1a;border:1px solid #1e2340;border-radius:4px;padding:10px;text-align:center}
+.scard-n{font-size:20px;font-weight:700}.scard-l{font-size:9px;text-transform:uppercase;color:#505878;margin-top:2px}
+.vbar{padding:8px 12px;border-radius:4px;font-size:13px;font-weight:700;margin-bottom:8px}
+.vok{background:rgba(61,212,106,.08);color:#3dd46a}.vwarn{background:rgba(212,188,58,.08);color:#d4bc3a}.vko{background:rgba(212,64,74,.08);color:#d4404a}
+.banner{padding:6px 10px;background:rgba(74,85,128,.06);border-radius:3px;font-size:11px;color:#505878;line-height:1.5;margin-bottom:7px}
+.cat-block{margin-bottom:12px}
+.cat-hdr{display:flex;align-items:center;gap:4px;margin-bottom:4px;padding-bottom:3px;border-bottom:1px solid #1e2340;flex-wrap:wrap}
+.cat-name{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.pill{font-size:9px;padding:1px 5px;border-radius:3px}
+.p-ok{background:rgba(61,212,106,.1);color:#3dd46a}.p-ko{background:rgba(212,64,74,.1);color:#d4404a}.p-w{background:rgba(212,188,58,.1);color:#d4bc3a}.p-na{background:rgba(74,85,128,.1);color:#4a5580}
+.cc{display:flex;gap:7px;align-items:flex-start;padding:5px 0;border-bottom:.5px solid rgba(30,35,64,.5)}.cc:last-child{border-bottom:none}
+.badge{font-size:9px;font-weight:700;padding:2px 5px;border-radius:2px;display:inline-block;min-width:28px;text-align:center}
+.b-ok{background:rgba(61,212,106,.1);color:#3dd46a}.b-ko{background:rgba(212,64,74,.1);color:#d4404a}.b-w{background:rgba(212,188,58,.1);color:#d4bc3a}.b-na{background:rgba(74,85,128,.1);color:#4a5580}
+.ctag{font-size:8px;color:#e8602a;display:block;margin-top:1px}
+.cc-b{flex:1;min-width:0}.cc-lbl{font-size:12px;color:#eef0fa;line-height:1.4;margin-bottom:1px}
+.cc-det{font-size:10px;color:#505878;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:monospace}
+.cc-sug{font-size:11px;color:#d4bc3a;border-left:2px solid #d4bc3a;padding-left:5px;margin-top:2px;line-height:1.5}
+.cc-ref{font-size:9px;color:#252840;margin-top:1px;font-family:monospace}
+.rep-btn{display:inline-block;margin-top:14px;padding:7px 16px;background:#1e2340;border:1px solid #2a3060;color:#c8cce0;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600}.rep-btn:hover{background:#2a3060}
+select{background:#0a0c14;border:1px solid #1e2340;color:#eef0fa;font-size:11px;padding:5px 7px;border-radius:3px;outline:none;width:100%}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><span class="lbnl">BNL</span> ELABORATI ANALYZER</div>
+  <span style="font-size:10px;color:#505878;font-family:monospace">Analisi DXF + PDF &mdash; LG BNL rev.2025</span>
+</header>
+<div class="wrap">
+<div class="left">
+  <!-- Tab buttons -->
+  <div class="tabs">
+    <button class="tab on"  id="tDxf" onclick="setTab('dxf',this)">&#128208; DXF</button>
+    <button class="tab off" id="tPdf" onclick="setTab('pdf',this)">&#128441; PDF</button>
+    <button class="tab off" id="tPkg" onclick="setTab('pkg',this)">&#128230; Commessa</button>
+  </div>
+
+  <!-- Tab DXF -->
+  <div class="tab-section active" id="sec-dxf">
+    <div class="card">
+      <h3>Carica elaborato DXF</h3>
+      <form onsubmit="goDxf(event)">
+        <div class="file-wrap">
+          <div class="file-ico">&#128208;</div>
+          <div class="file-t" id="dxf-name">Scegli il file DXF</div>
+          <div class="file-s">Esporta da AutoCAD: File &rarr; Salva con nome &rarr; DXF</div>
+          <input type="file" name="file" id="dxf-input" accept=".dxf,.DXF" required
+                 onchange="this.closest('.file-wrap').querySelector('.file-t').textContent=this.files[0]?this.files[0].name:'Scegli il file DXF'">
+        </div>
+        <button type="submit" class="btn">Analizza DXF</button>
+      </form>
+    </div>
+    <div class="info">Analisi locale &mdash; nessun dato inviato online. Funziona offline.</div>
+  </div>
+
+  <!-- Tab PDF -->
+  <div class="tab-section" id="sec-pdf">
+    <div class="card">
+      <h3>Carica elaborato PDF</h3>
+      <form onsubmit="goPdf(event)">
+        <div class="file-wrap">
+          <div class="file-ico">&#128441;</div>
+          <div class="file-t" id="pdf-name">Scegli il file PDF</div>
+          <div class="file-s">Analisi visiva via API Anthropic</div>
+          <input type="file" name="file" id="pdf-input" accept=".pdf,.PDF" required
+                 onchange="this.closest('.file-wrap').querySelector('.file-t').textContent=this.files[0]?this.files[0].name:'Scegli il file PDF'">
+        </div>
+        <button type="submit" class="btn">Analizza PDF</button>
+      </form>
+    </div>
+    <div class="info">PDF inviato direttamente dal browser all&rsquo;API Anthropic (nessun server intermedio).<br>Richiede connessione internet e la tua API Key personale.</div>
+  </div>
+
+  <!-- Tab Commessa -->
+  <div class="tab-section" id="sec-pkg">
+    <div class="card">
+      <h3>Pacchetto Commessa Q&amp;E</h3>
+      <div style="font-size:11px;color:#505878;margin-bottom:10px;line-height:1.6">
+        Seleziona <b style="color:#c8cce0">tutti gli elaborati</b> della commessa.<br>
+        Verifica completezza documentale e analisi Q&amp;E per ogni file.
+      </div>
+      <div class="file-wrap">
+        <div class="file-ico">&#128230;</div>
+        <div class="file-t" id="pkg-name">Seleziona tutti i file della commessa</div>
+        <div class="file-s">PDF, DXF, DWG, Word, Excel &mdash; selezione multipla</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <button type="button" onclick="setPkgMode('files')" id="btn-mode-files"
+            style="flex:1;padding:5px;font-size:10px;font-weight:700;border:1px solid #cc2229;background:#cc2229;color:#fff;border-radius:3px;cursor:pointer">
+            File singoli
+          </button>
+          <button type="button" onclick="setPkgMode('folder')" id="btn-mode-folder"
+            style="flex:1;padding:5px;font-size:10px;font-weight:700;border:1px solid #1e2340;background:transparent;color:#505878;border-radius:3px;cursor:pointer">
+            Cartella / Sottocartelle
+          </button>
+        </div>
+        <input type="file" id="pkg-input"
+               accept=".pdf,.dxf,.dwg,.docx,.doc,.xlsx,.xls,.PDF,.DXF,.DWG"
+               multiple onchange="onPkgFiles(this)">
+        <input type="file" id="pkg-input-dir"
+               webkitdirectory mozdirectory
+               style="display:none" onchange="onPkgFiles(this)">
+      </div>
+      <div id="pkg-list" style="display:none;margin-bottom:8px;max-height:90px;overflow-y:auto;font-size:10px;color:#c8cce0;line-height:1.8"></div>
+      <select id="pkg-fase" style="margin-bottom:8px">
+        <option value="PE">Progetto Esecutivo (PE)</option>
+        <option value="PP">Progetto Definitivo (PP)</option>
+        <option value="SDF">Studio di Fattibilita (SDF)</option>
+      </select>
+      <button class="btn" id="btn-pkg" disabled onclick="goPkg()">Analizza Commessa</button>
+    </div>
+    <div class="info" style="font-size:10px">
+      PDF: ~30 sec/doc via API.<br>DXF: analisi locale.<br>DWG/Word/Excel: verifica formale nome.
+    </div>
+  </div>
+
+  <!-- Sempre visibile: API Key -->
+  <div class="card" id="card-apikey">
+    <h3>Anthropic API Key (per PDF)</h3>
+    <div style="display:flex;gap:5px;align-items:center">
+      <input type="password" id="apikey-input" placeholder="sk-ant-..."
+             style="background:#0a0c14;border:1px solid #1e2340;color:#eef0fa;font-size:11px;padding:5px 7px;border-radius:3px;outline:none;flex:1"
+             oninput="onApiKey(this.value)">
+      <span id="apikey-status" style="font-size:10px;color:#505878;flex-shrink:0">&#8212;</span>
+    </div>
+    <div style="font-size:10px;color:#505878;margin-top:5px;line-height:1.5">
+      Salvata automaticamente.<br>
+      <a href="https://console.anthropic.com" target="_blank" style="color:#cc2229">console.anthropic.com</a>
+    </div>
+  </div>
+
+  <!-- Sempre visibile: Dati commessa -->
+  <div class="card">
+    <h3>Dati commessa (report)</h3>
+    <div class="meta-grid">
+      <input id="mCod" placeholder="Codice MP">
+      <input id="mAg"  placeholder="Indirizzo Agenzia">
+      <input id="mFase" placeholder="Fase SK02/03/07">
+      <input id="mVer"  placeholder="Verificatore">
+    </div>
+  </div>
+</div><!-- /left -->
+
+<div class="right">
+  <div class="ph" id="ph">
+    <div class="ph-ico">&#128269;</div>
+    <div class="ph-t">Nessun file caricato</div>
+    <div class="ph-s">Seleziona DXF, PDF o un pacchetto dalla sidebar e avvia l&rsquo;analisi.</div>
+  </div>
+  <div class="loading" id="ld">
+    <div style="font-size:32px;margin-bottom:10px">&#9203;</div>
+    <div id="ld-t">Analisi in corso...</div>
+    <div style="font-size:11px;color:#505878;margin-top:5px" id="ld-s"></div>
+  </div>
+  <div id="res"></div>
+</div>
+</div><!-- /wrap -->
+
+<script>
+// - API KEY -
+var _SAVED_KEY = "";
+
+// ================================================================
+// DATI PORTATI DAL SERVER PYTHON (BNL_Analyzer_Server.py v3.0)
+// ================================================================
+var FILE_PATTERNS = {"GE-RTG": ["rtg", "rt-gen", "rt_gen", "rel-tec", "rel_tec", "relazione-tec", "relazione_tec"], "GE-CME": ["cme", "c-m-e", "c_m_e", "computo-metr", "computo_metr"], "GE-QE": ["_qe_", "_qe-", "-qe-", "-qe.", "quadro-eco", "quadro_eco"], "GE-CRP": ["crono", "cronoprog", "-crp-", "_crp_"], "GE-PSC": ["psc", "piano-sic", "piano_sic", "fascicolo"], "GE-CSE": ["oneri-sic", "oneri_sic", "cme-sic", "cse-sic"], "GE-NP": ["-np-", "-np.", "-np_", "nuovi-pr", "analisi-np"], "GE-PPA": ["ppa", "scheda-ppa", "_ppa"], "GE-STE": ["ste-", "_ste", "specifica-tec", "capitolato-tec"], "AR": ["-ar-", "_ar-", "_ar_", "pianta", "controsoff", "layout"], "AR-SDF": ["sdf", "stato-di-fatto", "stato_fatto", "rilievo"], "STR": ["-str-", "_str-", "_str_", "struttur", "carpent", "consolidam"], "IM": ["-im-", "_im-", "_im_", "idronic", "aeraul", "termic", "vrv", "vrf", "hvac"], "IE": ["-ie-", "_ie-", "_ie_", "elettr", "illumin"], "IS": ["-is-", "_is-", "_is_", "speciali", "tvcc", "antifurto"], "PI": ["-pi-", "_pi-", "_pi_", "incend", "vvf", "prev-inc"], "PI-ESO": ["esodo", "piano-esodo"]};
+var TIPI_DESCRITTIVI = new Set(["GE-QE", "GE-CME", "GE-CSE", "GE-RTG", "GE-STE", "IS", "GE-PSC", "GE-PPA", "GE-NP", "GE-CRP"]);
+var PROMPTS_QE = {"GE-RTG": "Sei un Responsabile Tecnico Senior con 20+ anni di esperienza in progettazione esecutiva per retail bancario. Analizza questo documento per conto di eFM SpA prima dell esame del Q&E BNL. Per ogni check assegna VERDE, GIALLO, ROSSO o NA. Per GIALLO/ROSSO fornisci raccomandazione concreta.\n\nCHECK TECNICI LINEE GUIDA BNL:\nT01. Analisi urbanistica: strumento urbanistico, destinazione uso, conclusione esplicita assenza vincoli D.Lgs 42/2004\nT02. Procedimento autorizzativo identificato (edilizia libera/CILA/SCIA/PdC) con richiamo DPR 380/2001\nT03. CIL/CILA: se edilizia libera, verificato se il Comune richiede comunicazione\nT04. Nulla Osta Soprintendenza se immobile vincolato ex D.Lgs 42/2004\nT05. Descrizione intervento chiara e corretta classificazione DPR 380/2001 art.3\nT06. Normativa aggiornata (NTC 2018, D.Lgs 81/08, DPR 380/2001, norme UNI/CEI pertinenti)\nT07. Coerenza RTG-CME: lavorazioni descritte corrispondono alle voci del computo\nT08. Tutti gli allegati citati nella relazione presenti\nVERIFICHE OBBLIGATORIE CHECKLIST BNL (colonna K foglio 05.1 - assegna VERDE/GIALLO/ROSSO/NA):\nCK01. E presente il timbro e firma del Progettista\nCK02. [BLOCCANTE] E presente il protocollo del Comune come attestazione di ricevimento della fine lavori completa di certificato di collaudo da parte della DL\nCK03. [BLOCCANTE] E' presente il riferimento all'immobile oggetto dello studio\nCK04. E presente la data di emissione del documento\nCK05. Sono presenti tutti i documenti allegati alla pratica completi di data originali del Professionista incaricato (nel caso di trasmissione telematica la SI deve consegnare alla Committenza copia della verifica di firma digitale del progettista)\n\nNOTA: documento DESCRITTIVO/ECONOMICO. NON verificare e NON segnalare come mancanti: scala grafica, nord geografico, cartiglio grafico, legende. Concentrati esclusivamente sulla qualita tecnica dei contenuti.\n\nRispondi SOLO con JSON valido. USA SOLO CARATTERI ASCII nelle stringhe (sostituisci apostrofi con spazio):\n{\"checks\":[{\"id\":\"T01\",\"label\":\"...\",\"esito\":\"VERDE\",\"note\":\"\",\"raccomandazione\":\"\"}],\"semaforo\":\"VERDE\",\"sintesi\":\"...\"}", "GE-CME": "Sei un Responsabile Tecnico Senior specializzato in prezziari DEI, contratti di appalto e computi metrici per manutenzioni bancarie BNL. Analizza questo Computo Metrico Estimativo con massima attenzione agli errori tipici che il Quality BNL rileva in fase di verifica.\n\nCHECK TECNICI LINEE GUIDA BNL:\nT01. Struttura prezzi DEI: colonna prezzi pieni + colonna prezzi scontati 25%. Totale generale deve essere sui prezzi scontati. [BLOCCANTE se sconto assente]\nT02. Sconto impresa 2.5% NON deve apparire nel CME ma solo nel QE [BLOCCANTE se presente nel CME]\nT03. Listino DEI: anno specificato. Se oltre 12 mesi dalla data del documento: segnalare come ROSSO\nT04. Voci smontaggio parti impiantistiche rimosse presenti per ogni disciplina:\n     - Conferimento a discarica tubazioni, UE e UI impianti meccanici rimossi\n     - Conferimento a discarica corpi illuminanti rimossi\n     - Smontaggio e rimontaggio reti aerauliche esistenti nel soffitto\n     Segnalare come ROSSO se mancanti [check da revisione Quality BNL]\nT05. Maggiorazioni manodopera fuori orario (sabato, notturno):\n     - Percentuale deve essere IDENTICA in tutte le discipline (IM, IE, OC)\n     - Sabato = 25% (non 50%), notturno = 50% (non diverso tra discipline)\n     Segnalare come ROSSO se le percentuali differiscono tra IM e IE [check Quality BNL]\nT06. Voci corrette per tipo intervento:\n     - Sfondellamento = demolizione selettiva cartelle, NON demolizione solaio\n     - Intonaco = solo nelle aree di intervento, non a tutta la superficie\nT07. Congruita importi per categoria:\n     - Costo singola UE VRV: verificare che sia in linea con listino Daikin con sconto applicato\n     - Se costo UE VRV appare anomalmente alto (es. >3000 EUR/cad): segnalare come ROSSO\n     - Ripartizione FORNITURE vs REMOTIZZAZIONE/POSA: verificare congruita (remotizzazione        singola UE non dovrebbe superare il costo della fornitura stessa)\nT08. Voci remotizzazione impianti climatizzazione esistenti:\n     - Se il progetto prevede spostamento climatizzatori esistenti: quotazione remotizzazione        deve essere presente nel CME IM [ROSSO se assente e progetto prevede spostamento]\nT09. Completezza discipline: OC (Opere Civili), IM (Meccanico), IE (Elettrico), finiture\nT10. Analisi NP: struttura con materiali documentati, manodopera CCNL provinciali, SG 15%, utile 10%\n\nVERIFICHE CHECKLIST BNL All.13:\nCK01. CME contiene codici di riferimento dei listini DEI con indicazione listino e anno [BLOCCANTE]\nCK02. CME contiene descrizione estesa della voce esaminata\nCK03. Quantita misurate esplicitate per ogni voce\nCK04. Prezzo unitario esplicitato per ogni voce\nCK05. Prezzo totale esplicitato per ogni voce\nCK06. Se presenti Nuovi Prezzi nel computo, allegate le relative schede di analisi [BLOCCANTE]\n\nPer ogni check GIALLO/ROSSO fornisci raccomandazione concreta e specifica. USA SOLO CARATTERI ASCII nelle stringhe JSON.\n\n{\"checks\":[{\"id\":\"T01\",\"label\":\"Struttura prezzi DEI + sconto 25%\",\"esito\":\"VERDE\",\"note\":\"\",\"raccomandazione\":\"\"}],\"semaforo\":\"VERDE\",\"sintesi\":\"...\"}", "GE-QE": "Sei un Responsabile Tecnico Senior esperto di contrattualistica e struttura dei Quadri Economici per appalti di manutenzione. Analizza questo documento per conto di eFM SpA prima dell esame del Q&E BNL. Per ogni check assegna VERDE, GIALLO, ROSSO o NA. Per GIALLO/ROSSO fornisci raccomandazione concreta.\n\nCHECK TECNICI LINEE GUIDA BNL:\nT01. Totale lavori base d asta coerente con CME prezzi scontati 25%. Quadratura matematica verificata\nT02. Ribasso d asta/sconto impresa presente e posizionato correttamente (tipicamente 2-3%)\nT03. Oneri sicurezza separati, non soggetti a ribasso (D.Lgs 81/08 art.100)\nT04. IVA corretta per destinazione uso (10% civile, 22% commerciale). Spese tecniche 22%\nT05. Spese tecniche con dettaglio (progettazione, DL, CSP/CSE, collaudo) - congrui DM 17/06/2016\nT06. Somme a disposizione: imprevisti 5-10%, accantonamenti congrui\nT07. Totale generale presente e matematicamente corretto\nT08. QE aggiornato all ultima versione del CME\nVERIFICHE OBBLIGATORIE CHECKLIST BNL (colonna K foglio 05.1 - assegna VERDE/GIALLO/ROSSO/NA):\nCK01. [BLOCCANTE] Sono presenti  timbro e firma originali del Professionista incaricato (nel caso di trasmissione telematica la SI deve consegnare alla Committenza copia della verifica di firma digitale del progettista)\nCK02. [BLOCCANTE] E presente attestazione di avvenuto pagamento\nCK03. Qualora il professionista non sia in possesso del timbro professionale e presente documentazione attestante l'idoneita a norma di legge per lo svolgimento dell'incarico\nCK04. E presente data (nel caso di trasmissione telematica la SI deve consegnare alla Committenza copia della verifica di firma digitale del progettista)\n\nNOTA: documento DESCRITTIVO/ECONOMICO. NON verificare e NON segnalare come mancanti: scala grafica, nord geografico, cartiglio grafico, legende. Concentrati esclusivamente sulla qualita tecnica dei contenuti.\n\nRispondi SOLO con JSON valido. USA SOLO CARATTERI ASCII nelle stringhe (sostituisci apostrofi con spazio):\n{\"checks\":[{\"id\":\"T01\",\"label\":\"...\",\"esito\":\"VERDE\",\"note\":\"\",\"raccomandazione\":\"\"}],\"semaforo\":\"VERDE\",\"sintesi\":\"...\"}", "GE-PSC": "Sei un Coordinatore della Sicurezza Senior (CSP/CSE) con specifica esperienza in cantieri bancari operativi (D.Lgs 81/08 Titolo IV). Analizza questo documento per conto di eFM SpA prima dell esame del Q&E BNL. Per ogni check assegna VERDE, GIALLO, ROSSO o NA. Per GIALLO/ROSSO fornisci raccomandazione concreta.\n\nCHECK TECNICI LINEE GUIDA BNL:\nT01. Contenuti minimi Allegato XV D.Lgs 81/08 presenti\nT02. Documento specifico per il cantiere (non generico)\nT03. Dati CSP e CSE con nominativi coerenti con le nomine del PM\nT04. Dati committente, RL (Responsabile Lavori) e DL presenti\nT05. Dati dell immobile (indirizzo, citta) nel cartiglio\nT06. Timbro e firma CSP con data successiva alla nomina\nT07. Planimetrie con indicazioni di sicurezza allegate\nT08. Cronoprogramma delle lavorazioni allegato\nT09. Computo metrico oneri sicurezza con voci dettagliate\nT10. FASCICOLO DELL OPERA (Art.91 D.Lgs 81/08) presente con timbro CSP e contenuti minimi All.XVI\nT11. Fasi e confinamenti per continuita operativa bancaria (caveau, ATM, archivi, server room)\nT12. Piano ricollocamento PDL (postazioni di lavoro) per fase\nVERIFICHE OBBLIGATORIE CHECKLIST BNL (colonna K foglio 05.1 - assegna VERDE/GIALLO/ROSSO/NA):\nCK01. E presente ricevuta di pagamento degli oneri concessori\nCK02. [BLOCCANTE] E presente il protocollo del Comune come attestazione di ricevimento della fine lavori completa di tutti gli allegati\nCK03. E presente il timbro e firma del Coordinatore della Sicurezza in fase di progettazione per accettazione dell'incarico\nCK04. Sono presenti tutti i documenti allegati alla SCIA/DIA consegnati al Comune completi di data, numero di revisione, timbro e firma originali del Professionista incaricato (nel caso di trasmissione telematica la SI deve consegnare alla Committenza copia della verifica di firma digitale del progettista)\n\nNOTA: documento DESCRITTIVO/ECONOMICO. NON verificare e NON segnalare come mancanti: scala grafica, nord geografico, cartiglio grafico, legende. Concentrati esclusivamente sulla qualita tecnica dei contenuti.\n\nRispondi SOLO con JSON valido. USA SOLO CARATTERI ASCII nelle stringhe (sostituisci apostrofi con spazio):\n{\"checks\":[{\"id\":\"T01\",\"label\":\"...\",\"esito\":\"VERDE\",\"note\":\"\",\"raccomandazione\":\"\"}],\"semaforo\":\"VERDE\",\"sintesi\":\"...\"}", "GE-NP": "Sei un Responsabile Tecnico Senior esperto in Analisi dei Nuovi Prezzi. Le NP sono il documento piu contestato dal Q&E BNL. Analizza questo documento per conto di eFM SpA prima dell esame del Q&E BNL. Per ogni check assegna VERDE, GIALLO, ROSSO o NA. Per GIALLO/ROSSO fornisci raccomandazione concreta.\n\nCHECK TECNICI LINEE GUIDA BNL:\nT01. Struttura analisi: materiali (prezzi documentati da listini/preventivi), manodopera CCNL provinciali, noli\nT02. SG 15% + utile 10% esplicitati e applicati correttamente\nT03. Prezzi materiali documentati (preventivi fornitori, listini ufficiali, DEI)\nT04. Prezzo di listino DEI esplicitato con sconto applicato\nT05. Prezzi risultanti congrui con il mercato attuale\nT06. Coerenza tra descrizione voce NP nel CME e analisi sviluppata\nT07. Prezzi aggiornati (max 12 mesi), data di riferimento indicata\nVERIFICHE OBBLIGATORIE CHECKLIST BNL (colonna K foglio 05.1 - assegna VERDE/GIALLO/ROSSO/NA):\nCK01. Sono presenti i dati e firma del dichiarante\nCK02. [BLOCCANTE] la data riportata nel cartiglio del documento e successiva alla nomina del progettista che firma il documento stesso\nCK03. E presente timbro e firma originali del Professionista incaricato (nel caso di trasmissione telematica la SI deve consegnare alla Committenza copia della verifica di firma digitale del progettista)\nCK04. [BLOCCANTE] La data del documento e antecedente rispetto a quella delle  nomine del CSP e del CSE, essendo  gli stessi nominati dal RL\nCK05. E presente timbro e firma della S.I. nella figura del Tecnico Responsabile che effettua le nomine\n\nNOTA: documento DESCRITTIVO/ECONOMICO. NON verificare e NON segnalare come mancanti: scala grafica, nord geografico, cartiglio grafico, legende. Concentrati esclusivamente sulla qualita tecnica dei contenuti.\n\nRispondi SOLO con JSON valido. USA SOLO CARATTERI ASCII nelle stringhe (sostituisci apostrofi con spazio):\n{\"checks\":[{\"id\":\"T01\",\"label\":\"...\",\"esito\":\"VERDE\",\"note\":\"\",\"raccomandazione\":\"\"}],\"semaforo\":\"VERDE\",\"sintesi\":\"...\"}", "GE-CRP": "Sei un Responsabile Tecnico Senior esperto in pianificazione cantieri bancari e cronoprogrammi. Analizza questo documento per conto di eFM SpA prima dell esame del Q&E BNL. Per ogni check assegna VERDE, GIALLO, ROSSO o NA. Per GIALLO/ROSSO fornisci raccomandazione concreta.\n\nCHECK TECNICI:\nT01. Struttura Gantt o tabella per attivita e fasi presente e leggibile\nT02. Durata lavori congrua rispetto a importo e complessita\nT03. Fasi compatibili con la continuita operativa bancaria\nT04. Coerenza con le fasi del PSC\nT05. Attivita critiche identificate (smontaggio impianti, consolidamenti)\nT06. Forniture con lead time considerati (VRV Daikin, SAFA, OMNIREAL)\nVERIFICHE OBBLIGATORIE CHECKLIST BNL (colonna K foglio 05.1 - assegna VERDE/GIALLO/ROSSO/NA):\nCK01. [BLOCCANTE] E presente il protocollo del Comune come attestazione di ricevimento della fine lavori completa di certificato di agibilita\nCK02. E presente  il numero di revisione (nel caso di trasmissione telematica la SI deve consegnare alla Committenza copia della verifica di firma digitale del progettista)\nCK03. E presente firma del dichiarante\n\nNOTA: documento DESCRITTIVO/ECONOMICO. NON verificare e NON segnalare come mancanti: scala grafica, nord geografico, cartiglio grafico, legende. Concentrati esclusivamente sulla qualita tecnica dei contenuti.\n\nRispondi SOLO con JSON valido. USA SOLO CARATTERI ASCII nelle stringhe (sostituisci apostrofi con spazio):\n{\"checks\":[{\"id\":\"T01\",\"label\":\"...\",\"esito\":\"VERDE\",\"note\":\"\",\"raccomandazione\":\"\"}],\"semaforo\":\"VERDE\",\"sintesi\":\"...\"}", "GE-CSE": "Sei un Coordinatore della Sicurezza Senior. Analizzi il Computo degli Oneri della Sicurezza. Analizza questo documento per conto di eFM SpA prima dell esame del Q&E BNL. Per ogni check assegna VERDE, GIALLO, ROSSO o NA. Per GIALLO/ROSSO fornisci raccomandazione concreta.\n\nCHECK TECNICI:\nT01. Oneri quantificati analiticamente per voci (non percentuale fissa)\nT02. Voci dettagliate: DPI, formazione, recinzioni, segnaletica, sorveglianza sanitaria\nT03. Importo coerente con complessita del cantiere e durata\nT04. Non soggetti a ribasso (separati dalla base d asta nel QE)\nVERIFICHE OBBLIGATORIE CHECKLIST BNL (colonna K foglio 05.1 - assegna VERDE/GIALLO/ROSSO/NA):\nCK01. [BLOCCANTE] E presente timbro e firma originali del Professionista incaricato (nel caso di trasmissione telematica la SI deve consegnare alla Committenza copia della verifica di firma digitale del progettista)\nCK02. Il documento e inerente la ditta Appaltatrice\n\nNOTA: documento DESCRITTIVO/ECONOMICO. NON verificare e NON segnalare come mancanti: scala grafica, nord geografico, cartiglio grafico, legende. Concentrati esclusivamente sulla qualita tecnica dei contenuti.\n\nRispondi SOLO con JSON valido. USA SOLO CARATTERI ASCII nelle stringhe (sostituisci apostrofi con spazio):\n{\"checks\":[{\"id\":\"T01\",\"label\":\"...\",\"esito\":\"VERDE\",\"note\":\"\",\"raccomandazione\":\"\"}],\"semaforo\":\"VERDE\",\"sintesi\":\"...\"}", "GE-PPA": "Sei un Responsabile Tecnico Senior. Analizzi la Check List PPA BNL (Allegato 3). Analizza questo documento per conto di eFM SpA prima dell esame del Q&E BNL. Per ogni check assegna VERDE, GIALLO, ROSSO o NA. Per GIALLO/ROSSO fornisci raccomandazione concreta.\n\nCHECK TECNICI:\nT01. Compilata secondo format BNL vigente (Allegato 3)\nT02. Copertura temporale del documento comprende l intero periodo di permanenza in cantiere\nT03. Riferimento immobile con indirizzo e codice presente\nVERIFICHE OBBLIGATORIE CHECKLIST BNL (colonna K foglio 05.1 - assegna VERDE/GIALLO/ROSSO/NA):\nCK01. Timbro e firma originali del Professionista incaricato (nel caso di trasmissione telematica la SI deve consegnare alla Committenza copia della verifica di firma digitale del progettista)\nCK02. E presente il riferimento all'immobile oggetto di intervento,\n\nNOTA: documento DESCRITTIVO/ECONOMICO. NON verificare e NON segnalare come mancanti: scala grafica, nord geografico, cartiglio grafico, legende. Concentrati esclusivamente sulla qualita tecnica dei contenuti.\n\nRispondi SOLO con JSON valido. USA SOLO CARATTERI ASCII nelle stringhe (sostituisci apostrofi con spazio):\n{\"checks\":[{\"id\":\"T01\",\"label\":\"...\",\"esito\":\"VERDE\",\"note\":\"\",\"raccomandazione\":\"\"}],\"semaforo\":\"VERDE\",\"sintesi\":\"...\"}", "GE-STE": "Sei un Responsabile Tecnico Senior. Analizzi la Specifica Tecnica Esecutiva / Capitolato Prestazionale. Analizza questo documento per conto di eFM SpA prima dell esame del Q&E BNL. Per ogni check assegna VERDE, GIALLO, ROSSO o NA. Per GIALLO/ROSSO fornisci raccomandazione concreta.\n\nCHECK TECNICI:\nT01. Marca e modello apparecchiature principali specificati (Daikin, Gewiss, Zumtobel)\nT02. Conformita alle Linee Guida BNL per ogni categoria impiantistica\nT03. Certificazioni richieste specificate (CE, IMQ, ETA, F-GAS)\nT04. Garanzie minime specificate\nT05. Coerenza con CME e QE\nVERIFICHE OBBLIGATORIE CHECKLIST BNL (colonna K foglio 05.1 - assegna VERDE/GIALLO/ROSSO/NA):\nCK01. E presente la data di redazione ed il numero di revisione del documento\nCK02. [BLOCCANTE] Il professionista che timbra e firma il documento e il medesimo riportato nelle nomine progettisti ( doc. 5108)\nCK03. E presente ricevuta di pagamento degli oneri concessori\nCK04. [BLOCCANTE] E presente il timbro (nel caso di professionista iscritto all'albo professionale) e firma del Responsabile dei Lavori per accettazione dell'incarico\nCK05. La data della nomina del Coordinatore della Sicurezza in fase di progettazione e antecedente o uguale a quella della nomina del Coordinatore della Sicurezza in fase di esecuzione\n\nNOTA: documento DESCRITTIVO/ECONOMICO. NON verificare e NON segnalare come mancanti: scala grafica, nord geografico, cartiglio grafico, legende. Concentrati esclusivamente sulla qualita tecnica dei contenuti.\n\nRispondi SOLO con JSON valido. USA SOLO CARATTERI ASCII nelle stringhe (sostituisci apostrofi con spazio):\n{\"checks\":[{\"id\":\"T01\",\"label\":\"...\",\"esito\":\"VERDE\",\"note\":\"\",\"raccomandazione\":\"\"}],\"semaforo\":\"VERDE\",\"sintesi\":\"...\"}", "AR": "Sei un Responsabile Tecnico Senior specializzato in progettazione esecutiva di interni bancari e Linee Guida BNL per elaborati grafici. Analizza questo documento per conto di eFM SpA prima dell esame del Q&E BNL. Per ogni check assegna VERDE, GIALLO, ROSSO o NA. Per GIALLO/ROSSO fornisci raccomandazione concreta.\n\nCHECK TECNICI LINEE GUIDA BNL (solo per elaborati GRAFICI - non applicare a documenti descrittivi):\nT01. Quote nelle zone di intervento (muri modificati, aperture, ambienti) - senza ambiguita\nT02. Scala adeguata: 1:50 per esecutivo, 1:100 per planimetrie. Indicata nel cartiglio\nT03. Cartiglio BNL completo: codice elaborato/Archibus, data, revisione, scala, progettista, committente\nT04. Nord geografico nelle planimetrie di piano (non richiesto per sezioni/prospetti)\nT05. Legenda completa con tutti i simboli, campiture, tratteggi\nT06. Differenziazione grafica chiara stato di fatto vs progetto\nT07. Data cartiglio successiva alla nomina del progettista\nT08. Tutti gli elaborati hanno recepito le note e indicazioni del Q&E\nT09. Particolari costruttivi in scala adeguata (1:10/1:5) dove richiesto\nVERIFICHE OBBLIGATORIE CHECKLIST BNL (colonna K foglio 05.1 - assegna VERDE/GIALLO/ROSSO/NA):\nCK01. Sono presenti i nominativi del committente, della Direzione lavori , del Responsabile dei lavori, del CSE e dell' impresa appaltatrice e di eventuali subappaltatori\nCK02. E presente il riferimento all'immobile oggetto dello studio\nCK03. Sono presenti timbro e firma della Direzione Lavori\nCK04. [BLOCCANTE] La pratica e completa di tutti gli allegati consegnati al Comune\nCK05. E presente data (nel caso di trasmissione telematica la SI deve consegnare alla Committenza copia della verifica di firma digitale del progettista)\nCK06. E presente la relazione sul conto finale con dettaglio del n. Oda dell'appalto principale e n. Oda di eventuali varianti autorizzate dalCommittente\nCK07. [BLOCCANTE] E presente il manuale d'uso\nCK08. Sono presenti i riferimenti dei SAL-CEP\nCK09. [BLOCCANTE] E presente il  manuale di manutenzione\nCK10. [BLOCCANTE] E presente numero di revisione (nel caso di trasmissione telematica la SI deve consegnare alla Committenza copia della verifica di firma digitale del progettista)\nCK11. E presente il certificato di regolare esecuzione dei lavori\n\nRispondi SOLO con JSON valido. USA SOLO CARATTERI ASCII nelle stringhe (sostituisci apostrofi con spazio):\n{\"checks\":[{\"id\":\"T01\",\"label\":\"...\",\"esito\":\"VERDE\",\"note\":\"\",\"raccomandazione\":\"\"}],\"semaforo\":\"VERDE\",\"sintesi\":\"...\"}", "AR-SDF": "Sei un Responsabile Tecnico Senior specializzato in rilievi e stati di fatto per agenzie bancarie. Analizza questo documento per conto di eFM SpA prima dell esame del Q&E BNL. Per ogni check assegna VERDE, GIALLO, ROSSO o NA. Per GIALLO/ROSSO fornisci raccomandazione concreta.\n\nCHECK TECNICI:\nT01. Planimetrie in scala (1:50/1:100) con dimensioni principali degli ambienti\nT02. Cartiglio con riferimento immobile, data, revisione, progettista\nT03. Nord geografico presente\nT04. Rilievo completo di tutti i livelli dell agenzia\nT05. Prospetti e sezioni presenti se richiesti\nVERIFICHE OBBLIGATORIE CHECKLIST BNL (colonna K foglio 05.1 - assegna VERDE/GIALLO/ROSSO/NA):\nCK01. [BLOCCANTE] E presente il protocollo del Comune come attestazione di ricevimento della fine lavori completa di aggiornamento catastale\nCK02. E presente il protocollo del Comune come attestazione di ricevimento della fine lavori completa di tutti gli allegati, di certificato di collaudo da parte della DL, di certificato di agibilita e di aggiornamento catastale\nCK03. E presente il timbro e firma del Progettista\nCK04. E presente il numero di revisione del documento\nCK05. E' presente il riferimento all'immobile oggetto dello studio\nCK06. E presente l'Allegato B- Report ( rif. All.C3.2 Nuovi AQ Societa di Ingegneria 2016-18)\n\nRispondi SOLO con JSON valido. USA SOLO CARATTERI ASCII nelle stringhe (sostituisci apostrofi con spazio):\n{\"checks\":[{\"id\":\"T01\",\"label\":\"...\",\"esito\":\"VERDE\",\"note\":\"\",\"raccomandazione\":\"\"}],\"semaforo\":\"VERDE\",\"sintesi\":\"...\"}", "STR": "Sei un Ingegnere Strutturista Senior esperto in consolidamento solai a tavelloni e sistemi antisfondellamento in ambienti bancari. Analizza questo documento per conto di eFM SpA prima dell esame del Q&E BNL. Per ogni check assegna VERDE, GIALLO, ROSSO o NA. Per GIALLO/ROSSO fornisci raccomandazione concreta.\n\nCHECK TECNICI LINEE GUIDA BNL:\nT01. Classificazione intervento NTC 2018 par.8.4: consolidamento/miglioramento sismico/ripristino\nT02. Varianti sistema antisfondellamento: rete a vista, rete sotto intonaco, sistemi ETA certificati\nT03. Relazione di calcolo: metodologia adeguata, verifiche SLU/SLE, calcolo distacco cartelle\nT04. Materiali con specifiche complete e riferimento certificato ETA o equivalente\nT05. Carpenterie: tutti gli interventi in scala (1:50 pianta, 1:10 sezioni), quotate\nT06. Normativa NTC 2018, Circ. 2019, norme UNI EN pertinenti citate\nT07. Denuncia Genio Civile menzionata se intervento in zona sismica sopra le soglie\nT08. Indagini strutturali e geologiche allegate se richieste\nVERIFICHE OBBLIGATORIE CHECKLIST BNL (colonna K foglio 05.1 - assegna VERDE/GIALLO/ROSSO/NA):\nCK01. Sono presenti tutti i documenti allegati alla pratica completi di  numero di revisione (nel caso di trasmissione telematica la SI deve consegnare alla Committenza copia della verifica di firma digitale del progettista)\nCK02. [BLOCCANTE] E presente il programma di manutenzione\nCK03. La data della nomina del Coordinatore della Sicurezza in fase di progettazione e antecedente alla redazione del PSC\nCK04. [BLOCCANTE] E presente timbro e firma del progettista, data e numero di revisione\nCK05. Sono presenti tutti i documenti allegati alla pratica completi di timbro e firma originali del Professionista incaricato (nel caso di trasmissione telematica la SI deve consegnare alla Committenza copia della verifica di firma digitale del progettista)\nCK06. E' presente il riferimento all'immobile oggetto dello studio\nCK07. La pratica e completa di tutti gli allegati consegnati al Comune\nCK08. [BLOCCANTE] La polizza e intestata alla ditta appaltatrice\nCK09. Sono presenti tutti i documenti allegati alla pratica completi di data originali del Professionista incaricato (nel caso di trasmissione telematica la SI deve consegnare alla Committenza copia della verifica di firma digitale del progettista)\n\nRispondi SOLO con JSON valido. USA SOLO CARATTERI ASCII nelle stringhe (sostituisci apostrofi con spazio):\n{\"checks\":[{\"id\":\"T01\",\"label\":\"...\",\"esito\":\"VERDE\",\"note\":\"\",\"raccomandazione\":\"\"}],\"semaforo\":\"VERDE\",\"sintesi\":\"...\"}", "IM": "Sei un Ingegnere Meccanico Senior specializzato in HVAC per retail bancario. Conosci le LG BNL (VRV Daikin AQ 12848, lama d aria LG24, F-GAS). Analizza questo elaborato con massima attenzione agli errori tipici che il Quality BNL rileva in fase di verifica.\n\nCHECK TECNICI LINEE GUIDA BNL:\nT01. Relazione con calcolo carichi termici UNI EN 12831 e dimensionamento VRV/split\nT02. Conformita LG BNL Daikin (AQ 12848) con modelli specificati.\n     Verifica che i costi delle UE nel CME corrispondano al listino Daikin con sconto applicato.\n     Se i costi appaiono superiori al listino senza sconto: segnalare come ROSSO [check Quality BNL]\nT03. Lama d aria ingresso: conformita LG24 BNL (modello, dimensioni, portata)\nT04. Smontaggio impianti nel soffitto:\n     - Indicazioni per smontaggio/rimontaggio reti aerauliche esistenti presenti\n     - Conferimento a discarica parti rimosse (tubazioni, UE, UI) presente nel CME\n     - Se il progetto prevede spostamento di climatizzatori esistenti:        quotazione remotizzazione presente [ROSSO se assente]\nT05. Schema di regolazione:\n     - Passaggio linea Bus verso il recuperatore di calore presente nello schema [check Quality BNL]\n     - Collegamento verso pannello centrale di regolazione VRV presente nello schema\n     - Gestione centralizzata dell intero sistema VRV rappresentata [ROSSO se mancante]\nT06. Dichiarazione F-GAS: kg refrigerante totale, GWP, verifica soglia DPR 43/2012\nT07. Ripartizione FORNITURE + REMOTIZZAZIONE:\n     - Suddivisione corretta: forniture separate dalla posa/remotizzazione\n     - Importo remotizzazione per singola UE congruo (non deve superare il costo fornitura)\n     - REMOTIZZAZIONE 35k EUR + IVA per 1 sola UE e 1 recuperatore: valore anomalo [ROSSO]\nT08. Maggiorazione fuori orario:\n     - Percentuale sabato deve essere 25% (non 50%) come da CCNL settore impianti\n     - Stessa percentuale applicata anche alla disciplina IE per coerenza [check Quality BNL]\nT09. Schema funzionale con legenda, sigle, indicazione UTA, FCU, VRV, recuperatori\nT10. Capitolato tecnico con marca/modello apparecchiature e certificazioni\n\nVERIFICHE CHECKLIST BNL All.13:\nCK01. Riferimento immobile nel documento [BLOCCANTE]\nCK02. Data di emissione sul documento [BLOCCANTE]\nCK03. Numero di revisione nel documento [BLOCCANTE]\nCK04. Elaborato tecnico-grafico as-built riportante la reale situazione post-intervento\nCK05. Marche e modelli degli elementi impiantistici riportati nell elaborato\n\nPer ogni check GIALLO/ROSSO fornisci raccomandazione concreta e specifica. USA SOLO CARATTERI ASCII nelle stringhe JSON.\n\n{\"checks\":[{\"id\":\"T01\",\"label\":\"Calcolo carichi termici UNI EN 12831\",\"esito\":\"VERDE\",\"note\":\"\",\"raccomandazione\":\"\"}],\"semaforo\":\"VERDE\",\"sintesi\":\"...\"}", "IE": "Sei un Ingegnere Elettrico Senior specializzato in retail bancario. Conosci le LG BNL (Gewiss AQ, Zumtobel/Lux Italia, LG DIT v6.7). Analizza questo elaborato con massima attenzione agli errori tipici che il Quality BNL rileva in fase di verifica.\n\nCHECK TECNICI LINEE GUIDA BNL:\nT01. Calcoli illuminotecnici UNI EN 12464-1:\n     - 500 lux area casse, 300-500 lux open space, 200 lux area attesa, UGR verificato\n     - Ricalcolo illuminotecnico post-rimontaggio corpi esistenti obbligatorio\nT02. Conformita LG BNL illuminazione: Zumtobel, Lux Italia o equivalenti approvati BNL\nT03. Smontaggio corpi illuminanti:\n     - Procedura smontaggio sicuro e accatastamento presente\n     - Verifica funzionale corpi rimontati presente\n     - Ricalcolo illuminotecnico post-rimontaggio presente [ROSSO se assente]\n     - Conferimento a discarica corpi non riutilizzabili presente nel CME\nT04. Maggiorazione fuori orario:\n     - Percentuale sabato deve essere 25% (non 50%) [check Quality BNL]\n     - CRITICO: percentuale deve essere IDENTICA a quella applicata nel CME IM\n     - Se IE usa 50% e IM usa 25% (o viceversa): segnalare come ROSSO [check Quality BNL]\nT05. Conformita LG BNL quadri Gewiss (AQ BNL) con modelli specificati\nT06. Schemi unifilari per tutti i quadri interessati, aggiornati con modifiche progetto\nT07. Rack TLC e locale tecnico: conformita LG DIT v6.7 (dimensioni, UPS, climatizzazione)\nT08. Potenza installata indicata nel documento\nT09. DiCo (Dichiarazioni Conformita) esistenti referenziate\nT10. Costi impianti elettrici nel CME:\n     - Verificare che i fuori orario siano allineati con il meccanico\n     - Conferimento a discarica corpi illuminanti rimossi presente\n\nVERIFICHE CHECKLIST BNL All.13:\nCK01. Riferimento immobile nel documento [BLOCCANTE]\nCK02. Timbro e firma professionista abilitato [BLOCCANTE]\nCK03. Progetto esecutivo timbrato e firmato presente [BLOCCANTE]\nCK04. Relazione con tipologie materiali utilizzati allegata\nCK05. Dichiarazioni conformita (DiCo) esistenti valide referenziate\n\nPer ogni check GIALLO/ROSSO fornisci raccomandazione concreta e specifica. USA SOLO CARATTERI ASCII nelle stringhe JSON.\n\n{\"checks\":[{\"id\":\"T01\",\"label\":\"Calcoli illuminotecnici UNI EN 12464-1\",\"esito\":\"VERDE\",\"note\":\"\",\"raccomandazione\":\"\"}],\"semaforo\":\"VERDE\",\"sintesi\":\"...\"}", "PI": "Sei un Esperto PI Senior con esperienza in attivita bancarie soggette a DM 10/03/98 e Minicodice BNL (DM 03/09/2021). Analizza questo documento per conto di eFM SpA prima dell esame del Q&E BNL. Per ogni check assegna VERDE, GIALLO, ROSSO o NA. Per GIALLO/ROSSO fornisci raccomandazione concreta.\n\nCHECK TECNICI LINEE GUIDA BNL:\nT01. Relazione tecnica PI: DM 10/03/98, DM 03/09/2021 Minicodice BNL, classificazione attivita\nT02. Planimetrie esodo in scala con simbologia DM 30/11/83 (1:50-1:200)\nT03. Piano di esodo: calcolo affollamento, larghezza vie esodo, numero/posizione uscite\nT04. SAFA/Alert Point: posizione AP-3-R-A a h=1,40m lungo vie fuga (LG07 BNL)\nT05. OMNIREAL: conformita LG10 BNL (centrale, rilevatori, sirene)\nT06. Conformita Minicodice BNL: verifica puntuale LG PI specifiche BNL\nT07. Pratica VVF menzionata se attivita soggetta a CPI o SCIA antincendio\nT08. Asseverazione applicazione DL 02/09/2021 presente\nVERIFICHE OBBLIGATORIE CHECKLIST BNL (colonna K foglio 05.1 - assegna VERDE/GIALLO/ROSSO/NA):\nCK01. E presente il protocollo del Comune come attestazione di ricevimento della pratica (se trasmessa telematicamente deve essere fornita copia di ricevimento da parte dell'Ente preposto)\nCK02. Nel caso di immobile soggetto a vincoli e presente Nulla Osta da parte dell'ente deputato alla tutela del vincolo\n\nRispondi SOLO con JSON valido. USA SOLO CARATTERI ASCII nelle stringhe (sostituisci apostrofi con spazio):\n{\"checks\":[{\"id\":\"T01\",\"label\":\"...\",\"esito\":\"VERDE\",\"note\":\"\",\"raccomandazione\":\"\"}],\"semaforo\":\"VERDE\",\"sintesi\":\"...\"}", "IS": "Sei un Ingegnere Senior specializzato in impianti speciali per retail bancario (rivelazione, TVCC, controllo accessi). Analizza questo documento per conto di eFM SpA prima dell esame del Q&E BNL. Per ogni check assegna VERDE, GIALLO, ROSSO o NA. Per GIALLO/ROSSO fornisci raccomandazione concreta.\n\nCHECK TECNICI:\nT01. Sistema rivelazione incendi: conformita LG10 BNL (OMNIREAL)\nT02. Antintrusione/controllo accessi: specifiche complete, interfaccia BNL esistente\nT03. TVCC: specifiche telecamere, copertura aree sensibili (casse, ATM, ingressi)\nT04. Diffusione sonora: conformita EN 60849\nT05. Conformita LG DIT v6.7 BNL\nT06. Interfacce sistemi BNL esistenti documentate\n\nRispondi SOLO con JSON valido. USA SOLO CARATTERI ASCII nelle stringhe (sostituisci apostrofi con spazio):\n{\"checks\":[{\"id\":\"T01\",\"label\":\"...\",\"esito\":\"VERDE\",\"note\":\"\",\"raccomandazione\":\"\"}],\"semaforo\":\"VERDE\",\"sintesi\":\"...\"}"};
+var DOCUMENTI_ATTESI_PE = [["GE", "GE-RTG", "Relazione tecnica illustrativa generale", true], ["GE", "GE-CME", "Computo metrico estimativo -- Opere Civili", true], ["GE", "GE-QE", "Quadro economico di sintesi", true], ["GE", "GE-PSC", "PSC + Fascicolo dell opera (Art.91 D.Lgs 81/08)", true], ["GE", "GE-CSE", "Computo metrico oneri della sicurezza", true], ["GE", "GE-CRP", "Cronoprogramma lavori dettagliato per fasi", true], ["GE", "GE-NP", "Analisi nuovi prezzi (voci non in listino)", false], ["GE", "GE-PPA", "Check List scheda PPA BNL (Allegato 3)", true], ["GE", "GE-STE", "Specifica tecnica esecutiva / Capitolato", false], ["AR", "AR", "Elaborati grafici architettonici", true], ["AR", "AR-SDF", "Stato di fatto -- Piante e rilievo", true], ["STR", "STR", "Elaborati strutturali e relazione di calcolo", false], ["IM", "IM", "Elaborati impianti meccanici", false], ["IE", "IE", "Elaborati impianti elettrici e speciali", false], ["PI", "PI", "Elaborati prevenzione incendi", false], ["PI", "PI-ESO", "Piano di esodo DM 10/03/98", true]];
+
+function classifyFile(filename) {
+  var fn = filename.toLowerCase().replace(/ /g,'-').replace(/_/g,'-');
+  for (var tipo in FILE_PATTERNS) {
+    var patterns = FILE_PATTERNS[tipo];
+    for (var i=0; i<patterns.length; i++) {
+      if (fn.indexOf(patterns[i]) !== -1) return tipo;
+    }
+  }
+  return 'UNKNOWN';
+}
+function isDescrittivo(tipo) { return TIPI_DESCRITTIVI.has(tipo); }
+
+function sleep(ms) { return new Promise(function(r){ setTimeout(r, ms); }); }
+
+function readFileAsText(file) {
+  return new Promise(function(resolve, reject) {
+    var r = new FileReader();
+    r.onload = function() { resolve(r.result); };
+    r.onerror = reject;
+    r.readAsText(file, 'utf-8');
+  });
+}
+function fileToBase64(file) {
+  return new Promise(function(resolve, reject) {
+    var r = new FileReader();
+    r.onload = function() { resolve(r.result.split(',')[1]); };
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+// ---- Analisi DXF (100% locale, nessuna chiamata di rete) ----
+function analyzeDxfLocal(content, name) {
+  var lines = content.split('\n');
+  var texts = [], layers = new Set(['0']), dimCount = 0;
+  var ent = null, layer = '0', txt = '', tag = '';
+  var blocks = new Set(), attribs = [];
+  for (var i = 0; i < lines.length - 1; i += 2) {
+    var code = lines[i].trim();
+    var val = (i+1 < lines.length) ? lines[i+1].trim() : '';
+    if (code === '0') {
+      if (txt && (ent==='TEXT'||ent==='MTEXT'||ent==='ATTRIB')) {
+        var cl = txt.replace(/\\[A-Za-z][^;]*;|[{}]/g, '').trim();
+        if (cl.length > 1) {
+          var e = {v: cl, l: layer};
+          if (ent === 'ATTRIB') { e.tag = tag; attribs.push(e); }
+          texts.push(e);
+        }
+      }
+      ent = val; txt = ''; tag = '';
+      if (val === 'DIMENSION') dimCount++;
+    }
+    if (code === '8') { layer = val; layers.add(val); }
+    if (code === '2' && ent === 'INSERT' && val && val[0] !== '*') blocks.add(val.toUpperCase());
+    if ((code === '1' || code === '3') && (ent==='TEXT'||ent==='MTEXT'||ent==='ATTRIB')) txt += val;
+    if (code === '1' && ent === 'TEXT') txt = val;
+    if (code === '2' && ent === 'ATTRIB') tag = val;
+  }
+
+  var allText = texts.map(function(t){return t.v;}).join(' ');
+  var tj = allText.toLowerCase();
+  var lc = Array.from(layers).map(function(l){return l.toUpperCase();});
+  var blk = Array.from(blocks);
+  var on0 = texts.filter(function(t){return t.l==='0'||t.l==='DEFPOINTS';}).length;
+  var aLay = lc.filter(function(l){return l.indexOf('A-')===0;});
+  var hasCl = lc.some(function(l){return /CARTI|TITLE|BORDER|FRAME/.test(l);});
+  var hasNb = blk.some(function(b){return /NORD|NORTH|COMPASS/.test(b);});
+  var layouts = (content.match(/AcDbLayout/g)||[]).length;
+  var dxfVMatch = content.match(/AC\d{4}/);
+  var dxfV = dxfVMatch ? dxfVMatch[0] : 'DXF';
+  var cartKw = allText.split(/\s+/).filter(function(w){return /data|scala|revisione|codice|progetto|commessa/i.test(w);}).length;
+  var hasCart = attribs.length > 0 || hasCl || cartKw >= 3;
+
+  var checks = [];
+  function add(cat, id_, lbl, ref, crit, st, det, sug) {
+    checks.push({cat:cat, id:id_, lbl:lbl, ref:ref, crit:crit, st:st, det:det, sug: sug||''});
+  }
+  add('CARTIGLIO','C01','Cartiglio con attributi','ALL.13 BNL',true, hasCart?'ok':'ko', 'ATTRIB:'+attribs.length+' kw:'+cartKw+' blocco:'+hasCl, hasCart?'':'Inserire blocco cartiglio con CODICE, DATA, REVISIONE, SCALA');
+
+  var m = allText.match(/MP[A-Z0-9_\-]{2,}|E-\d{2}-\d{4}[_\-]\d{2}|\b\d{6}\b|[A-Z]{2,4}-[A-Z]{2,4}-\d{3}/);
+  add('CARTIGLIO','C02','Codice documento / Archibus','ALL.13 BNL',true, m?'ok':'ko', m?('Trovato: '+m[0]):'Non trovato', m?'':'Inserire codice MP, E-XX o Archibus 6 cifre');
+
+  m = allText.match(/\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4}/);
+  add('CARTIGLIO','C03','Data emissione','ALL.13 BNL',true, m?'ok':'ko', m?('Data: '+m[0]):'Non trovata', m?'':'Inserire GG/MM/AAAA nel cartiglio');
+
+  m = allText.match(/(?:rev|revisione)\s*[:\.]?\s*\d{1,2}|\bR\d{2}\b/i);
+  add('CARTIGLIO','C04','Numero revisione','ALL.13 BNL',true, m?'ok':'ko', m?('Rev: '+m[0]):'Non trovata', m?'':'Inserire REV.00 o R00');
+
+  m = allText.match(/1\s*[:\/]\s*\d{2,4}/);
+  add('CARTIGLIO','C05','Scala numerica','LG PI BNL',true, m?'ok':'ko', m?('Scala: '+m[0]):'Non trovata', m?'':'Scala 1:50-1:200 obbligatoria BNL');
+
+  add('LAYER','L01','Layer 0/Defpoints puliti','CAD BNL',true, on0===0?'ok':'ko', on0===0?'Puliti':(on0+' entita su 0/Defpoints'), on0===0?'':'Spostare su layer corretti');
+  add('LAYER','L02','Layer A- strutturati','CAD',false, aLay.length>=3?'ok':(aLay.length?'warn':'ko'), 'A-*: '+(aLay.slice(0,5).join(', ')||'nessuno'), aLay.length?'':'Strutturare con prefisso A-');
+  add('LAYER','L03','Layer cartiglio','CAD BNL',false, hasCl?'ok':'warn', hasCl?'Presente':'Assente', hasCl?'':'Creare layer CARTIGLIO o TITLE');
+  add('QUOTATURA','Q01','Entita DIMENSION','ALL.13',true, dimCount>=10?'ok':(dimCount>0?'warn':'ko'), 'DIMENSION: '+dimCount, dimCount>=10?'':('Solo '+dimCount+' quote - BNL richiede piante quotate'));
+
+  var hasNord = /\bnord\b|\bnorth\b/.test(tj);
+  add('GRAFICA','G01','Nord geografico','LG BNL',false, (hasNord||hasNb)?'ok':'warn', 'Testo:'+hasNord+' Blocco:'+hasNb, (hasNord||hasNb)?'':'Inserire simbolo Nord');
+  add('GRAFICA','G02','Layout configurati','BNL',false, layouts>0?'ok':'warn', 'Layout: '+layouts, layouts>0?'':'Configurare almeno un Layout in scala');
+  var tit = /pianta|planimetria|prospetto|sezione|schema|layout/.test(tj);
+  add('GRAFICA','G03','Titolo tavola','BNL',false, tit?'ok':'warn', 'Trovato: '+tit, tit?'':'Inserire titolo elaborato');
+
+  var specs = [
+    ['B01','Piano di esodo','LG 21', /esodo|uscita.+emergen|vie.+fuga/.test(tj), 'warn'],
+    ['B02','SAFA / Alert Point','LG 07', /safa|alert.?point|ap-3/.test(tj), 'na'],
+    ['B03','VRV / Daikin','LG 31', /vrv|vrf|daikin/.test(tj), 'na'],
+    ['B04',"Lama d'aria",'LG 24', /lama.+aria|cyvs/.test(tj), 'na'],
+    ['B05','OMNIREAL','LG 10', /omnireal/.test(tj), 'na'],
+    ['B06','TLC / Rack','LG DIT', /\brack\b|\btlc\b/.test(tj), 'na'],
+    ['B07','Gewiss','AQ Gewiss', /gewiss/.test(tj), 'na'],
+    ['B08','F-GAS','LG 13', /f.?gas|fluorurati/.test(tj), 'na'],
+    ['B09','ALL.13 / SK','ALL.13', /\bsk0[237]\b|allegato.+13/.test(tj), 'na'],
+  ];
+  specs.forEach(function(s) {
+    add('BNL_SPEC', s[0], s[1], s[2], false, s[3]?'ok':s[4], s[1]+': '+(s[3]?'presente':'non menzionato'));
+  });
+
+  var okN = checks.filter(function(c){return c.st==='ok';}).length;
+  var koN = checks.filter(function(c){return c.st==='ko';}).length;
+  var wN = checks.filter(function(c){return c.st==='warn';}).length;
+  var ckN = checks.filter(function(c){return c.st==='ko' && c.crit;}).length;
+  var totN = checks.filter(function(c){return c.st!=='na';}).length;
+  var sc = totN>0 ? Math.round(okN/totN*100) : 0;
+  return {file:name, fmt:'dxf', sc:sc, ok:okN, ko:koN, warn:wN, ck:ckN, tot:totN, dxf_v:dxfV, n_texts:texts.length, n_dims:dimCount, checks:checks};
+}
+
+// ---- Chiamata diretta ad Anthropic dal browser (con la API key incollata dall'utente) ----
+async function callAnthropic(apiKey, payload) {
+  for (var attempt=0; attempt<3; attempt++) {
+    try {
+      var resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST',
+        headers: {
+          'Content-Type':'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version':'2023-06-01',
+          'anthropic-beta':'pdfs-2024-09-25',
+          'anthropic-dangerous-direct-browser-access':'true'
+        },
+        body: JSON.stringify(payload)
+      });
+      if (resp.ok) { return [await resp.json(), null]; }
+      if (resp.status === 401) return [null, 'API Key non valida. Verifica su console.anthropic.com'];
+      if ([429,529,500,502,503,504].indexOf(resp.status) !== -1) {
+        if (attempt < 2) { await sleep(Math.pow(2,attempt)*3000); continue; }
+        return [null, 'Server Anthropic sovraccarico dopo 3 tentativi. Riprova tra qualche minuto.'];
+      }
+      var bodyTxt = await resp.text();
+      return [null, 'Errore API '+resp.status+': '+bodyTxt.slice(0,200)];
+    } catch(e) {
+      if (attempt < 2) { await sleep(Math.pow(2,attempt)*1000); continue; }
+      return [null, 'Errore connessione: '+e.message];
+    }
+  }
+  return [null, 'Errore sconosciuto'];
+}
+
+function parseClaudeJson(raw) {
+  var clean = raw.replace(/```json/g,'').replace(/```/g,'').trim();
+  var m = clean.match(/\{[\s\S]*\}/);
+  if (m) clean = m[0];
+  try { return JSON.parse(clean); } catch(e) {}
+  try { return JSON.parse(clean.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '')); } catch(e) {}
+  var sem = clean.match(/"semaforo"\s*:\s*"(VERDE|GIALLO|ROSSO)"/);
+  var sin = clean.match(/"sintesi"\s*:\s*"([^"]{0,400})"/);
+  return {checks: [], semaforo: sem?sem[1]:'GIALLO', sintesi: sin?sin[1]:'Analisi parziale -- verificare manualmente.'};
+}
+
+async function analyzePdfLocal(file, apiKey) {
+  if (!apiKey) return {error: 'API Key mancante. Inserisci la tua Anthropic API Key.'};
+  var tipo = classifyFile(file.name);
+  var prompt = PROMPTS_QE[tipo];
+  if (!prompt) {
+    prompt = "Sei un Responsabile Tecnico Senior Q&E BNL con 20+ anni di esperienza. "+
+      "Analizza questo documento per una commessa BNL. "+
+      "PRIMA identifica il tipo di documento (relazione tecnica, computo metrico, "+
+      "quadro economico, elaborato grafico, strutturale, impiantistico, PSC, PI...). "+
+      "POI applica i check specifici LG BNL: riferimento immobile, timbro/firma, "+
+      "data, revisione, conformita LG BNL per disciplina, completezza allegati. "+
+      "Indica nella sintesi il tipo identificato. USA SOLO ASCII nelle stringhe JSON.";
+  }
+  if (isDescrittivo(tipo)) {
+    prompt += "\n\nNOTA: documento DESCRITTIVO/ECONOMICO. NON verificare scala grafica, nord, cartiglio, legende. Concentrati sulla qualita tecnica dei contenuti.";
+  }
+  var b64 = await fileToBase64(file);
+  var result = await callAnthropic(apiKey, {
+    model: 'claude-opus-4-5',
+    max_tokens: 3000,
+    messages: [{role:'user', content:[
+      {type:'document', source:{type:'base64', media_type:'application/pdf', data:b64}},
+      {type:'text', text: prompt}
+    ]}]
+  });
+  var data = result[0], err = result[1];
+  if (err) return {error: err};
+  var block = (data.content||[]).find(function(b){return b.type==='text';});
+  var raw = block ? block.text : '{}';
+  var analysis = parseClaudeJson(raw);
+  var checks = analysis.checks || [];
+  var sintesi = analysis.sintesi || '';
+  var semaforo = analysis.semaforo || 'GIALLO';
+  var checksOut = checks.map(function(c) {
+    var esito = c.esito || 'NA';
+    var stMap = {VERDE:'ok', ROSSO:'ko', GIALLO:'warn', NA:'na'};
+    var st = stMap[esito] || 'na';
+    return {cat:'QE', id: c.id||'', lbl: c.label||c.id||'', ref:'LG BNL + All.13', crit: st==='ko', st: st, det: c.note||'', sug: c.raccomandazione||''};
+  });
+  var okN = checksOut.filter(function(c){return c.st==='ok';}).length;
+  var koN = checksOut.filter(function(c){return c.st==='ko';}).length;
+  var wN = checksOut.filter(function(c){return c.st==='warn';}).length;
+  var naN = checksOut.filter(function(c){return c.st==='na';}).length;
+  var totN = okN+koN+wN;
+  var sc = totN>0 ? Math.round(okN/totN*100) : 0;
+  return {file:file.name, fmt:'pdf', tipo:tipo, sc:sc, ok:okN, ko:koN, warn:wN, ck:koN, tot:totN, na:naN, pages:1, sintesi:sintesi, semaforo:semaforo, checks:checksOut};
+}
+
+async function analyzePackageLocal(fileList, apiKey, fase) {
+  var results = [];
+  var foundTypes = new Set();
+  var TIPI_ATTESI = new Set(DOCUMENTI_ATTESI_PE.map(function(d){return d[1];}));
+  var BASI_ATTESE = new Set(DOCUMENTI_ATTESI_PE.map(function(d){return d[1].split('-')[0];}));
+
+  var fdList = Array.from(fileList).map(function(f){return {file:f, tipo:classifyFile(f.name)};});
+  fdList.forEach(function(fd){ if (fd.tipo!=='UNKNOWN') foundTypes.add(fd.tipo); });
+
+  var missing = [];
+  DOCUMENTI_ATTESI_PE.forEach(function(d) {
+    var disc=d[0], tipoId=d[1], nome=d[2], obblig=d[3];
+    var base = tipoId.split('-')[0];
+    var trovato = foundTypes.has(tipoId) || Array.from(foundTypes).some(function(t){return t===base || t.indexOf(base+'-')===0;});
+    if (!trovato) missing.push({tipo:tipoId, disciplina:disc, nome:nome, obbligatorio:obblig, semaforo: obblig?'ROSSO':'GIALLO'});
+  });
+
+  for (var idx=0; idx<fdList.length; idx++) {
+    var fd = fdList[idx];
+    var file = fd.file, tipo = fd.tipo;
+    var ext = file.name.indexOf('.')!==-1 ? file.name.split('.').pop().toLowerCase() : '';
+    var inatteso = !TIPI_ATTESI.has(tipo) && !BASI_ATTESE.has(tipo.split('-')[0]);
+
+    if (ext === 'dxf') {
+      try {
+        var text = await readFileAsText(file);
+        var r = analyzeDxfLocal(text, file.name);
+        var sem = r.ck>0 ? 'ROSSO' : (r.sc>=70 ? 'VERDE' : 'GIALLO');
+        results.push({filename:file.name, tipo:tipo, formato:'DXF', semaforo:sem, checks:r.checks||[],
+          sintesi:'DXF: '+r.sc+'% conformita -- '+r.ok+' OK, '+r.ko+' KO', inatteso:inatteso});
+      } catch(e) {
+        results.push({filename:file.name, tipo:tipo, formato:'DXF', semaforo:'ERRORE', checks:[], sintesi:'Errore DXF: '+e.message, inatteso:false});
+      }
+      continue;
+    }
+
+    if (ext === 'pdf') {
+      if (!apiKey) {
+        results.push({filename:file.name, tipo:tipo, formato:'PDF', semaforo:'NA', checks:[], sintesi:'API Key mancante', inatteso:false});
+        continue;
+      }
+      try {
+        var rp = await analyzePdfLocal(file, apiKey);
+        if (rp.error) {
+          results.push({filename:file.name, tipo:tipo, formato:'PDF', semaforo:'ERRORE', checks:[], sintesi:rp.error, inatteso:inatteso});
+        } else {
+          rp.inatteso = inatteso;
+          results.push(rp);
+        }
+      } catch(e) {
+        results.push({filename:file.name, tipo:tipo, formato:'PDF', semaforo:'ERRORE', checks:[], sintesi:'Errore: '+e.message, inatteso:false});
+      }
+      continue;
+    }
+
+    var fnL = file.name.toLowerCase();
+    var hasRev = /[_-]r\d{2}[_\-.]|rev\d|_r0\d/.test(fnL);
+    var hasData = /\d{8}/.test(fnL);
+    var hasCod = /mp\d{2}|e-[a-z]{2}|\d{6}/.test(fnL);
+    var extMap = {dwg:'DWG', docx:'Word', doc:'Word', xlsx:'Excel', xls:'Excel'};
+    var extL = extMap[ext] || ext.toUpperCase();
+    var chks = [
+      {cat:'FMT', id:'F1', lbl:'Revisione nel nome file', ref:'Standard BNL', crit:false, st: hasRev?'ok':'warn', det: hasRev?'Rev. presente':'Aggiungere revisione nel nome (es. _R00)', sug:''},
+      {cat:'FMT', id:'F2', lbl:'Data nel nome file (AAAAMMGG)', ref:'Standard BNL', crit:false, st: hasData?'ok':'warn', det: hasData?'Data presente':'Aggiungere data AAAAMMGG nel nome', sug:''},
+      {cat:'FMT', id:'F3', lbl:'Codice commessa nel nome', ref:'Standard BNL', crit:false, st: hasCod?'ok':'warn', det: hasCod?'Codice presente':'Aggiungere codice MP o Archibus nel nome', sug:''},
+    ];
+    var sem2 = chks.every(function(c){return c.st==='ok';}) ? 'VERDE' : 'GIALLO';
+    results.push({filename:file.name, tipo:tipo, formato:extL, semaforo:sem2, checks:chks,
+      sintesi:'File '+extL+': verifica formale nome file. Per analisi contenuto caricare il PDF.', inatteso:inatteso});
+  }
+
+  var cross = [];
+  function fdoc(tid) { return results.find(function(r){return r.tipo===tid && r.semaforo!=='ERRORE' && r.semaforo!=='NA';}); }
+  function xcheck(label, detail, esito, rec) { cross.push({check:label, dettaglio:detail, esito:esito, raccomandazione:rec||''}); }
+
+  var qe=fdoc('GE-QE'), cme=fdoc('GE-CME'), psc=fdoc('GE-PSC'), crp=fdoc('GE-CRP'),
+      cse=fdoc('GE-CSE'), ar=fdoc('AR'), sdf=fdoc('AR-SDF'), im=fdoc('IM'), ie=fdoc('IE'), ste=fdoc('GE-STE');
+
+  if (cme && qe) {
+    xcheck('CME e QE presenti -- verificare coerenza importi', 'Totale CME (prezzi DEI -25%) deve coincidere con base d asta nel QE', 'WARN', 'Confrontare manualmente: totale CME = base d asta QE');
+  } else if (cme && !qe) {
+    xcheck('QE mancante', 'Il CME e presente ma manca il Quadro Economico', 'KO', 'Il QE e obbligatorio -- aggiungerlo al pacchetto');
+  } else if (qe && !cme) {
+    xcheck('CME mancante', 'Il QE e presente ma manca il Computo Metrico Estimativo', 'KO', 'Il CME e obbligatorio -- aggiungerlo al pacchetto');
+  }
+
+  if (psc && !crp) {
+    xcheck('Cronoprogramma mancante', 'Il PSC e presente ma manca il Cronoprogramma lavori', 'KO', 'Il Cronoprogramma e allegato obbligatorio del PSC (All.XV D.Lgs 81/08)');
+  } else if (psc && crp) {
+    xcheck('PSC e Cronoprogramma presenti', 'Verificare che le fasi del Cronoprogramma siano coerenti con le fasi PSC', 'OK');
+  }
+
+  if (psc && !cse) {
+    xcheck('Computo oneri sicurezza mancante', 'Il PSC e presente ma manca il CME Oneri della Sicurezza', 'KO', 'Il CSE e obbligatorio e separato dal CME (D.Lgs 81/08 art.100)');
+  } else if (psc && cse) {
+    xcheck('PSC e CSE presenti', 'Verificare coerenza importi oneri tra PSC e CSE', 'OK');
+  }
+
+  if (ar && !sdf) {
+    xcheck('Stato di fatto mancante', 'Presenti elaborati AR di progetto ma manca lo Stato di Fatto', 'KO', 'Lo SDF e necessario per verificare le modifiche rispetto all esistente');
+  } else if (ar && sdf) {
+    xcheck('AR e SDF presenti', 'Verificare che le aree di intervento coincidano tra progetto e SDF', 'OK');
+  }
+
+  if ((im||ie) && !ste) {
+    xcheck('Specifica tecnica mancante per impianti', 'Presenti elaborati impiantistici (IM/IE) ma manca la Specifica Tecnica', 'WARN', 'La STE definisce marche/modelli obbligatori BNL (Daikin AQ12848, Gewiss AQ...)');
+  }
+
+  var nOb = DOCUMENTI_ATTESI_PE.filter(function(d){return d[3];}).length;
+  var nTr = DOCUMENTI_ATTESI_PE.filter(function(d){return d[3] && results.some(function(r){return r.tipo===d[1];});}).length;
+  var pct = nOb ? Math.round(nTr/nOb*100) : 0;
+  xcheck('Completezza: '+pct+'% documenti obbligatori presenti ('+nTr+'/'+nOb+')',
+    (nOb-nTr)+' documenti obbligatori mancanti nel pacchetto',
+    pct>=100?'OK':(pct>=70?'WARN':'KO'),
+    pct>=100?'':'Aggiungere i documenti mancanti prima di emettere il Q&E');
+
+  return {documenti_analizzati: results, documenti_mancanti: missing, cross_checks: cross};
+}
+
+
+function onApiKey(val) {
+  var el = document.getElementById('apikey-status');
+  if (val && val.startsWith('sk-ant-') && val.length > 20) {
+    el.textContent = '? OK'; el.style.color = '#3dd46a';
+    try { localStorage.setItem('bnl_ak', val); } catch(e) {}
+  } else if (val.length > 0) {
+    el.textContent = 'Formato errato'; el.style.color = '#d4bc3a';
+  } else {
+    el.textContent = '--'; el.style.color = '#505878';
+  }
+}
+
+function getApiKey() {
+  var inp = document.getElementById('apikey-input');
+  return (inp && inp.value.trim()) || _SAVED_KEY || '';
+}
+
+// - TAB NAVIGATION -
+function setTab(name, btn) {
+  // Bottoni
+  document.querySelectorAll('.tab').forEach(function(t) {
+    t.className = 'tab off';
+  });
+  btn.className = 'tab on';
+  // Sezioni
+  ['dxf','pdf','pkg'].forEach(function(n) {
+    var el = document.getElementById('sec-' + n);
+    if (el) el.className = 'tab-section' + (n === name ? ' active' : '');
+  });
+}
+
+// - DXF -
+async function goDxf(e) {
+  e.preventDefault();
+  var fi = document.getElementById('dxf-input');
+  if (!fi.files || !fi.files[0]) { alert('Seleziona un file DXF'); return; }
+  showLoad('Analisi DXF in corso...', 'Lettura entita AutoCAD');
+  try {
+    var text = await readFileAsText(fi.files[0]);
+    var d = analyzeDxfLocal(text, fi.files[0].name);
+    hideLoad();
+    window._LAST = d; renderDxfPdf(d);
+  } catch(e) {
+    hideLoad(); showErr(e.message);
+  }
+}
+
+// - PDF -
+async function goPdf(e) {
+  e.preventDefault();
+  var fi  = document.getElementById('pdf-input');
+  var ak  = getApiKey();
+  if (!fi.files || !fi.files[0]) { alert('Seleziona un file PDF'); return; }
+  if (!ak) { alert('Inserisci la tua API Key Anthropic nel campo sotto.'); return; }
+  showLoad('Analisi PDF in corso...', 'Invio API Anthropic -- puo richiedere 30-60 secondi');
+  try {
+    var d = await analyzePdfLocal(fi.files[0], ak);
+    hideLoad();
+    if (d.error) { showErr(d.error); return; }
+    window._LAST = d; renderDxfPdf(d);
+  } catch(e) {
+    hideLoad(); showErr(e.message);
+  }
+}
+
+// - COMMESSA -
+var _PKG_FILES = null;
+
+function setPkgMode(mode) {
+  var btnF = document.getElementById('btn-mode-files');
+  var btnD = document.getElementById('btn-mode-folder');
+  var inpF = document.getElementById('pkg-input');
+  var inpD = document.getElementById('pkg-input-dir');
+  if (mode === 'folder') {
+    btnD.style.background = '#cc2229'; btnD.style.color = '#fff'; btnD.style.borderColor = '#cc2229';
+    btnF.style.background = 'transparent'; btnF.style.color = '#505878'; btnF.style.borderColor = '#1e2340';
+    inpF.style.display = 'none';
+    inpD.style.display = 'block';
+  } else {
+    btnF.style.background = '#cc2229'; btnF.style.color = '#fff'; btnF.style.borderColor = '#cc2229';
+    btnD.style.background = 'transparent'; btnD.style.color = '#505878'; btnD.style.borderColor = '#1e2340';
+    inpF.style.display = 'block';
+    inpD.style.display = 'none';
+  }
+}
+
+function onPkgFiles(input) {
+  _PKG_FILES = input.files;
+  if (!_PKG_FILES || !_PKG_FILES.length) return;
+  var html = '';
+  for (var i = 0; i < _PKG_FILES.length; i++) {
+    var f = _PKG_FILES[i];
+    html += '<div style="display:flex;justify-content:space-between;border-bottom:.5px solid #1e2340;padding:1px 0">';
+    var fname = f.webkitRelativePath || f.name;
+    html += '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px" title="' + fname + '">' + fname + '</span>';
+    html += '<span style="color:#505878;flex-shrink:0;margin-left:8px">' + (f.size/1024).toFixed(0) + 'KB</span></div>';
+  }
+  document.getElementById('pkg-name').textContent = _PKG_FILES.length + ' file selezionati';
+  document.getElementById('pkg-list').innerHTML  = html;
+  document.getElementById('pkg-list').style.display = 'block';
+  document.getElementById('btn-pkg').disabled = false;
+}
+
+async function goPkg() {
+  if (!_PKG_FILES || !_PKG_FILES.length) return;
+  var ak   = getApiKey();
+  var fase = document.getElementById('pkg-fase').value;
+  if (!ak) { alert('Inserisci la tua API Key Anthropic nel campo sotto.'); return; }
+  document.getElementById('btn-pkg').disabled   = true;
+  document.getElementById('btn-pkg').textContent = 'Analisi...';
+  showLoad('Analisi pacchetto commessa...', _PKG_FILES.length + ' file -- ' + fase);
+  try {
+    var d = await analyzePackageLocal(_PKG_FILES, ak, fase);
+    hideLoad();
+    if (d.error) { showErr(d.error); return; }
+    window._LAST_PKG = d; renderPkg(d, fase);
+  } catch(e) {
+    hideLoad(); showErr(e.message);
+  } finally {
+    document.getElementById('btn-pkg').disabled   = false;
+    document.getElementById('btn-pkg').textContent = 'Rianalizza';
+  }
+}
+
+// - UTILITA RENDERING -
+function showLoad(t, s) {
+  document.getElementById('ph').style.display  = 'none';
+  document.getElementById('res').innerHTML     = '';
+  document.getElementById('ld').className      = 'loading on';
+  document.getElementById('ld-t').textContent  = t;
+  document.getElementById('ld-s').textContent  = s || '';
+}
+function hideLoad() {
+  document.getElementById('ld').className = 'loading';
+}
+function showErr(msg) {
+  document.getElementById('res').innerHTML =
+    '<div style="padding:14px;background:rgba(212,64,74,.07);border:1px solid rgba(212,64,74,.25);border-radius:4px;color:#d4404a;font-size:12px;line-height:1.7">' + msg + '</div>';
+}
+function semColor(s) {
+  return s==='VERDE'?'#3dd46a':s==='ROSSO'?'#d4404a':s==='GIALLO'?'#d4bc3a':'#505878';
+}
+function semBg(s) {
+  return s==='VERDE'?'rgba(61,212,106,.08)':s==='ROSSO'?'rgba(212,64,74,.08)':s==='GIALLO'?'rgba(212,188,58,.08)':'rgba(74,85,128,.06)';
+}
+function semLabel(s) {
+  return s==='VERDE'?'? VERDE':s==='ROSSO'?'? ROSSO':s==='GIALLO'?'? GIALLO':s==='ERRORE'?'? ERRORE':'? N/D';
+}
+
+// - RENDER DXF/PDF -
+function renderDxfPdf(r) {
+  var sc  = r.sc || 0;
+  var col = r.ck > 0 ? '#d4404a' : sc >= 90 ? '#3dd46a' : sc >= 70 ? '#d4bc3a' : '#d4404a';
+  var vcl = r.ck > 0 ? 'vko' : sc >= 90 ? 'vok' : sc >= 70 ? 'vwarn' : 'vko';
+  var vc  = r.ck > 0 ? 'BLOCCATO -- ' + r.ck + ' critici' : sc >= 90 ? 'APPROVATO' : sc >= 70 ? 'CON RISERVE' : 'NON CONFORME';
+  var naC = (r.checks || []).filter(function(c){return c.st==='na';}).length;
+  var fl  = r.fmt === 'pdf' ? '[PDF]' : '[DXF]';
+  var tl  = r.tipo && r.tipo !== 'UNKNOWN' ? ' -- ' + r.tipo : '';
+
+  var H = '<div class="score-row">';
+  H += '<div class="scard"><div class="scard-n" style="color:'+col+'">'+sc+'%</div><div class="scard-l">conformita</div></div>';
+  H += '<div class="scard"><div class="scard-n" style="color:#d4404a">'+r.ko+'</div><div class="scard-l">KO</div></div>';
+  H += '<div class="scard"><div class="scard-n" style="color:#d4bc3a">'+(r.warn||0)+'</div><div class="scard-l">attenzione</div></div>';
+  H += '</div>';
+  H += '<div class="vbar '+vcl+'">'+vc+' -- '+r.file+' '+fl+tl+'</div>';
+
+  if (r.sintesi) {
+    H += '<div style="padding:8px 12px;margin-bottom:8px;background:rgba(74,85,128,.08);border-left:3px solid #505878;border-radius:0 4px 4px 0;font-size:11px;color:#c8cce0;line-height:1.6"><b style="color:#eef0fa">Sintesi Q&E:</b> ' + r.sintesi + '</div>';
+  }
+  if (naC) H += '<div class="banner">'+naC+' check N/A -- non verificabili su PDF.</div>';
+  H += '<div class="banner">'+r.tot+' check: '+r.ok+' OK ? '+r.ko+' KO ? '+(r.warn||0)+' attenzione ? '+naC+' N/A'+(r.ck>0?' -- <b style="color:#d4404a">'+r.ck+' critici bloccano emissione</b>':'')+' </div>';
+
+  var grouped = {};
+  (r.checks || []).forEach(function(c) {
+    var cat = c.cat || 'QE';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(c);
+  });
+  var CAT_LABELS = {
+    'QE': 'Verifiche Q&E BNL (LG BNL + All.13)',
+    'CARTIGLIO': 'Cartiglio & Identificazione',
+    'LAYER': 'Layer & Struttura CAD',
+    'QUOTATURA': 'Quotatura',
+    'GRAFICA': 'Completezza Grafica',
+    'BNL_SPEC': 'Check Specifici BNL',
+    'FMT': 'Verifica Formale Nome File',
+    'CHECKLIST_BNL': 'Verifiche Checklist BNL All.13 + LG BNL',
+  };
+  Object.keys(grouped).forEach(function(cat) {
+    var items = grouped[cat];
+    var ok2 = items.filter(function(c){return c.st==='ok';}).length;
+    var ko2 = items.filter(function(c){return c.st==='ko';}).length;
+    var w2  = items.filter(function(c){return c.st==='warn';}).length;
+    var na2 = items.filter(function(c){return c.st==='na';}).length;
+    H += '<div class="cat-block"><div class="cat-hdr">';
+    H += '<span class="cat-name" style="color:#cc2229">'+(CAT_LABELS[cat]||cat)+'</span>';
+    if(ok2) H += '<span class="pill p-ok">'+ok2+' ok</span>';
+    if(ko2) H += '<span class="pill p-ko">'+ko2+' ko</span>';
+    if(w2)  H += '<span class="pill p-w">'+w2+' !</span>';
+    if(na2) H += '<span class="pill p-na">'+na2+' n/a</span>';
+    H += '</div>';
+    items.forEach(function(c) {
+      var bm = {ok:'b-ok',ko:'b-ko',warn:'b-w',na:'b-na'};
+      var lm = {ok:'OK',ko:'KO',warn:'!',na:'N/A'};
+      var label = c.lbl || c.label || c.id || '';
+      var det   = c.det || c.note || '';
+      var sug   = c.sug || c.raccomandazione || '';
+      H += '<div class="cc">';
+      H += '<div style="flex-shrink:0;min-width:34px"><span class="badge '+(bm[c.st]||'b-na')+'">'+(lm[c.st]||'N/A')+'</span>'+(c.crit&&c.st!=='na'?'<span class="ctag">crit</span>':'')+' </div>';
+      H += '<div class="cc-b"><div class="cc-lbl">'+label+'</div>';
+      if(det) H += '<div class="cc-det" title="'+det+'">'+det+'</div>';
+      if(sug && c.st!=='ok' && c.st!=='na') H += '<div class="cc-sug">&#8594; '+sug+'</div>';
+      if(c.ref) H += '<div class="cc-ref">'+c.ref+'</div>';
+      H += '</div></div>';
+    });
+    H += '</div>';
+  });
+  H += '<button class="rep-btn" onclick="genReportFile()">&#128441; Genera Report HTML</button>';
+  document.getElementById('res').innerHTML = H;
+}
+
+// - RENDER PACCHETTO -
+function renderPkg(data, fase) {
+  var docs = data.documenti_analizzati || [];
+  var miss = data.documenti_mancanti   || [];
+  var nR = docs.filter(function(d){return d.semaforo==='ROSSO';}).length
+         + miss.filter(function(m){return m.semaforo==='ROSSO';}).length;
+  var nY = docs.filter(function(d){return d.semaforo==='GIALLO';}).length
+         + miss.filter(function(m){return m.semaforo==='GIALLO';}).length;
+  var nG = docs.filter(function(d){return d.semaforo==='VERDE';}).length;
+  var glob = nR > 0 ? 'ROSSO' : nY > 0 ? 'GIALLO' : 'VERDE';
+  var fasiL = {PE:'Progetto Esecutivo',PP:'Progetto Definitivo',SDF:'Studio di Fattibilita'};
+  var discN = {GE:'Documenti Generali',AR:'Architettonico',STR:'Strutture',
+               IM:'Impianti Meccanici',IE:'Impianti Elettrici',IS:'Impianti Speciali',
+               PI:'Prevenzione Incendi',UNKNOWN:'Altro'};
+  var discC = {GE:'#c27a00',AR:'#0077aa',STR:'#7a5c00',IM:'#006b5a',
+               IE:'#5c0070',IS:'#004466',PI:'#cc2229',UNKNOWN:'#505878'};
+
+  var H = '<div class="score-row">';
+  H += '<div class="scard"><div class="scard-n" style="color:#3dd46a">'+nG+'</div><div class="scard-l">Verdi</div></div>';
+  H += '<div class="scard"><div class="scard-n" style="color:#d4bc3a">'+nY+'</div><div class="scard-l">Gialli</div></div>';
+  H += '<div class="scard"><div class="scard-n" style="color:#d4404a">'+nR+'</div><div class="scard-l">Rossi</div></div>';
+  H += '</div>';
+  H += '<div class="vbar v'+glob.toLowerCase().replace('rosso','ko').replace('giallo','warn').replace('verde','ok')+'" style="color:'+semColor(glob)+';background:'+semBg(glob)+'">';
+  H += semLabel(glob)+' -- '+(fasiL[fase]||fase)+' -- '+docs.length+' analizzati'+(miss.length?' -- '+miss.length+' mancanti':'')+' </div>';
+
+  // Documenti mancanti
+  if (miss.length > 0) {
+    H += '<div style="margin-bottom:14px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#d4404a;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #1e2340">&#9888; Documenti Mancanti</div>';
+    miss.forEach(function(m) {
+      H += '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:.5px solid rgba(30,35,64,.5)">';
+      H += '<span style="font-size:10px;font-weight:700;color:'+semColor(m.semaforo)+';">'+semLabel(m.semaforo)+'</span>';
+      H += '<div><div style="font-size:12px;color:#eef0fa">'+m.nome+'</div>';
+      H += '<div style="font-size:10px;color:#505878;font-family:monospace">'+m.disciplina+(m.obbligatorio?' -- OBBLIGATORIO':' -- consigliato')+'</div></div></div>';
+    });
+    H += '</div>';
+  }
+
+  // Documenti analizzati per disciplina
+  var byD = {};
+  docs.forEach(function(d) {
+    var disc = (d.tipo || 'UNKNOWN').split('-')[0];
+    if (!byD[disc]) byD[disc] = [];
+    byD[disc].push(d);
+  });
+  Object.keys(byD).forEach(function(disc) {
+    H += '<div style="margin-bottom:14px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:'+(discC[disc]||'#888')+';margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #1e2340">'+(discN[disc]||disc)+'</div>';
+    byD[disc].forEach(function(doc) {
+      H += '<div style="background:#0d0f1a;border:1px solid #1e2340;border-radius:4px;padding:10px;margin-bottom:6px">';
+      H += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">';
+      H += '<div style="font-size:12px;color:#eef0fa;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:75%">'+doc.filename+'</div>';
+      H += '<span style="font-size:11px;font-weight:700;color:'+semColor(doc.semaforo)+';flex-shrink:0">'+semLabel(doc.semaforo)+'</span></div>';
+      if (doc.sintesi) H += '<div style="font-size:11px;color:#c8cce0;margin-bottom:8px;line-height:1.5;border-left:2px solid '+semColor(doc.semaforo)+';padding-left:8px">'+doc.sintesi+'</div>';
+      if (doc.checks && doc.checks.length > 0) {
+        H += '<div>';
+        doc.checks.forEach(function(c) {
+          var bm = {ok:'b-ok',ko:'b-ko',warn:'b-w',na:'b-na'};
+          var lm = {ok:'OK',ko:'KO',warn:'!',na:'N/A'};
+          var esito = c.esito || (c.st==='ok'?'VERDE':c.st==='ko'?'ROSSO':c.st==='warn'?'GIALLO':'NA');
+          H += '<div style="display:flex;gap:6px;align-items:flex-start;padding:3px 0;border-bottom:.5px solid rgba(30,35,64,.4)">';
+          H += '<span class="badge '+(bm[c.st]||'b-na')+'" style="flex-shrink:0">'+(lm[c.st]||'N/A')+'</span>';
+          H += '<div style="flex:1"><div style="font-size:11px;color:#eef0fa">'+(c.lbl||c.label||c.id||'')+'</div>';
+          if(c.det||c.note) H += '<div style="font-size:10px;color:#505878">'+(c.det||c.note||'')+'</div>';
+          if((c.sug||c.raccomandazione)&&c.st!=='ok') H += '<div style="font-size:10px;color:#d4bc3a">? '+(c.sug||c.raccomandazione||'')+'</div>';
+          H += '</div></div>';
+        });
+        H += '</div>';
+      }
+      H += '</div>';
+    });
+    H += '</div>';
+  });
+
+  // Check trasversali
+  if (data.cross_checks && data.cross_checks.length > 0) {
+    H += '<div style="margin-bottom:14px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#cc2229;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #1e2340">&#9851; Verifiche Trasversali Commessa</div>';
+    data.cross_checks.forEach(function(c) {
+      var col = c.esito==='OK'?'#3dd46a':c.esito==='WARN'?'#d4bc3a':'#d4404a';
+      var ico = c.esito==='OK'?'&#10003;':c.esito==='WARN'?'&#9888;':'&#10007;';
+      H += '<div style="display:flex;gap:8px;padding:5px 0;border-bottom:.5px solid rgba(30,35,64,.5)">';
+      H += '<span style="font-size:14px;color:'+col+';flex-shrink:0">'+ico+'</span>';
+      H += '<div style="flex:1"><div style="font-size:12px;color:#eef0fa;font-weight:500">'+c.check+'</div>';
+      H += '<div style="font-size:10px;color:#505878">'+c.dettaglio+'</div>';
+      if(c.raccomandazione) H += '<div style="font-size:10px;color:#d4bc3a;margin-top:1px">&#8594; '+c.raccomandazione+'</div>';
+      H += '</div></div>';
+    });
+    H += '</div>';
+  }
+
+  H += '<button class="rep-btn" onclick="genReportPkg()">&#128441; Genera Report Commessa</button>';
+  document.getElementById('res').innerHTML = H;
+}
+
+// - GENERA REPORT FILE SINGOLO -
+function genReportFile() {
+  var r = window._LAST; if (!r) return;
+  var sc = r.sc, vcl = r.ck>0?'#b71c1c':sc>=90?'#1a7a3a':sc>=70?'#8a6000':'#b71c1c';
+  var vc = r.ck>0?'BLOCCATO '+r.ck+' CRITICI':sc>=90?'APPROVATO':sc>=70?'CON RISERVE':'NON CONFORME';
+  var oggi = new Date().toLocaleDateString('it-IT');
+  var cod=document.getElementById('mCod').value||'--';
+  var ag=document.getElementById('mAg').value||'--';
+  var fase=document.getElementById('mFase').value||'--';
+  var ver=document.getElementById('mVer').value||'--';
+
+  var css='body{font-family:Arial,sans-serif;font-size:10pt;color:#1a1a1a;margin:0}@page{size:A4;margin:18mm}@media print{.nb{display:none}}.hdr{background:#cc2229;color:#fff;padding:12px 18px;display:flex;align-items:center;gap:10px}.hl{font-weight:700;font-size:16pt}.meta{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:12px 18px;background:#f5f5f5;border-bottom:2px solid #ddd}.mr{font-size:8.5pt}.ml{color:#666;font-size:7.5pt}.mv{font-weight:600}.vd{margin:12px 18px;padding:8px 12px;font-weight:700;font-size:11pt;background:'+vcl+'18;color:'+vcl+';border-left:4px solid '+vcl+'}.sg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:0 18px 12px}.sc{border:1px solid #ddd;padding:6px;text-align:center}.sn{font-size:17pt;font-weight:700}.sl{font-size:7.5pt;color:#666;text-transform:uppercase}.sec2{margin:0 18px 8px}.st2{font-size:8.5pt;font-weight:700;text-transform:uppercase;color:#444;border-bottom:1.5px solid #ddd;padding-bottom:3px;margin-bottom:5px}.row{display:flex;align-items:flex-start;gap:7px;padding:3px 0;border-bottom:.5px solid #eee;font-size:8.5pt}.row:last-child{border-bottom:none}.b{font-size:7.5pt;font-weight:700;padding:1px 5px;flex-shrink:0;min-width:26px;text-align:center}.ok{background:#e6f9ed;color:#1a7a3a}.ko{background:#fde8e8;color:#b71c1c}.warn{background:#fff8e1;color:#8a6000}.na{background:#f0f0f0;color:#888}.ct{font-size:6.5pt;color:#cc2229;display:block}.rb{flex:1}.rl{font-weight:500}.rd{font-size:7.5pt;color:#666}.rs{font-size:7.5pt;color:#8a6000;border-left:2px solid #d4bc3a;padding-left:4px;margin-top:1px}.rr{font-size:6.5pt;color:#aaa}.ft{margin:12px 18px 0;padding-top:8px;border-top:1px solid #ddd;font-size:7.5pt;color:#888;display:flex;justify-content:space-between}.pb{position:fixed;top:10px;right:10px;padding:7px 16px;background:#cc2229;color:#fff;border:none;cursor:pointer;font-size:9.5pt;font-weight:600;border-radius:3px}';
+
+  var rep = '<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>Report QC BNL</title><style>'+css+'</style></head><body>';
+  rep += '<button class="nb pb" onclick="window.print()">Stampa / PDF</button>';
+  rep += '<div class="hdr"><div class="hl">BNL</div><div><b>Report Verifica Pre-Emissione</b><div style="font-size:8.5pt;opacity:.85">LG BNL rev.2025</div></div></div>';
+  rep += '<div class="meta"><div class="mr"><div class="ml">Codice MP</div><div class="mv">'+cod+'</div></div><div class="mr"><div class="ml">Agenzia</div><div class="mv">'+ag+'</div></div><div class="mr"><div class="ml">Fase</div><div class="mv">'+fase+'</div></div><div class="mr"><div class="ml">File</div><div class="mv">'+r.file+'</div></div><div class="mr"><div class="ml">Verificatore</div><div class="mv">'+ver+'</div></div><div class="mr"><div class="ml">Data</div><div class="mv">'+oggi+'</div></div></div>';
+  rep += '<div class="vd">'+vc+'</div>';
+  rep += '<div class="sg"><div class="sc"><div class="sn" style="color:'+vcl+'">'+sc+'%</div><div class="sl">conform.</div></div><div class="sc"><div class="sn" style="color:#1a7a3a">'+r.ok+'</div><div class="sl">OK</div></div><div class="sc"><div class="sn" style="color:#b71c1c">'+r.ko+'</div><div class="sl">KO</div></div></div>';
+  if (r.sintesi) rep += '<div style="margin:0 18px 10px;padding:8px 12px;background:#f8f8f8;border-left:3px solid #888;font-size:9pt;color:#444;line-height:1.6"><b>Sintesi Q&E:</b> '+r.sintesi+'</div>';
+  var gr = {};
+  (r.checks||[]).forEach(function(c){var cat=c.cat||'QE';if(!gr[cat])gr[cat]=[];gr[cat].push(c);});
+  Object.keys(gr).forEach(function(cat){
+    rep += '<div class="sec2"><div class="st2">'+cat+'</div>';
+    gr[cat].forEach(function(c){
+      var sl={ok:'OK',ko:'KO',warn:'!',na:'N/A'}[c.st]||'N/A';
+      rep += '<div class="row"><div><span class="b '+c.st+'">'+sl+'</span>'+(c.crit&&c.st!=='na'?'<span class="ct">crit</span>':'')+' </div>';
+      rep += '<div class="rb"><div class="rl">'+(c.lbl||c.label||c.id||'')+'</div><div class="rd">'+(c.det||c.note||'')+'</div>';
+      if((c.sug||c.raccomandazione)&&c.st!=='ok'&&c.st!=='na') rep += '<div class="rs">'+(c.sug||c.raccomandazione||'')+'</div>';
+      rep += '<div class="rr">'+(c.ref||'')+'</div></div></div>';
+    });
+    rep += '</div>';
+  });
+  rep += '<div class="ft"><span>eFM SpA - QC BNL</span><span>'+oggi+' - '+r.file+'</span></div></body></html>';
+
+  var b=new Blob([rep],{type:'text/html;charset=utf-8'});
+  var u=URL.createObjectURL(b);
+  var a=document.createElement('a');
+  a.href=u; a.download='Report_QC_'+r.file.replace(/[^a-zA-Z0-9]/g,'_')+'.html';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},500);
+}
+
+// - GENERA REPORT COMMESSA -
+function genReportPkg() {
+  var r = window._LAST_PKG; if (!r) return;
+  var oggi=new Date().toLocaleDateString('it-IT');
+  var cod=document.getElementById('mCod').value||'--';
+  var ag=document.getElementById('mAg').value||'--';
+  var fase=document.getElementById('pkg-fase').value;
+  var ver=document.getElementById('mVer').value||'--';
+  var docs=r.documenti_analizzati||[], miss=r.documenti_mancanti||[];
+  var nR=docs.filter(function(d){return d.semaforo==='ROSSO';}).length+miss.filter(function(m){return m.semaforo==='ROSSO';}).length;
+  var nY=docs.filter(function(d){return d.semaforo==='GIALLO';}).length+miss.filter(function(m){return m.semaforo==='GIALLO';}).length;
+  var nG=docs.filter(function(d){return d.semaforo==='VERDE';}).length;
+  var glob=nR>0?'ROSSO':nY>0?'GIALLO':'VERDE';
+  var vcl=glob==='VERDE'?'#1a7a3a':glob==='ROSSO'?'#b71c1c':'#8a6000';
+  var fasiL={PE:'Progetto Esecutivo',PP:'Progetto Definitivo',SDF:'Studio di Fattibilita'};
+  var discN={GE:'Documenti Generali',AR:'Architettonico',STR:'Strutture',IM:'Impianti Meccanici',IE:'Impianti Elettrici',IS:'Impianti Speciali',PI:'Prevenzione Incendi',UNKNOWN:'Altro'};
+
+  var css='body{font-family:Arial,sans-serif;font-size:10pt;color:#1a1a1a;margin:0}@page{size:A4;margin:18mm}@media print{.nb{display:none}}.hdr{background:#cc2229;color:#fff;padding:12px 18px;display:flex;align-items:center;gap:10px}.hl{font-weight:700;font-size:16pt}.meta{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:12px 18px;background:#f5f5f5;border-bottom:2px solid #ddd}.mr{font-size:8.5pt}.ml{color:#666;font-size:7.5pt}.mv{font-weight:600}.vd{margin:12px 18px;padding:8px 12px;font-weight:700;font-size:11pt;background:'+vcl+'18;color:'+vcl+';border-left:4px solid '+vcl+'}.sg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:0 18px 12px}.sc{border:1px solid #ddd;padding:6px;text-align:center}.sn{font-size:17pt;font-weight:700}.sl{font-size:7.5pt;color:#666;text-transform:uppercase}.sec{margin:0 18px 10px}.st{font-size:8.5pt;font-weight:700;text-transform:uppercase;color:#444;border-bottom:1.5px solid #ddd;padding-bottom:3px;margin-bottom:5px}.dc{border:1px solid #ddd;border-radius:3px;padding:8px;margin-bottom:5px}.dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}.dn{font-weight:600;font-size:9pt}.sm{font-size:8.5pt;font-weight:700}.sv{color:#1a7a3a}.sr{color:#b71c1c}.sg2{color:#8a6000}.ds{font-size:8.5pt;color:#555;line-height:1.5;border-left:3px solid #ddd;padding-left:6px;margin-bottom:5px}.cr{display:flex;gap:6px;padding:2px 0;border-bottom:.5px solid #eee;font-size:8pt}.cr:last-child{border:none}.cs{min-width:50px;flex-shrink:0;font-weight:700}.cb{flex:1}.mr2{display:flex;gap:8px;padding:3px 0;border-bottom:.5px solid #eee;font-size:8.5pt}.pb{position:fixed;top:10px;right:10px;padding:7px 16px;background:#cc2229;color:#fff;border:none;cursor:pointer;font-size:9.5pt;font-weight:600;border-radius:3px}.ft{margin:12px 18px 0;padding-top:8px;border-top:1px solid #ddd;font-size:7.5pt;color:#888;display:flex;justify-content:space-between}';
+
+  var rep='<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>Report Q&E BNL -- '+cod+'</title><style>'+css+'</style></head><body>';
+  rep+='<button class="nb pb" onclick="window.print()">Stampa / PDF</button>';
+  rep+='<div class="hdr"><div class="hl">BNL</div><div><b>Report Validazione Q&E -- '+(fasiL[fase]||fase)+'</b><div style="font-size:8.5pt;opacity:.85">Quality & Engineering eFM SpA -- LG BNL rev.2025</div></div></div>';
+  rep+='<div class="meta"><div class="mr"><div class="ml">Codice MP</div><div class="mv">'+cod+'</div></div><div class="mr"><div class="ml">Sede/Agenzia</div><div class="mv">'+ag+'</div></div><div class="mr"><div class="ml">Fase</div><div class="mv">'+(fasiL[fase]||fase)+'</div></div><div class="mr"><div class="ml">Q&E Verificatore</div><div class="mv">'+ver+'</div></div><div class="mr"><div class="ml">Data verifica</div><div class="mv">'+oggi+'</div></div><div class="mr"><div class="ml">Documenti analizzati</div><div class="mv">'+docs.length+'</div></div></div>';
+  rep+='<div class="vd">ESITO: '+glob+(nR>0?' -- '+nR+' ELEMENTI BLOCCANTI':'')+' -- '+(fasiL[fase]||fase)+'</div>';
+  rep+='<div class="sg"><div class="sc"><div class="sn" style="color:#1a7a3a">'+nG+'</div><div class="sl">Verdi</div></div><div class="sc"><div class="sn" style="color:#8a6000">'+nY+'</div><div class="sl">Gialli</div></div><div class="sc"><div class="sn" style="color:#b71c1c">'+nR+'</div><div class="sl">Rossi</div></div></div>';
+  if(miss.length>0){
+    rep+='<div class="sec"><div class="st" style="color:#b71c1c">Documenti Mancanti</div>';
+    miss.forEach(function(m){var cls=m.semaforo==='ROSSO'?'sr':'sg2';rep+='<div class="mr2"><span class="sm '+cls+'">? '+m.semaforo+'</span><span><b>'+m.nome+'</b> ('+m.disciplina+(m.obbligatorio?' -- OBBLIGATORIO':' -- consigliato')+')</span></div>';});
+    rep+='</div>';
+  }
+  var byT={};docs.forEach(function(d){var disc=d.tipo.split('-')[0];if(!byT[disc])byT[disc]=[];byT[disc].push(d);});
+  Object.keys(byT).forEach(function(disc){
+    rep+='<div class="sec"><div class="st">'+(discN[disc]||disc)+'</div>';
+    byT[disc].forEach(function(doc){
+      var cls=doc.semaforo==='VERDE'?'sv':doc.semaforo==='ROSSO'?'sr':'sg2';
+      rep+='<div class="dc"><div class="dh"><span class="dn">'+doc.filename+'</span><span class="sm '+cls+'">? '+doc.semaforo+'</span></div>';
+      if(doc.sintesi)rep+='<div class="ds">'+doc.sintesi+'</div>';
+      if(doc.checks&&doc.checks.length>0){
+        doc.checks.forEach(function(c){
+          var esito=c.esito||(c.st==='ok'?'VERDE':c.st==='ko'?'ROSSO':c.st==='warn'?'GIALLO':'NA');
+          var ccls=esito==='VERDE'?'sv':esito==='ROSSO'?'sr':esito==='GIALLO'?'sg2':'';
+          rep+='<div class="cr"><span class="cs '+ccls+'">? '+esito+'</span><div class="cb"><b>'+(c.lbl||c.label||c.id||'')+'</b>'+(c.det||c.note?'<div style="color:#666;font-size:7.5pt">'+(c.det||c.note||'')+'</div>':'')+' </div></div>';
+        });
+      }
+      rep+='</div>';
+    });
+    rep+='</div>';
+  });
+  rep+='<div class="ft"><span>eFM SpA -- Q&E BNL</span><span>'+oggi+' -- '+cod+'</span></div></body></html>';
+
+  var b=new Blob([rep],{type:'text/html;charset=utf-8'});
+  var u=URL.createObjectURL(b);
+  var a=document.createElement('a');
+  a.href=u; a.download='Report_QE_'+cod.replace(/[^a-zA-Z0-9]/g,'_')+'_'+fase+'_'+oggi.replace(/\//g,'')+'.html';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},500);
+}
+
+// - INIT -
+window.addEventListener('load', function() {
+  // Carica API key salvata
+  var k = _SAVED_KEY;
+  if (!k) { try { k = localStorage.getItem('bnl_ak') || ''; } catch(e) {} }
+  if (k && k.startsWith('sk-ant-')) {
+    document.getElementById('apikey-input').value = k;
+    document.getElementById('apikey-status').textContent = '? OK';
+    document.getElementById('apikey-status').style.color = '#3dd46a';
+  }
+});
+</script>
+</body>
+</html>
