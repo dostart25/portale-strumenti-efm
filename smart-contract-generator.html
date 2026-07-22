@@ -23808,7 +23808,7 @@ function bul(text,bold){return new docx.Paragraph({children:[tr(text,bold)],alig
 // ══ REGISTRO FORNITORI (invio a Make → Excel Online su OneDrive) ══
 // Incolla qui l'URL del webhook Make una volta configurato. Se lasciato vuoto,
 // l'invio viene semplicemente saltato (il generatore continua a funzionare offline).
-const REGISTRO_WEBHOOK_URL = "";
+const REGISTRO_WEBHOOK_URL = "https://hook.eu1.make.com/fr14womk55g5sj3adiwmx7tc4p9rz6e0";
 
 async function inviaRegistroFornitori(d) {
   if (!REGISTRO_WEBHOOK_URL) return;
