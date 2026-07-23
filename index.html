@@ -364,6 +364,8 @@
     <div class="hero-sub">Qui trovi i tuoi strumenti di supporto tecnico e commerciale. Seleziona un modulo o chiedi aiuto all'assistente qui sotto.</div>
   </div>
 
+  <div id="visit-counter" style="text-align:center;font-size:11.5px;color:var(--muted-light);margin:-10px 0 22px"></div>
+
   <p class="section-label">I tuoi strumenti</p>
   <div class="modules" id="modules-grid">
 
@@ -381,10 +383,10 @@
       <div class="module-cta">Apri strumento</div>
     </a>
 
-    <a class="module-card" id="card-report" href="#" target="_blank" rel="noopener" data-keywords="relazione relazioni report tecnico sintesi verbale documento riepilogo due diligence perizia stesura testo bozza rapporto">
+    <a class="module-card" id="card-report" href="#" target="_blank" rel="noopener" data-keywords="relazione relazioni report tecnico sintesi verbale documento riepilogo due diligence perizia stesura testo bozza rapporto deliverable elenco documenti capitolato lettera attivazione fascicolo commessa">
       <div class="module-icon ic-violet">◪</div>
-      <div class="module-title">Generatore di Relazioni</div>
-      <div class="module-desc">Compone relazioni tecniche e di sintesi da dati e appunti grezzi, coerenti agli standard eFM.</div>
+      <div class="module-title">eFM Deliverable Planner</div>
+      <div class="module-desc">Analizza capitolato e lettera di attivazione e genera l'elenco di relazioni e documenti da produrre, calibrato su tipo cliente e livello di conformità.</div>
       <div class="module-cta">Apri strumento</div>
     </a>
 
@@ -417,11 +419,27 @@
   const TOOL_URLS = {
     bnl: "bnl-analyzer.html",
     contract: "smart-contract-generator.html", // percorso relativo: funziona se caricato nella stessa cartella/repo
-    report: "#"
+    report: "deliverable-planner.html"
   };
   document.getElementById('card-bnl').href = TOOL_URLS.bnl;
   document.getElementById('card-contract').href = TOOL_URLS.contract;
   document.getElementById('card-report').href = TOOL_URLS.report;
+
+  // ══ CONTATORE VISITE (stesso Google Apps Script del registro fornitori) ══
+  // Incolla qui lo stesso URL /exec usato nello Smart Contract Generator.
+  // Se lasciato vuoto, il contatore viene semplicemente nascosto.
+  const CONTATORE_WEBHOOK_URL = "";
+  (function() {
+    if (!CONTATORE_WEBHOOK_URL) return;
+    fetch(CONTATORE_WEBHOOK_URL + '?action=count')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (d && typeof d.count === 'number') {
+          document.getElementById('visit-counter').textContent = '👥 Portale utilizzato ' + d.count + ' volte';
+        }
+      })
+      .catch(function(e){ console.warn('Contatore non disponibile:', e.message); });
+  })();
 
   const cards = {
     bnl: document.getElementById('card-bnl'),
@@ -432,7 +450,7 @@
   const toolMeta = {
     bnl: { name: "BNL Quality Control Analyzer" },
     contract: { name: "Smart Contract Generator" },
-    report: { name: "Generatore di Relazioni" }
+    report: { name: "eFM Deliverable Planner" }
   };
 
   function scoreTool(cardEl, query) {
