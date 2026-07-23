@@ -23816,8 +23816,38 @@ function p(runs,align,after,before){
 function emp(a){return new docx.Paragraph({children:[tr('')],spacing:{after:a!==undefined?a:120}});}
 function bul(text,bold){return new docx.Paragraph({children:[tr(text,bold)],alignment:docx.AlignmentType.JUSTIFIED,numbering:{reference:"myBullets",level:0},spacing:{after:60}});}
 
-// ══ REGISTRO FORNITORI: ora salvato in locale (localStorage) ed esportabile in Excel ══
-// (vedi ARCHIVIO piu sotto: persiste tra le sessioni sullo stesso browser/computer)
+// ══ REGISTRO FORNITORI CONDIVISO (Google Apps Script → Google Sheet) ══
+// Incolla qui l'URL della Web App Apps Script (termina in /exec). Se vuoto, viene solo
+// saltato l'invio condiviso: l'archivio locale e l'export Excel continuano a funzionare comunque.
+const REGISTRO_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxhuEtSgHLXOpp-D3j3if7s-BfiEbECHNH0X-Cz9dhFxu1JuarEPASWOIABrMpdFflWwQ/exec";
+
+async function inviaRegistroCondiviso(d) {
+  if (!REGISTRO_WEBHOOK_URL) return;
+  var payload = {
+    protocollo: d.prot,
+    data_contratto: d.data,
+    citta_contratto: d.citta,
+    fornitore_nome: d.nome,
+    fornitore_studio: d.studio || '',
+    fornitore_tipo: d.tipo === 'societa' ? 'Societ\u00e0' : 'Professionista',
+    fornitore_ruolo: d.ruolo,
+    fornitore_piva: d.piva,
+    fornitore_cf: d.cf,
+    fornitore_citta: d.fcit,
+    fornitore_indirizzo: d.ind,
+    oggetto_incarico: d.ogg,
+    codice_commessa: d.cod,
+    project_manager: d.pm,
+    importo: d.comp,
+    giorni_pagamento: d.gg,
+  };
+  // Content-Type text/plain evita il preflight CORS che le Web App Apps Script non gestiscono bene
+  await fetch(REGISTRO_WEBHOOK_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+    body: JSON.stringify(payload)
+  });
+}
 
 // ══ GENERA ══
 async function genera() {
@@ -23841,6 +23871,7 @@ async function genera() {
     showSt('ok','\u2713 '+fname+' scaricato!');
     archivio.push(Object.assign({},d,{_ts:new Date().toISOString()}));
     salvaArchivioLocale();
+    inviaRegistroCondiviso(d).catch(function(e){ console.warn('Registro condiviso non aggiornato:', e.message); });
   } catch(e){
     var errMsg = e.message || String(e);
     if(errMsg.includes('JSZip')) errMsg = 'Errore libreria zip. Provare a ricaricare la pagina (F5).';
