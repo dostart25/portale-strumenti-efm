@@ -23819,11 +23819,12 @@ function bul(text,bold){return new docx.Paragraph({children:[tr(text,bold)],alig
 // ══ REGISTRO FORNITORI CONDIVISO (Google Apps Script → Google Sheet) ══
 // Incolla qui l'URL della Web App Apps Script (termina in /exec). Se vuoto, viene solo
 // saltato l'invio condiviso: l'archivio locale e l'export Excel continuano a funzionare comunque.
-const REGISTRO_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxhuEtSgHLXOpp-D3j3if7s-BfiEbECHNH0X-Cz9dhFxu1JuarEPASWOIABrMpdFflWwQ/exec";
+const REGISTRO_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwwIW5lJo1ti4N9Uagu8BrLTpEG-RC25sHWNI7Lm_Y7gW6gkEzoEUo4MdJRhvanB9QZEg/exec";
 
 async function inviaRegistroCondiviso(d) {
   if (!REGISTRO_WEBHOOK_URL) return;
   var payload = {
+    action: 'log',
     protocollo: d.prot,
     data_contratto: d.data,
     citta_contratto: d.citta,
@@ -23841,12 +23842,12 @@ async function inviaRegistroCondiviso(d) {
     importo: d.comp,
     giorni_pagamento: d.gg,
   };
-  // Content-Type text/plain evita il preflight CORS che le Web App Apps Script non gestiscono bene
-  await fetch(REGISTRO_WEBHOOK_URL, {
-    method: 'POST',
-    headers: {'Content-Type': 'text/plain;charset=utf-8'},
-    body: JSON.stringify(payload)
-  });
+  // GET con parametri in query string: le Web App Apps Script convertono i redirect
+  // delle richieste POST in GET lato browser, perdendo il body. Il GET evita il problema.
+  var qs = Object.keys(payload).map(function(k){
+    return encodeURIComponent(k) + '=' + encodeURIComponent(payload[k] == null ? '' : payload[k]);
+  }).join('&');
+  await fetch(REGISTRO_WEBHOOK_URL + '?' + qs, { method: 'GET' });
 }
 
 // ══ GENERA ══
