@@ -195,14 +195,28 @@
   <!-- INPUT: documenti di riferimento -->
   <div class="card">
     <div class="card-title">📄 Documenti di riferimento (opzionale ma consigliato)</div>
-    <div class="card-sub">Incolla il testo del capitolato tecnico e/o della lettera di attivazione — più contesto dai, più la lista sarà precisa</div>
+    <div class="card-sub">Carica il PDF oppure incolla il testo — più contesto dai, più la lista sarà precisa</div>
     <div class="fld-group">
       <label class="fld-label">Capitolato tecnico / progetto</label>
-      <textarea id="f-capitolato" placeholder="Incolla qui il testo del capitolato o del progetto tecnico..."></textarea>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <label class="btn-secondary" style="cursor:pointer;margin:0">
+          📎 Carica PDF
+          <input type="file" id="f-capitolato-pdf" accept="application/pdf" style="display:none" onchange="onPdfSelected('capitolato')">
+        </label>
+        <span id="f-capitolato-filename" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+      <textarea id="f-capitolato" placeholder="...oppure incolla qui il testo del capitolato o del progetto tecnico"></textarea>
     </div>
     <div class="fld-group">
       <label class="fld-label">Lettera di attivazione</label>
-      <textarea id="f-lettera" placeholder="Incolla qui il testo della lettera di attivazione..."></textarea>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <label class="btn-secondary" style="cursor:pointer;margin:0">
+          📎 Carica PDF
+          <input type="file" id="f-lettera-pdf" accept="application/pdf" style="display:none" onchange="onPdfSelected('lettera')">
+        </label>
+        <span id="f-lettera-filename" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+      <textarea id="f-lettera" placeholder="...oppure incolla qui il testo della lettera di attivazione"></textarea>
     </div>
   </div>
 
@@ -23478,6 +23492,30 @@ const TMPL_B64 = "UEsDBBQABgAIAAAAIQCMvJU93AEAANMKAAATAAgCW0NvbnRlbnRfVHlwZXNdLn
     conformitaVal = btn.dataset.val;
   });
 
+  // ══ PDF UPLOAD (capitolato / lettera) ══
+  var capitolatoFile = null;
+  var letteraFile = null;
+
+  function onPdfSelected(field) {
+    var input = document.getElementById('f-' + field + '-pdf');
+    var file = input.files && input.files[0];
+    var label = document.getElementById('f-' + field + '-filename');
+    if (!file) return;
+    if (field === 'capitolato') capitolatoFile = file; else letteraFile = file;
+    label.textContent = '\u2713 ' + file.name;
+    var ta = document.getElementById('f-' + field);
+    ta.placeholder = 'PDF caricato: ' + file.name + ' (il testo incollato qui sotto viene ignorato se e\' presente un PDF)';
+  }
+
+  function fileToBase64(file) {
+    return new Promise(function(resolve, reject) {
+      var r = new FileReader();
+      r.onload = function(){ resolve(r.result.split(',')[1]); };
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+  }
+
   // ══ API KEY: persistenza locale ══
   var apiKeyInput = document.getElementById('f-apikey');
   try {
@@ -23504,6 +23542,7 @@ const TMPL_B64 = "UEsDBBQABgAIAAAAIQCMvJU93AEAANMKAAATAAgCW0NvbnRlbnRfVHlwZXNdLn
             'Content-Type': 'application/json',
             'x-api-key': apiKey,
             'anthropic-version': '2023-06-01',
+            'anthropic-beta': 'pdfs-2024-09-25',
             'anthropic-dangerous-direct-browser-access': 'true'
           },
           body: JSON.stringify(payload)
@@ -23533,7 +23572,7 @@ const TMPL_B64 = "UEsDBBQABgAIAAAAIQCMvJU93AEAANMKAAATAAgCW0NvbnRlbnRfVHlwZXNdLn
     return null;
   }
 
-  function buildPrompt(descrizione, capitolato, lettera, cliente, conformita) {
+  function buildPrompt(descrizione, capitolato, lettera, cliente, conformita, capitolatoAllegato, letteraAllegata) {
     var clienteTxt = cliente === 'pubblico' ? 'Ente pubblico (soggetto al D.Lgs. 36/2023, Codice dei Contratti Pubblici)' : 'Cliente privato (nessun obbligo di codice appalti pubblici)';
     var conformitaTxt = '';
     if (cliente === 'pubblico') {
@@ -23551,7 +23590,9 @@ const TMPL_B64 = "UEsDBBQABgAIAAAAIQCMvJU93AEAANMKAAATAAgCW0NvbnRlbnRfVHlwZXNdLn
       'DESCRIZIONE INCARICO fornita dall\'utente:\n' + (descrizione || '(non fornita)') + '\n\n';
 
     if (capitolato) prompt += 'TESTO CAPITOLATO TECNICO / PROGETTO (estratto fornito dall\'utente):\n' + capitolato.slice(0, 15000) + '\n\n';
+    else if (capitolatoAllegato) prompt += 'NOTA: il capitolato tecnico/progetto e\' allegato a questo messaggio come documento PDF -- leggilo e usalo come riferimento.\n\n';
     if (lettera) prompt += 'TESTO LETTERA DI ATTIVAZIONE (estratto fornito dall\'utente):\n' + lettera.slice(0, 8000) + '\n\n';
+    else if (letteraAllegata) prompt += 'NOTA: la lettera di attivazione e\' allegata a questo messaggio come documento PDF -- leggila e usala come riferimento.\n\n';
 
     prompt += 'Rispondi SOLO con un oggetto JSON valido (nessun testo prima o dopo, nessun markdown), con questa struttura esatta:\n' +
       '{\n' +
@@ -23580,12 +23621,38 @@ const TMPL_B64 = "UEsDBBQABgAIAAAAIQCMvJU93AEAANMKAAATAAgCW0NvbnRlbnRfVHlwZXNdLn
     setStatus('Analisi in corso... puo richiedere 20-40 secondi', '');
     document.getElementById('risultati-wrap').classList.add('result-hidden');
 
-    var prompt = buildPrompt(descrizione, capitolato, lettera, clienteVal, conformitaVal);
+    // Se e' presente un PDF per un campo, il testo incollato in quel campo viene ignorato
+    var usaCapitolatoTesto = capitolato && !capitolatoFile;
+    var usaLetteraTesto = lettera && !letteraFile;
+
+    var prompt = buildPrompt(
+      descrizione,
+      usaCapitolatoTesto ? capitolato : '',
+      usaLetteraTesto ? lettera : '',
+      clienteVal, conformitaVal,
+      !!capitolatoFile, !!letteraFile
+    );
+
+    var contentBlocks = [{type: 'text', text: prompt}];
+    try {
+      if (capitolatoFile) {
+        var b64c = await fileToBase64(capitolatoFile);
+        contentBlocks.push({type: 'document', source: {type:'base64', media_type:'application/pdf', data: b64c}});
+      }
+      if (letteraFile) {
+        var b64l = await fileToBase64(letteraFile);
+        contentBlocks.push({type: 'document', source: {type:'base64', media_type:'application/pdf', data: b64l}});
+      }
+    } catch(e) {
+      document.getElementById('btn-genera').disabled = false;
+      setStatus('Errore nella lettura del PDF: ' + e.message, 'err');
+      return;
+    }
 
     var result = await callAnthropic(apiKey, {
       model: 'claude-opus-4-5',
       max_tokens: 4000,
-      messages: [{role: 'user', content: prompt}]
+      messages: [{role: 'user', content: contentBlocks}]
     });
     var data = result[0], err = result[1];
 
@@ -23613,17 +23680,22 @@ const TMPL_B64 = "UEsDBBQABgAIAAAAIQCMvJU93AEAANMKAAATAAgCW0NvbnRlbnRfVHlwZXNdLn
     return 'FACOLTATIVO';
   }
 
-  function renderSection(title, items) {
+  function renderSection(title, items, categoria) {
     if (!items || !items.length) return '';
     var h = '<div class="section-block"><div class="section-block-title">' + title + '</div>';
-    items.forEach(function(it){
+    items.forEach(function(it, idx){
       var ob = (it.obbligo || 'consigliato').toLowerCase();
+      var uid = categoria + '-' + idx;
       h += '<div class="item-row">' +
         '<span class="item-badge ' + ob + '">' + badgeLabel(ob) + '</span>' +
         '<div class="item-body">' +
           '<div class="item-name">' + escHtml(it.nome || '') + '</div>' +
           '<div class="item-desc">' + escHtml(it.descrizione || '') + '</div>' +
           (it.riferimento ? '<div class="item-ref">' + escHtml(it.riferimento) + '</div>' : '') +
+          '<div style="margin-top:8px;display:flex;align-items:center;gap:10px">' +
+            '<button class="btn-secondary" style="font-size:11px;padding:5px 10px" id="btn-modello-' + uid + '" onclick="scaricaModello(\'' + categoria + '\',' + idx + ')">📄 Scarica modello</button>' +
+            '<span id="stato-modello-' + uid + '" style="font-size:11px;color:var(--muted)"></span>' +
+          '</div>' +
         '</div>' +
       '</div>';
     });
@@ -23639,14 +23711,95 @@ const TMPL_B64 = "UEsDBBQABgAIAAAAIQCMvJU93AEAANMKAAATAAgCW0NvbnRlbnRfVHlwZXNdLn
 
   function renderRisultati(parsed) {
     var html = '';
-    html += renderSection('Relazioni tecniche da produrre', parsed.relazioni);
-    html += renderSection('Documenti ed elaborati da preparare', parsed.documenti);
+    html += renderSection('Relazioni tecniche da produrre', parsed.relazioni, 'relazioni');
+    html += renderSection('Documenti ed elaborati da preparare', parsed.documenti, 'documenti');
     if (parsed.note) {
       html += '<div class="note-box"><strong>Nota:</strong> ' + escHtml(parsed.note) + '</div>';
     }
     document.getElementById('risultati-content').innerHTML = html;
     document.getElementById('risultati-wrap').classList.remove('result-hidden');
     document.getElementById('risultati-wrap').scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  function buildModelloPrompt(item, descrizione, cliente, conformita) {
+    var clienteTxt = cliente === 'pubblico' ? 'Ente pubblico (D.Lgs. 36/2023)' : 'Cliente privato';
+    return 'Sei un esperto tecnico italiano (ingegneria/architettura, contratti pubblici D.Lgs. 36/2023 dove pertinente). ' +
+      'Produci lo SCHELETRO STANDARD (modello) per il documento "' + item.nome + '" nel contesto di questo incarico.\n\n' +
+      'CONTESTO INCARICO: ' + (descrizione || '(non specificato)') + '\n' +
+      'CLIENTE: ' + clienteTxt + (cliente==='pubblico' ? (conformita==='completo' ? ' -- conformita\' integrale al Codice' : ' -- minimo indispensabile') : '') + '\n' +
+      'DESCRIZIONE DEL DOCUMENTO: ' + (item.descrizione || '') + '\n' +
+      'RIFERIMENTO NORMATIVO: ' + (item.riferimento || 'nessuno specifico') + '\n\n' +
+      'Genera una struttura con sezioni tipiche di questo tipo di documento nel settore ingegneria/edilizia italiano, con testo standard/boilerplate gia\' scritto dove e\' generico e riutilizzabile, e segnaposto chiari tipo "[DA COMPILARE: specificare ...]" nei punti che vanno personalizzati per il caso specifico.\n\n' +
+      'Rispondi SOLO con JSON valido (nessun testo fuori, nessun markdown):\n' +
+      '{"paragrafi": [ {"tipo": "titolo|intestazione|corpo", "testo": "..."} ]}\n' +
+      'Usa "titolo" solo per il titolo principale (una volta), "intestazione" per i titoli di sezione, "corpo" per il testo normale. ' +
+      'Da 8 a 20 paragrafi totali. USA SOLO CARATTERI ASCII (nessun accento, usa apostrofo: es. "necessita\'").';
+  }
+
+  function buildModelloChildren(paragrafi) {
+    var children = [];
+    paragrafi.forEach(function(par){
+      if (par.tipo === 'titolo') children.push(titleP(par.testo));
+      else if (par.tipo === 'intestazione') children.push(sectionHeadP(par.testo));
+      else children.push(new docx.Paragraph({
+        children: [new docx.TextRun({text: par.testo || '', size:20, font:TNR})],
+        alignment: docx.AlignmentType.JUSTIFIED,
+        spacing: {after:140},
+      }));
+    });
+    return children;
+  }
+
+  async function scaricaModello(categoria, idx) {
+    if (!ultimoRisultato || !ultimoRisultato[categoria]) return;
+    var item = ultimoRisultato[categoria][idx];
+    if (!item) return;
+    var uid = categoria + '-' + idx;
+    var btn = document.getElementById('btn-modello-' + uid);
+    var stato = document.getElementById('stato-modello-' + uid);
+    var apiKey = apiKeyInput.value.trim();
+    if (!apiKey) { alert('Inserisci la tua API Key Anthropic.'); return; }
+
+    btn.disabled = true;
+    stato.textContent = 'Generazione modello...';
+    stato.style.color = 'var(--muted)';
+
+    var descrizione = document.getElementById('f-descrizione').value.trim();
+    var prompt = buildModelloPrompt(item, descrizione, clienteVal, conformitaVal);
+
+    var result = await callAnthropic(apiKey, {
+      model: 'claude-opus-4-5',
+      max_tokens: 3000,
+      messages: [{role:'user', content: prompt}]
+    });
+    var data = result[0], err = result[1];
+    btn.disabled = false;
+
+    if (err) { stato.textContent = err; stato.style.color = '#d33'; return; }
+
+    var block = (data.content || []).find(function(b){ return b.type === 'text'; });
+    var parsed = parseClaudeJson(block ? block.text : '{}');
+
+    if (!parsed || !parsed.paragrafi || !parsed.paragrafi.length) {
+      stato.textContent = 'Risposta non interpretabile, riprova.';
+      stato.style.color = '#d33';
+      return;
+    }
+
+    try {
+      var children = buildModelloChildren(parsed.paragrafi);
+      var blob = await mergeConCartaIntestata(children);
+      var safeNome = (item.nome || 'modello').replace(/[^a-zA-Z0-9\u00c0-\u00ff ]/g,'').trim().replace(/\s+/g,'_').slice(0,60);
+      var fname = 'eFM_Modello_' + safeNome + '.docx';
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a'); a.href = url; a.download = fname; a.click();
+      URL.revokeObjectURL(url);
+      stato.textContent = '\u2713 Scaricato';
+      stato.style.color = 'var(--ok)';
+    } catch(e) {
+      stato.textContent = 'Errore: ' + e.message;
+      stato.style.color = '#d33';
+    }
   }
 
   function esportaCSV() {
