@@ -5,317 +5,348 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Portale Strumenti — eFM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg-deep: #101d30;
-    --bg-panel: #182a44;
-    --bg-panel-hover: #1e3350;
-    --line-soft: rgba(148, 180, 214, 0.16);
-    --line-strong: rgba(148, 180, 214, 0.32);
-    --text-primary: #eaf1fa;
-    --text-muted: #8fa8c4;
-    --text-dim: #5c7592;
-    --accent: #e5484d;
-    --accent-dim: rgba(229, 72, 77, 0.14);
-    --accent-line: rgba(229, 72, 77, 0.4);
-    --font-display: 'Space Grotesk', sans-serif;
-    --font-body: 'IBM Plex Sans', sans-serif;
-    --font-mono: 'IBM Plex Mono', monospace;
+    --bg: #eef1f7;
+    --card: #ffffff;
+    --card-border: #e4e8f1;
+    --navy: #142842;
+    --muted: #6b7688;
+    --muted-light: #98a2b3;
+    --grad-start: #1c6e8c;
+    --grad-end: #2f9e8f;
+    --coral: #ff6a4d;
+    --coral-dim: #fff0ec;
+    --blue-chip: #e7f1fb;
+    --blue-chip-ic: #1c6e8c;
+    --amber-chip: #fdf1e2;
+    --amber-chip-ic: #c9822a;
+    --violet-chip: #f0edfb;
+    --violet-chip-ic: #6a51c9;
+    --shadow: 0 1px 2px rgba(20,40,66,.04), 0 8px 24px rgba(20,40,66,.06);
+    --shadow-hover: 0 4px 8px rgba(20,40,66,.06), 0 16px 32px rgba(20,40,66,.10);
+    --font-display: 'Manrope', sans-serif;
+    --font-body: 'Inter', sans-serif;
   }
 
   * { box-sizing: border-box; }
 
   body {
     margin: 0;
-    background:
-      linear-gradient(var(--line-soft) 1px, transparent 1px),
-      linear-gradient(90deg, var(--line-soft) 1px, transparent 1px),
-      var(--bg-deep);
-    background-size: 32px 32px, 32px 32px, cover;
-    color: var(--text-primary);
+    background: var(--bg);
+    color: var(--navy);
     font-family: var(--font-body);
     min-height: 100vh;
-    padding: 32px 24px 80px;
   }
 
-  .sheet {
-    max-width: 1040px;
+  .shell {
+    max-width: 980px;
     margin: 0 auto;
+    padding: 28px 20px 80px;
   }
 
-  /* ---- Title block, in stile cartiglio di disegno tecnico ---- */
-  .titleblock {
-    border: 1px solid var(--line-strong);
-    background: var(--bg-panel);
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: stretch;
-    margin-bottom: 40px;
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
   }
 
-  .titleblock-main {
-    padding: 22px 26px;
-    border-right: 1px solid var(--line-strong);
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 15px;
+    letter-spacing: -0.01em;
   }
 
-  .titleblock-eyebrow {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.14em;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    margin-bottom: 6px;
+  .brand-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, var(--grad-start), var(--grad-end));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 800;
   }
 
-  .titleblock-title {
+  .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--navy);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: 28px;
-    letter-spacing: -0.01em;
-    margin: 0 0 8px;
-  }
-
-  .titleblock-sub {
-    font-size: 14px;
-    color: var(--text-muted);
-    margin: 0;
-    max-width: 46ch;
-  }
-
-  .titleblock-meta {
-    display: grid;
-    grid-template-rows: 1fr 1fr 1fr;
-  }
-
-  .meta-cell {
-    padding: 10px 20px;
-    border-bottom: 1px solid var(--line-soft);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-width: 140px;
-  }
-  .meta-cell:last-child { border-bottom: none; }
-
-  .meta-label {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    color: var(--text-dim);
-    text-transform: uppercase;
-  }
-  .meta-value {
-    font-family: var(--font-mono);
     font-size: 13px;
-    color: var(--text-primary);
-    margin-top: 2px;
   }
 
-  /* ---- Griglia strumenti ---- */
-  .grid-label {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.14em;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    margin: 0 0 14px 2px;
+  .hero {
+    background: linear-gradient(120deg, var(--grad-start), var(--grad-end));
+    border-radius: 24px;
+    padding: 28px 28px 24px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 22px;
+  }
+  .hero::after {
+    content: "";
+    position: absolute;
+    right: -60px;
+    top: -60px;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    right: 40px;
+    bottom: -80px;
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+  }
+  .hero-eyebrow {
+    font-size: 12.5px;
+    font-weight: 600;
+    opacity: 0.85;
+    letter-spacing: 0.01em;
+    position: relative;
+  }
+  .hero-greeting {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 26px;
+    letter-spacing: -0.01em;
+    margin: 4px 0 6px;
+    position: relative;
+  }
+  .hero-sub {
+    font-size: 14px;
+    opacity: 0.92;
+    max-width: 46ch;
+    line-height: 1.5;
+    position: relative;
   }
 
-  .tools {
+  .section-label {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 13.5px;
+    color: var(--navy);
+    margin: 0 0 12px 4px;
+  }
+
+  .modules {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 18px;
-    margin-bottom: 48px;
+    gap: 14px;
+    margin-bottom: 26px;
   }
 
-  .tool-card {
-    position: relative;
-    border: 1px solid var(--line-strong);
-    background: var(--bg-panel);
-    padding: 22px 20px 20px;
+  .module-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    padding: 20px 18px;
     text-decoration: none;
     color: inherit;
     display: flex;
     flex-direction: column;
-    min-height: 220px;
-    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+    box-shadow: var(--shadow);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    min-height: 190px;
   }
-
-  .tool-card:hover, .tool-card:focus-visible {
-    background: var(--bg-panel-hover);
-    border-color: var(--accent-line);
-    transform: translateY(-2px);
+  .module-card:hover, .module-card:focus-visible {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-hover);
     outline: none;
   }
-
-  .tool-card.highlighted {
-    border-color: var(--accent);
-    background: var(--bg-panel-hover);
-    box-shadow: 0 0 0 1px var(--accent-line);
+  .module-card.highlighted {
+    border-color: var(--grad-end);
+    box-shadow: 0 0 0 2px rgba(47,158,143,0.25), var(--shadow-hover);
   }
 
-  .tool-tag {
-    position: absolute;
-    top: -1px;
-    right: -1px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.06em;
-    color: var(--text-dim);
-    background: var(--bg-deep);
-    border: 1px solid var(--line-strong);
-    padding: 3px 8px;
-  }
-
-  .tool-icon {
-    font-family: var(--font-mono);
-    font-size: 20px;
-    color: var(--accent);
-    margin-bottom: 14px;
-  }
-
-  .tool-title {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 17px;
-    margin: 0 0 8px;
-  }
-
-  .tool-desc {
-    font-size: 13.5px;
-    line-height: 1.5;
-    color: var(--text-muted);
-    margin: 0 0 18px;
-    flex-grow: 1;
-  }
-
-  .tool-cta {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.04em;
-    color: var(--text-primary);
+  .module-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
+    font-size: 19px;
+    margin-bottom: 14px;
   }
-  .tool-cta::after {
+  .ic-blue   { background: var(--blue-chip);   color: var(--blue-chip-ic); }
+  .ic-amber  { background: var(--amber-chip);  color: var(--amber-chip-ic); }
+  .ic-violet { background: var(--violet-chip); color: var(--violet-chip-ic); }
+
+  .module-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 15.5px;
+    margin: 0 0 6px;
+    letter-spacing: -0.005em;
+  }
+  .module-desc {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--muted);
+    margin: 0 0 14px;
+    flex-grow: 1;
+  }
+  .module-cta {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--grad-start);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .module-cta::after {
     content: "→";
     transition: transform 0.15s ease;
   }
-  .tool-card:hover .tool-cta::after { transform: translateX(3px); }
+  .module-card:hover .module-cta::after { transform: translateX(3px); }
 
-  /* ---- Assistente ---- */
-  .assistant {
-    border: 1px solid var(--line-strong);
-    background: var(--bg-panel);
+  .assistant-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
   }
-
-  .assistant-header {
+  .assistant-top {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 14px 20px;
-    border-bottom: 1px solid var(--line-soft);
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--card-border);
   }
-
-  .assistant-dot {
-    width: 8px;
-    height: 8px;
+  .assistant-avatar {
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
-    background: var(--accent);
+    background: linear-gradient(135deg, var(--grad-start), var(--grad-end));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 15px;
+    flex-shrink: 0;
   }
-
-  .assistant-label {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--text-muted);
+  .assistant-name {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .assistant-status {
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--grad-end);
+    display: inline-block;
   }
 
   .assistant-body {
-    padding: 20px;
+    padding: 18px 20px 20px;
   }
-
   .assistant-intro {
-    font-size: 14px;
-    color: var(--text-muted);
-    margin: 0 0 16px;
-    max-width: 60ch;
+    font-size: 13.5px;
+    color: var(--muted);
+    margin: 0 0 14px;
+    line-height: 1.5;
   }
-
   .assistant-form {
     display: flex;
-    gap: 10px;
+    gap: 8px;
   }
-
   .assistant-input {
     flex-grow: 1;
-    background: var(--bg-deep);
-    border: 1px solid var(--line-strong);
-    color: var(--text-primary);
+    background: var(--bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    color: var(--navy);
     font-family: var(--font-body);
-    font-size: 14px;
-    padding: 12px 14px;
+    font-size: 13.5px;
+    padding: 11px 14px;
   }
   .assistant-input:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--grad-end);
     outline-offset: -1px;
   }
-  .assistant-input::placeholder { color: var(--text-dim); }
+  .assistant-input::placeholder { color: var(--muted-light); }
 
   .assistant-submit {
-    background: var(--accent);
-    border: 1px solid var(--accent);
+    background: var(--coral);
+    border: none;
+    border-radius: 12px;
     color: #fff;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 13px;
     padding: 0 20px;
     cursor: pointer;
     transition: opacity 0.15s ease;
   }
-  .assistant-submit:hover { opacity: 0.85; }
+  .assistant-submit:hover { opacity: 0.9; }
 
   .assistant-answer {
-    margin-top: 18px;
+    margin-top: 16px;
     padding: 14px 16px;
-    border-left: 2px solid var(--accent);
-    background: var(--accent-dim);
+    border-radius: 14px;
+    background: var(--coral-dim);
     font-size: 13.5px;
     line-height: 1.6;
+    color: var(--navy);
     display: none;
   }
   .assistant-answer.visible { display: block; }
-  .assistant-answer strong { color: var(--text-primary); }
+  .assistant-answer strong { color: var(--navy); }
 
   .assistant-chip {
     display: inline-block;
     margin-top: 10px;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--accent);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 12.5px;
+    color: #fff;
+    background: var(--coral);
     text-decoration: none;
-    border: 1px solid var(--accent-line);
-    padding: 5px 10px;
+    border-radius: 10px;
+    padding: 7px 14px;
   }
-  .assistant-chip:hover { background: var(--accent-dim); }
+  .assistant-chip:hover { opacity: 0.9; }
 
   footer {
-    margin-top: 40px;
+    margin-top: 30px;
     text-align: center;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-dim);
-    letter-spacing: 0.04em;
+    font-size: 11.5px;
+    color: var(--muted-light);
   }
 
   @media (max-width: 780px) {
-    .tools { grid-template-columns: 1fr; }
-    .titleblock { grid-template-columns: 1fr; }
-    .titleblock-main { border-right: none; border-bottom: 1px solid var(--line-strong); }
+    .modules { grid-template-columns: 1fr; }
     .assistant-form { flex-direction: column; }
   }
 
@@ -326,70 +357,50 @@
 </head>
 <body>
 
-<div class="sheet">
+<div class="shell">
 
-  <!-- CARTIGLIO -->
-  <div class="titleblock">
-    <div class="titleblock-main">
-      <div class="titleblock-eyebrow">eFM SpA — Engineering &amp; Construction</div>
-      <h1 class="titleblock-title">Portale Strumenti</h1>
-      <p class="titleblock-sub">Punto di accesso unico agli strumenti di supporto tecnico e commerciale. Seleziona uno strumento o descrivi l'attività all'assistente qui sotto.</p>
-    </div>
-    <div class="titleblock-meta">
-      <div class="meta-cell">
-        <span class="meta-label">Tavola</span>
-        <span class="meta-value">PORT-00</span>
-      </div>
-      <div class="meta-cell">
-        <span class="meta-label">Revisione</span>
-        <span class="meta-value">A</span>
-      </div>
-      <div class="meta-cell">
-        <span class="meta-label" id="date-label">Aggiornato</span>
-        <span class="meta-value" id="date-value">—</span>
-      </div>
-    </div>
+  <div class="hero">
+    <div class="hero-greeting">Benvenuto nel portale</div>
+    <div class="hero-sub">Qui trovi i tuoi strumenti di supporto tecnico e commerciale. Seleziona un modulo o chiedi aiuto all'assistente qui sotto.</div>
   </div>
 
-  <!-- STRUMENTI -->
-  <p class="grid-label">Strumenti disponibili</p>
-  <div class="tools" id="tools-grid">
+  <p class="section-label">I tuoi strumenti</p>
+  <div class="modules" id="modules-grid">
 
-    <a class="tool-card" id="card-bnl" href="#" target="_blank" rel="noopener" data-keywords="bnl filiale banca sopralluogo foto fotografico immagini immagine quality control checklist all.13 all 13 conformità conformita agenzia allegato dxf pdf documenti classificazione elaborati verifica sportello">
-      <span class="tool-tag">BNL-01</span>
-      <span class="tool-icon">◧</span>
-      <h2 class="tool-title">BNL Quality Control Analyzer</h2>
-      <p class="tool-desc">Analizza elaborati e documentazione di filiale (DXF/PDF) rispetto ai checklist All.13, con classificazione automatica dei documenti e verifica di pacchetti multi-file.</p>
-      <span class="tool-cta">Apri strumento</span>
+    <a class="module-card" id="card-bnl" href="#" target="_blank" rel="noopener" data-keywords="bnl filiale banca sopralluogo foto fotografico immagini immagine quality control checklist all.13 all 13 conformità conformita agenzia allegato dxf pdf documenti classificazione elaborati verifica sportello">
+      <div class="module-icon ic-blue">◧</div>
+      <div class="module-title">BNL Quality Control Analyzer</div>
+      <div class="module-desc">Verifica elaborati DXF/PDF di filiale rispetto ai checklist All.13, con classificazione automatica e analisi pacchetto commessa.</div>
+      <div class="module-cta">Apri strumento</div>
     </a>
 
-    <a class="tool-card" id="card-contract" href="#" target="_blank" rel="noopener" data-keywords="contratto contratti smart contract capitolato clausole clausola docx word generatore accordo quadro form guidato modulo">
-      <span class="tool-tag">SC-02</span>
-      <span class="tool-icon">◨</span>
-      <h2 class="tool-title">Smart Contract Generator</h2>
-      <p class="tool-desc">Genera contratti in formato .docx partendo da un form guidato, con clausole e struttura standard eFM già configurate.</p>
-      <span class="tool-cta">Apri strumento</span>
+    <a class="module-card" id="card-contract" href="#" target="_blank" rel="noopener" data-keywords="contratto contratti smart contract capitolato clausole clausola docx word generatore accordo quadro form guidato modulo">
+      <div class="module-icon ic-amber">◨</div>
+      <div class="module-title">Smart Contract Generator</div>
+      <div class="module-desc">Genera contratti in formato .docx da un form guidato, con clausole e struttura standard eFM.</div>
+      <div class="module-cta">Apri strumento</div>
     </a>
 
-    <a class="tool-card" id="card-report" href="#" target="_blank" rel="noopener" data-keywords="relazione relazioni report tecnico sintesi verbale documento riepilogo due diligence perizia stesura testo bozza rapporto">
-      <span class="tool-tag">REL-03</span>
-      <span class="tool-icon">◪</span>
-      <h2 class="tool-title">Generatore di Relazioni</h2>
-      <p class="tool-desc">Compone relazioni tecniche e di sintesi a partire da dati e appunti grezzi, con struttura e formattazione coerenti agli standard eFM.</p>
-      <span class="tool-cta">Apri strumento</span>
+    <a class="module-card" id="card-report" href="#" target="_blank" rel="noopener" data-keywords="relazione relazioni report tecnico sintesi verbale documento riepilogo due diligence perizia stesura testo bozza rapporto deliverable elenco documenti capitolato lettera attivazione fascicolo commessa">
+      <div class="module-icon ic-violet">◪</div>
+      <div class="module-title">eFM Deliverable Planner</div>
+      <div class="module-desc">Analizza capitolato e lettera di attivazione e genera l'elenco di relazioni e documenti da produrre, calibrato su tipo cliente e livello di conformità.</div>
+      <div class="module-cta">Apri strumento</div>
     </a>
 
   </div>
 
-  <!-- ASSISTENTE -->
-  <p class="grid-label">Assistente di smistamento</p>
-  <div class="assistant">
-    <div class="assistant-header">
-      <span class="assistant-dot"></span>
-      <span class="assistant-label">Non sai quale strumento usare?</span>
+  <p class="section-label">Assistente</p>
+  <div class="assistant-card">
+    <div class="assistant-top">
+      <div class="assistant-avatar">✦</div>
+      <div>
+        <div class="assistant-name">Non sai quale strumento usare?</div>
+        <div class="assistant-status"><span class="status-dot"></span>Sempre disponibile</div>
+      </div>
     </div>
     <div class="assistant-body">
-      <p class="assistant-intro">Descrivi in poche parole cosa devi fare — ad esempio "devo controllare le foto di una filiale" oppure "devo scrivere una relazione tecnica" — e ti indico lo strumento giusto.</p>
+      <p class="assistant-intro">Descrivi cosa devi fare — es. "devo controllare le foto di una filiale" o "devo scrivere una relazione tecnica" — e ti indico lo strumento giusto.</p>
       <form class="assistant-form" id="assistant-form">
         <input class="assistant-input" id="assistant-input" type="text" placeholder="Es. devo generare un contratto per un nuovo capitolato…" autocomplete="off">
         <button class="assistant-submit" type="submit">Chiedi</button>
@@ -403,30 +414,15 @@
 </div>
 
 <script>
-  // Data di aggiornamento automatica
-  document.getElementById('date-value').textContent = new Date().toLocaleDateString('it-IT', {
-    year: 'numeric', month: '2-digit', day: '2-digit'
-  });
-
-  // -----------------------------------------------------------------
-  // CONFIGURAZIONE: sostituisci questi URL con quelli reali dei tuoi
-  // strumenti una volta ospitati (GitHub Pages, Cloudflare Pages, ecc.)
-  // -----------------------------------------------------------------
   const TOOL_URLS = {
-    bnl: "bnl-analyzer.html", // <- BNL Quality Control Analyzer: percorso relativo, funziona se i due file sono nella stessa cartella/repo. Se lo ospiti altrove, sostituisci con l'URL completo.
-    contract: "#",  // <- URL dello Smart Contract Generator
-    report: "#"     // <- URL del Generatore di Relazioni
+    bnl: "bnl-analyzer.html",
+    contract: "smart-contract-generator.html", // percorso relativo: funziona se caricato nella stessa cartella/repo
+    report: "deliverable-planner.html"
   };
   document.getElementById('card-bnl').href = TOOL_URLS.bnl;
   document.getElementById('card-contract').href = TOOL_URLS.contract;
   document.getElementById('card-report').href = TOOL_URLS.report;
 
-  // -----------------------------------------------------------------
-  // Smistamento locale via keyword matching — nessuna chiamata esterna.
-  // Se in futuro vuoi una comprensione più flessibile del linguaggio
-  // naturale, questo blocco può essere sostituito con una chiamata a
-  // un webhook Make che interroga un modello linguistico.
-  // -----------------------------------------------------------------
   const cards = {
     bnl: document.getElementById('card-bnl'),
     contract: document.getElementById('card-contract'),
@@ -434,9 +430,9 @@
   };
 
   const toolMeta = {
-    bnl: { name: "BNL Quality Control Analyzer", tag: "BNL-01" },
-    contract: { name: "Smart Contract Generator", tag: "SC-02" },
-    report: { name: "Generatore di Relazioni", tag: "REL-03" }
+    bnl: { name: "BNL Quality Control Analyzer" },
+    contract: { name: "Smart Contract Generator" },
+    report: { name: "eFM Deliverable Planner" }
   };
 
   function scoreTool(cardEl, query) {
@@ -469,12 +465,12 @@
     const best = scores[0];
 
     if (best.score === 0) {
-      answerBox.innerHTML = `Non ho trovato una corrispondenza chiara. Prova a essere più specifico — ad esempio menzionando "foto filiale", "contratto" o "relazione tecnica" — oppure sfoglia direttamente le tre schede qui sopra.`;
+      answerBox.innerHTML = `Non ho trovato una corrispondenza chiara. Prova a essere più specifico — ad esempio menzionando "foto filiale", "contratto" o "relazione tecnica" — oppure sfoglia direttamente i moduli qui sopra.`;
     } else {
       const meta = toolMeta[best.key];
       cards[best.key].classList.add('highlighted');
       cards[best.key].scrollIntoView({ behavior: 'smooth', block: 'center' });
-      answerBox.innerHTML = `In base a quanto descritto, lo strumento più adatto è <strong>${meta.name}</strong> (${meta.tag}) — l'ho evidenziato qui sopra.<br><a class="assistant-chip" href="${TOOL_URLS[best.key]}" target="_blank" rel="noopener">Apri ${meta.name} →</a>`;
+      answerBox.innerHTML = `In base a quanto descritto, lo strumento più adatto è <strong>${meta.name}</strong> — l'ho evidenziato qui sopra.<br><a class="assistant-chip" href="${TOOL_URLS[best.key]}" target="_blank" rel="noopener">Apri ${meta.name} →</a>`;
     }
     answerBox.classList.add('visible');
   });
