@@ -30,6 +30,9 @@
   --miss:#f08b83; --miss-soft:#3d1c1a; --na:#a3b0ba; --na-soft:#262f36; --tbd:#b8a6f5; --tbd-soft:#2a2547; --focus:#5fc7cd; color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
+.apibox-on{border:2px solid var(--focus);border-radius:6px;padding:14px;background:var(--paper)}
+.apiwarn{color:var(--ink)}
+#mode.clickable{cursor:pointer}
 body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
 .wrap{max-width:1180px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:22px}
 h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.15}
@@ -99,11 +102,17 @@ footer{font-size:12px;color:var(--ink-2);display:grid;gap:6px}
       <h1>Verifica Catalogo Documentale</h1>
       <p class="lead">Carica il pacchetto documentale di un immobile. Ogni documento viene letto, anche se scansionato, e ricondotto ai codici del catalogo, pagina per pagina. Ottieni la matrice di cosa è presente, parziale, mancante o non applicabile, e quali file sono archiviati nella cartella sbagliata.</p>
     </div>
-    <div class="mode"><span class="dot" id="modeDot"></span><span id="modeTxt">Verifica collegamento a Claude…</span></div>
+    <div class="mode" id="mode"><span class="dot" id="modeDot"></span><span id="modeTxt">Verifica collegamento a Claude…</span></div>
   </header>
 
   <section class="step">
     <div class="step-h"><span class="num">1</span><h2>Immobile e pacchetto</h2></div>
+    <div id="apiBox" hidden class="apibox-on" style="display:grid;gap:8px">
+      <div class="apiwarn small" id="apiWarn"><strong>Claude non è collegato in questa vista.</strong> Sul portale serve una chiave API Anthropic: incollala qui (chiedila al referente del portale). Senza chiave puoi usare lo strumento dentro Claude, dal link indicato nel portale.</div>
+      
+      <label class="f">Chiave API Anthropic (serve solo fuori da Claude)<input type="password" id="apiKey" autocomplete="off" placeholder="sk-ant-…"></label>
+      <div class="row small"><label class="row" style="gap:6px;color:var(--ink)"><input type="checkbox" id="apiRemember"> Ricorda su questo computer</label><button class="ghost" id="apiForget" type="button" style="padding:4px 10px;font-size:13px" hidden>Dimentica la chiave</button><span class="muted" id="apiNote"></span></div>
+    </div>
     <div class="grid3">
       <label class="f">Codice o nome immobile<input type="text" id="imCod" placeholder="es. 214 – Padova"></label>
       <label class="f">Indirizzo<input type="text" id="imInd" placeholder="es. Via Nuova Zelanda 6, Padova"></label>
@@ -131,10 +140,6 @@ footer{font-size:12px;color:var(--ink-2);display:grid;gap:6px}
         <span class="row"><span id="catName" class="small">Catalogo T.O. integrato (209 voci)</span><button class="ghost" id="pickCat" style="padding:4px 10px;font-size:13px">Carica altro Excel</button></span>
         <input type="file" id="inCat" accept=".xlsx,.xls" hidden></label>
       <label class="f">Note per l'analisi (facoltativo)<input type="text" id="context" placeholder="es. tenant con attività produttiva; verificare soprattutto antincendio"></label>
-    </div>
-    <div id="apiBox" hidden style="display:grid;gap:8px">
-      <label class="f">Chiave API Anthropic (serve solo fuori da Claude)<input type="password" id="apiKey" autocomplete="off" placeholder="sk-ant-…"></label>
-      <div class="row small"><label class="row" style="gap:6px;color:var(--ink)"><input type="checkbox" id="apiRemember"> Ricorda su questo computer</label><button class="ghost" id="apiForget" type="button" style="padding:4px 10px;font-size:13px" hidden>Dimentica la chiave</button><span class="muted" id="apiNote"></span></div>
     </div>
     <div class="row">
       <button class="primary" id="run" disabled>Avvia verifica</button>
@@ -242,7 +247,7 @@ function parseJSONLoose(text){
 function renderMode(){
   const dot=$("#modeDot"), t=$("#modeTxt");
   if (AI.mode==="claude"){ dot.className="dot "+(AI.maxImages?"ok":"warn"); t.textContent = AI.maxImages? "Claude collegato · lettura scansioni attiva" : "Claude collegato · scansioni non leggibili in questa vista"; $("#apiBox").hidden=true; }
-  else if (AI.mode==="api"){ $("#apiBox").hidden=false; const ok=!!$("#apiKey").value.trim(); dot.className="dot "+(ok?"ok":"warn"); t.textContent = ok? "Collegato con chiave API" : "Serve una chiave API per l'analisi"; }
+  else if (AI.mode==="api"){ $("#mode").classList.add("clickable"); $("#mode").onclick = ()=>{ $("#apiBox").scrollIntoView({behavior:"smooth", block:"center"}); $("#apiKey").focus(); }; $("#mode").title = "Vai al campo della chiave API"; $("#apiBox").hidden=false; const ok=!!$("#apiKey").value.trim(); dot.className="dot "+(ok?"ok":"warn"); t.textContent = ok? "Collegato con chiave API" : "Claude non collegato · inserisci la chiave API (clicca qui)"; $("#apiWarn").hidden = ok; }
   updateRunBtn();
 }
 
