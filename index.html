@@ -193,6 +193,39 @@
   .ic-blue   { background: var(--blue-chip);   color: var(--blue-chip-ic); }
   .ic-amber  { background: var(--amber-chip);  color: var(--amber-chip-ic); }
   .ic-violet { background: var(--violet-chip); color: var(--violet-chip-ic); }
+  .ic-coral  { background: var(--coral-dim);   color: var(--coral); }
+  .module-alt {
+    font-size: 12px;
+    color: var(--muted);
+    margin: -14px 0 26px 4px;
+  }
+  .module-alt a { color: var(--grad-start); font-weight: 600; }
+  .project {
+    background: linear-gradient(160deg, #e3f1f1 0%, #eef1f7 70%);
+    border: 1px solid #cfe3e4;
+    border-radius: 24px;
+    padding: 20px;
+    margin-bottom: 26px;
+  }
+  .project-head { display: flex; gap: 16px; align-items: center; margin: 2px 4px 18px; }
+  .project-icon {
+    width: 60px; height: 60px; flex-shrink: 0;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #0f4c6b, var(--grad-end));
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 16px rgba(15,76,107,.25);
+  }
+  .project-title { font-family: var(--font-display); font-weight: 800; font-size: 20px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .project-sub { margin: 0; font-size: 13.5px; color: var(--muted); line-height: 1.5; max-width: 70ch; }
+  .project-tools { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .module-step {
+    font-family: var(--font-display); font-weight: 700; font-size: 11px;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--grad-start);
+    margin-bottom: 10px;
+  }
+  .project-alt { font-size: 12px; color: var(--muted); margin: 14px 4px 0; }
+  .project-alt a { color: var(--grad-start); font-weight: 600; }
 
   .module-title {
     font-family: var(--font-display);
@@ -347,6 +380,8 @@
 
   @media (max-width: 780px) {
     .modules { grid-template-columns: 1fr; }
+    .project-tools { grid-template-columns: 1fr; }
+    .project-head { align-items: flex-start; }
     .assistant-form { flex-direction: column; }
   }
 
@@ -392,6 +427,47 @@
 
   </div>
 
+  <section class="project" aria-labelledby="edb-title">
+    <div class="project-head">
+      <div class="project-icon" aria-hidden="true">
+        <svg viewBox="0 0 48 48" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 22 L18 12 L32 22"/>
+          <path d="M7 20.5 V38 H29 V20.5"/>
+          <path d="M12 38 V28 H24 V38"/>
+          <path d="M12 32 H24"/>
+          <rect x="30" y="18" width="14" height="18" rx="2" fill="rgba(255,255,255,.18)"/>
+          <path d="M33 23 H41"/>
+          <path d="M33 27 H38"/>
+          <path d="M33.5 31.5 L35.5 33.5 L40 29"/>
+        </svg>
+      </div>
+      <div>
+        <h2 class="project-title" id="edb-title">Progetto EDB</h2>
+        <p class="project-sub">Portafoglio immobili T.O.: verifica del pacchetto documentale rispetto al catalogo e accesso agli atti per recuperare ciò che manca.</p>
+      </div>
+    </div>
+    <div class="project-tools">
+
+    <a class="module-card" id="card-cat" href="#" target="_blank" rel="noopener" data-keywords="edb ebd t.o. to catalogo documentale pacchetto faldoni dematerializzazione documenti mancanti presenti matrice codici eu pi ti archiviazione cartelle classificazione verifica completezza gap analysis anagrafica compliance capannoni logistica">
+      <div class="module-step">Passo 1</div>
+      <div class="module-icon ic-blue">▤</div>
+      <div class="module-title">Verifica Catalogo Documentale</div>
+      <div class="module-desc">Riconduce ogni documento del pacchetto di un immobile, anche scansionato e pagina per pagina, ai codici del catalogo T.O. (EU, PI, TI). Restituisce la matrice di presenti, parziali, mancanti e non applicabili, i file nella cartella sbagliata e le azioni per reperire i documenti, in Excel e Word.</div>
+      <div class="module-cta">Apri strumento</div>
+    </a>
+
+    <a class="module-card" id="card-atti" href="#" target="_blank" rel="noopener" data-keywords="accesso atti agli richiesta istanza vigili fuoco vvf antincendio prevenzione incendi scia cpi parere pratica pratiche comune edilizia permesso costruire agibilità agibilita suap asl arpa inail catasto planimetria planimetrie soprintendenza leasing delega manleva fascicolo archivio scansioni zip immobile due diligence 241 edb">
+      <div class="module-step">Passo 2</div>
+      <div class="module-icon ic-coral">◩</div>
+      <div class="module-title">Istruttoria Accesso Atti</div>
+      <div class="module-desc">Ricostruisce dai documenti i procedimenti per ente e prepara in Word le richieste di accesso agli atti (VVF, Comune, SUAP, catasto e altri), con deleghe e lettera di manleva per gli immobili in leasing.</div>
+      <div class="module-cta">Apri strumento</div>
+    </a>
+
+    </div>
+    <p class="project-alt">Usali anche dentro Claude, senza chiave API: <a href="https://claude.ai/artifact/5y1v7oYEVMbPP6KJbTYBxv" target="_blank" rel="noopener">Verifica Catalogo</a> · <a href="https://claude.ai/artifact/7LgnNwfLSXycv7mwfusewh" target="_blank" rel="noopener">Accesso Atti</a> <span>(i link vanno condivisi con te)</span></p>
+  </section>
+
   <p class="section-label">Assistente</p>
   <div class="assistant-card">
     <div class="assistant-top">
@@ -419,11 +495,15 @@
   const TOOL_URLS = {
     bnl: "bnl-analyzer.html",
     contract: "smart-contract-generator.html", // percorso relativo: funziona se caricato nella stessa cartella/repo
-    report: "deliverable-planner.html"
+    report: "deliverable-planner.html",
+    atti: "accesso-atti.html",
+    cat: "catalogo-edb.html"
   };
+  document.getElementById('card-cat').href = TOOL_URLS.cat;
   document.getElementById('card-bnl').href = TOOL_URLS.bnl;
   document.getElementById('card-contract').href = TOOL_URLS.contract;
   document.getElementById('card-report').href = TOOL_URLS.report;
+  document.getElementById('card-atti').href = TOOL_URLS.atti;
 
   // ══ CONTATORE VISITE (stesso Google Apps Script del registro fornitori) ══
   // Incolla qui lo stesso URL /exec usato nello Smart Contract Generator.
@@ -444,13 +524,17 @@
   const cards = {
     bnl: document.getElementById('card-bnl'),
     contract: document.getElementById('card-contract'),
-    report: document.getElementById('card-report')
+    report: document.getElementById('card-report'),
+    atti: document.getElementById('card-atti'),
+    cat: document.getElementById('card-cat')
   };
 
   const toolMeta = {
     bnl: { name: "BNL Quality Control Analyzer" },
     contract: { name: "Smart Contract Generator" },
-    report: { name: "eFM Deliverable Planner" }
+    report: { name: "eFM Deliverable Planner" },
+    atti: { name: "Istruttoria Accesso Atti" },
+    cat: { name: "Verifica Catalogo Documentale (EDB)" }
   };
 
   function scoreTool(cardEl, query) {
@@ -483,7 +567,7 @@
     const best = scores[0];
 
     if (best.score === 0) {
-      answerBox.innerHTML = `Non ho trovato una corrispondenza chiara. Prova a essere più specifico — ad esempio menzionando "foto filiale", "contratto" o "relazione tecnica" — oppure sfoglia direttamente i moduli qui sopra.`;
+      answerBox.innerHTML = `Non ho trovato una corrispondenza chiara. Prova a essere più specifico — ad esempio menzionando "foto filiale", "contratto", "relazione tecnica" o "accesso atti" — oppure sfoglia direttamente i moduli qui sopra.`;
     } else {
       const meta = toolMeta[best.key];
       cards[best.key].classList.add('highlighted');
