@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portale Strumenti — eFM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef1f7;
+    --card: #ffffff;
+    --card-border: #e4e8f1;
+    --navy: #142842;
+    --muted: #6b7688;
+    --muted-light: #98a2b3;
+    --grad-start: #1c6e8c;
+    --grad-end: #2f9e8f;
+    --coral: #ff6a4d;
+    --coral-dim: #fff0ec;
+    --blue-chip: #e7f1fb;
+    --blue-chip-ic: #1c6e8c;
+    --amber-chip: #fdf1e2;
+    --amber-chip-ic: #c9822a;
+    --violet-chip: #f0edfb;
+    --violet-chip-ic: #6a51c9;
+    --shadow: 0 1px 2px rgba(20,40,66,.04), 0 8px 24px rgba(20,40,66,.06);
+    --shadow-hover: 0 4px 8px rgba(20,40,66,.06), 0 16px 32px rgba(20,40,66,.10);
+    --font-display: 'Manrope', sans-serif;
+    --font-body: 'Inter', sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--navy);
+    font-family: var(--font-body);
+    min-height: 100vh;
+  }
+
+  .shell {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 28px 20px 80px;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+  }
+
+  .brand-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, var(--grad-start), var(--grad-end));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--navy);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 13px;
+  }
+
+  .hero {
+    background: linear-gradient(120deg, var(--grad-start), var(--grad-end));
+    border-radius: 24px;
+    padding: 28px 28px 24px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 22px;
+  }
+  .hero::after {
+    content: "";
+    position: absolute;
+    right: -60px;
+    top: -60px;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    right: 40px;
+    bottom: -80px;
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+  }
+  .hero-eyebrow {
+    font-size: 12.5px;
+    font-weight: 600;
+    opacity: 0.85;
+    letter-spacing: 0.01em;
+    position: relative;
+  }
+  .hero-greeting {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 26px;
+    letter-spacing: -0.01em;
+    margin: 4px 0 6px;
+    position: relative;
+  }
+  .hero-sub {
+    font-size: 14px;
+    opacity: 0.92;
+    max-width: 46ch;
+    line-height: 1.5;
+    position: relative;
+  }
+
+  .section-label {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 13.5px;
+    color: var(--navy);
+    margin: 0 0 12px 4px;
+  }
+
+  .modules {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-bottom: 26px;
+  }
+
+  .module-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    padding: 20px 18px;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    min-height: 190px;
+  }
+  .module-card:hover, .module-card:focus-visible {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-hover);
+    outline: none;
+  }
+  .module-card.highlighted {
+    border-color: var(--grad-end);
+    box-shadow: 0 0 0 2px rgba(47,158,143,0.25), var(--shadow-hover);
+  }
+
+  .module-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+    margin-bottom: 14px;
+  }
+  .ic-blue   { background: var(--blue-chip);   color: var(--blue-chip-ic); }
+  .ic-amber  { background: var(--amber-chip);  color: var(--amber-chip-ic); }
+  .ic-violet { background: var(--violet-chip); color: var(--violet-chip-ic); }
+  .ic-coral  { background: var(--coral-dim);   color: var(--coral); }
+  .module-alt {
+    font-size: 12px;
+    color: var(--muted);
+    margin: -14px 0 26px 4px;
+  }
+  .module-alt a { color: var(--grad-start); font-weight: 600; }
+  .modules.edb { grid-template-columns: 1fr; }
+  .modules.edb .module-card { min-height: 0; border-left: 4px solid var(--grad-start); }
+
+  .module-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 15.5px;
+    margin: 0 0 6px;
+    letter-spacing: -0.005em;
+  }
+  .module-desc {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--muted);
+    margin: 0 0 14px;
+    flex-grow: 1;
+  }
+  .module-cta {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--grad-start);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .module-cta::after {
+    content: "→";
+    transition: transform 0.15s ease;
+  }
+  .module-card:hover .module-cta::after { transform: translateX(3px); }
+
+  .assistant-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .assistant-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--card-border);
+  }
+  .assistant-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--grad-start), var(--grad-end));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+  .assistant-name {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .assistant-status {
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--grad-end);
+    display: inline-block;
+  }
+
+  .assistant-body {
+    padding: 18px 20px 20px;
+  }
+  .assistant-intro {
+    font-size: 13.5px;
+    color: var(--muted);
+    margin: 0 0 14px;
+    line-height: 1.5;
+  }
+  .assistant-form {
+    display: flex;
+    gap: 8px;
+  }
+  .assistant-input {
+    flex-grow: 1;
+    background: var(--bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    color: var(--navy);
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    padding: 11px 14px;
+  }
+  .assistant-input:focus-visible {
+    outline: 2px solid var(--grad-end);
+    outline-offset: -1px;
+  }
+  .assistant-input::placeholder { color: var(--muted-light); }
+
+  .assistant-submit {
+    background: var(--coral);
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 13px;
+    padding: 0 20px;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+  .assistant-submit:hover { opacity: 0.9; }
+
+  .assistant-answer {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: var(--coral-dim);
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--navy);
+    display: none;
+  }
+  .assistant-answer.visible { display: block; }
+  .assistant-answer strong { color: var(--navy); }
+
+  .assistant-chip {
+    display: inline-block;
+    margin-top: 10px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 12.5px;
+    color: #fff;
+    background: var(--coral);
+    text-decoration: none;
+    border-radius: 10px;
+    padding: 7px 14px;
+  }
+  .assistant-chip:hover { opacity: 0.9; }
+
+  footer {
+    margin-top: 30px;
+    text-align: center;
+    font-size: 11.5px;
+    color: var(--muted-light);
+  }
+
+  @media (max-width: 780px) {
+    .modules { grid-template-columns: 1fr; }
+    .assistant-form { flex-direction: column; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <div class="hero">
+    <div class="hero-greeting">Benvenuto nel portale</div>
+    <div class="hero-sub">Qui trovi i tuoi strumenti di supporto tecnico e commerciale. Seleziona un modulo o chiedi aiuto all'assistente qui sotto.</div>
+  </div>
+
+  <div id="visit-counter" style="text-align:center;font-size:11.5px;color:var(--muted-light);margin:-10px 0 22px"></div>
+
+  <p class="section-label">I tuoi strumenti</p>
+  <div class="modules" id="modules-grid">
+
+    <a class="module-card" id="card-bnl" href="#" target="_blank" rel="noopener" data-keywords="bnl filiale banca sopralluogo foto fotografico immagini immagine quality control checklist all.13 all 13 conformità conformita agenzia allegato dxf pdf documenti classificazione elaborati verifica sportello">
+      <div class="module-icon ic-blue">◧</div>
+      <div class="module-title">BNL Quality Control Analyzer</div>
+      <div class="module-desc">Verifica elaborati DXF/PDF di filiale rispetto ai checklist All.13, con classificazione automatica e analisi pacchetto commessa.</div>
+      <div class="module-cta">Apri strumento</div>
+    </a>
+
+    <a class="module-card" id="card-contract" href="#" target="_blank" rel="noopener" data-keywords="contratto contratti smart contract capitolato clausole clausola docx word generatore accordo quadro form guidato modulo">
+      <div class="module-icon ic-amber">◨</div>
+      <div class="module-title">Smart Contract Generator</div>
+      <div class="module-desc">Genera contratti in formato .docx da un form guidato, con clausole e struttura standard eFM.</div>
+      <div class="module-cta">Apri strumento</div>
+    </a>
+
+    <a class="module-card" id="card-report" href="#" target="_blank" rel="noopener" data-keywords="relazione relazioni report tecnico sintesi verbale documento riepilogo due diligence perizia stesura testo bozza rapporto deliverable elenco documenti capitolato lettera attivazione fascicolo commessa">
+      <div class="module-icon ic-violet">◪</div>
+      <div class="module-title">eFM Deliverable Planner</div>
+      <div class="module-desc">Analizza capitolato e lettera di attivazione e genera l'elenco di relazioni e documenti da produrre, calibrato su tipo cliente e livello di conformità.</div>
+      <div class="module-cta">Apri strumento</div>
+    </a>
+
+    <a class="module-card" id="card-atti" href="#" target="_blank" rel="noopener" data-keywords="accesso atti agli richiesta istanza vigili fuoco vvf antincendio prevenzione incendi scia cpi parere pratica pratiche comune edilizia permesso costruire agibilità agibilita suap asl arpa inail catasto planimetria planimetrie soprintendenza leasing delega manleva fascicolo archivio scansioni zip immobile due diligence 241">
+      <div class="module-icon ic-coral">◩</div>
+      <div class="module-title">Istruttoria Accesso Atti</div>
+      <div class="module-desc">Legge la documentazione di un immobile (ZIP, cartelle, PDF anche scansionati), ricostruisce i procedimenti per ente e prepara in Word le richieste di accesso agli atti, con deleghe e lettera di manleva per gli immobili in leasing.</div>
+      <div class="module-cta">Apri strumento</div>
+    </a>
+
+  </div>
+  <p class="module-alt">Istruttoria Accesso Atti si usa anche dentro Claude, senza chiave API: <a href="https://claude.ai/artifact/7LgnNwfLSXycv7mwfusewh" target="_blank" rel="noopener">apri in Claude</a> (serve che il link sia condiviso con te).</p>
+
+  <p class="section-label">EDB · Catalogo documentale T.O.</p>
+  <div class="modules edb" id="modules-edb">
+    <a class="module-card" id="card-cat" href="#" target="_blank" rel="noopener" data-keywords="edb ebd t.o. to catalogo documentale pacchetto faldoni dematerializzazione documenti mancanti presenti matrice codici eu pi ti archiviazione cartelle classificazione verifica completezza gap analysis anagrafica compliance capannoni logistica">
+      <div class="module-icon ic-blue">▤</div>
+      <div class="module-title">Verifica Catalogo Documentale</div>
+      <div class="module-desc">Legge il pacchetto documentale di un immobile, anche scansionato, e riconduce ogni documento, pagina per pagina, ai codici del catalogo T.O. (EU, PI, TI). Restituisce la matrice di presenti, parziali, mancanti e non applicabili, i file archiviati nella cartella sbagliata e le azioni per reperire i documenti, in Excel e Word.</div>
+      <div class="module-cta">Apri strumento</div>
+    </a>
+  </div>
+  <p class="module-alt">Anche dentro Claude, senza chiave API: <a href="https://claude.ai/artifact/5y1v7oYEVMbPP6KJbTYBxv" target="_blank" rel="noopener">apri in Claude</a> (serve che il link sia condiviso con te).</p>
+
+  <p class="section-label">Assistente</p>
+  <div class="assistant-card">
+    <div class="assistant-top">
+      <div class="assistant-avatar">✦</div>
+      <div>
+        <div class="assistant-name">Non sai quale strumento usare?</div>
+        <div class="assistant-status"><span class="status-dot"></span>Sempre disponibile</div>
+      </div>
+    </div>
+    <div class="assistant-body">
+      <p class="assistant-intro">Descrivi cosa devi fare — es. "devo controllare le foto di una filiale" o "devo scrivere una relazione tecnica" — e ti indico lo strumento giusto.</p>
+      <form class="assistant-form" id="assistant-form">
+        <input class="assistant-input" id="assistant-input" type="text" placeholder="Es. devo generare un contratto per un nuovo capitolato…" autocomplete="off">
+        <button class="assistant-submit" type="submit">Chiedi</button>
+      </form>
+      <div class="assistant-answer" id="assistant-answer"></div>
+    </div>
+  </div>
+
+  <footer>eFM SpA — Portale Strumenti Interni — Uso riservato al personale autorizzato</footer>
+
+</div>
+
+<script>
+  const TOOL_URLS = {
+    bnl: "bnl-analyzer.html",
+    contract: "smart-contract-generator.html", // percorso relativo: funziona se caricato nella stessa cartella/repo
+    report: "deliverable-planner.html",
+    atti: "accesso-atti.html",
+    cat: "catalogo-edb.html"
+  };
+  document.getElementById('card-cat').href = TOOL_URLS.cat;
+  document.getElementById('card-bnl').href = TOOL_URLS.bnl;
+  document.getElementById('card-contract').href = TOOL_URLS.contract;
+  document.getElementById('card-report').href = TOOL_URLS.report;
+  document.getElementById('card-atti').href = TOOL_URLS.atti;
+
+  // ══ CONTATORE VISITE (stesso Google Apps Script del registro fornitori) ══
+  // Incolla qui lo stesso URL /exec usato nello Smart Contract Generator.
+  // Se lasciato vuoto, il contatore viene semplicemente nascosto.
+  const CONTATORE_WEBHOOK_URL = "";
+  (function() {
+    if (!CONTATORE_WEBHOOK_URL) return;
+    fetch(CONTATORE_WEBHOOK_URL + '?action=count')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (d && typeof d.count === 'number') {
+          document.getElementById('visit-counter').textContent = '👥 Portale utilizzato ' + d.count + ' volte';
+        }
+      })
+      .catch(function(e){ console.warn('Contatore non disponibile:', e.message); });
+  })();
+
+  const cards = {
+    bnl: document.getElementById('card-bnl'),
+    contract: document.getElementById('card-contract'),
+    report: document.getElementById('card-report'),
+    atti: document.getElementById('card-atti'),
+    cat: document.getElementById('card-cat')
+  };
+
+  const toolMeta = {
+    bnl: { name: "BNL Quality Control Analyzer" },
+    contract: { name: "Smart Contract Generator" },
+    report: { name: "eFM Deliverable Planner" },
+    atti: { name: "Istruttoria Accesso Atti" },
+    cat: { name: "Verifica Catalogo Documentale (EDB)" }
+  };
+
+  function scoreTool(cardEl, query) {
+    const keywords = cardEl.dataset.keywords.split(' ');
+    const words = query.toLowerCase().split(/[^a-zàèéìòù0-9.]+/).filter(Boolean);
+    let score = 0;
+    words.forEach(w => {
+      if (keywords.includes(w)) score += 2;
+      else if (keywords.some(k => k.startsWith(w) && w.length > 3)) score += 1;
+    });
+    return score;
+  }
+
+  document.getElementById('assistant-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const query = document.getElementById('assistant-input').value.trim();
+    const answerBox = document.getElementById('assistant-answer');
+
+    Object.values(cards).forEach(c => c.classList.remove('highlighted'));
+
+    if (!query) {
+      answerBox.classList.remove('visible');
+      return;
+    }
+
+    const scores = Object.entries(cards).map(([key, el]) => ({
+      key, score: scoreTool(el, query)
+    })).sort((a, b) => b.score - a.score);
+
+    const best = scores[0];
+
+    if (best.score === 0) {
+      answerBox.innerHTML = `Non ho trovato una corrispondenza chiara. Prova a essere più specifico — ad esempio menzionando "foto filiale", "contratto", "relazione tecnica" o "accesso atti" — oppure sfoglia direttamente i moduli qui sopra.`;
+    } else {
+      const meta = toolMeta[best.key];
+      cards[best.key].classList.add('highlighted');
+      cards[best.key].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      answerBox.innerHTML = `In base a quanto descritto, lo strumento più adatto è <strong>${meta.name}</strong> — l'ho evidenziato qui sopra.<br><a class="assistant-chip" href="${TOOL_URLS[best.key]}" target="_blank" rel="noopener">Apri ${meta.name} →</a>`;
+    }
+    answerBox.classList.add('visible');
+  });
+</script>
+
+</body>
+</html>

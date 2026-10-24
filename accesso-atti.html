@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Istruttoria Accesso Atti</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<style>
+/* Layout: colonna unica da fascicolo, passi numerati (sono davvero una sequenza), timbri di protocollo in mono */
+:root{
+  --paper:#f6f7f9; --sheet:#ffffff; --ink:#1b2130; --ink-2:#4a5468; --rule:#d9dde5; --rule-2:#eceef2;
+  --stamp:#4b3a9a; --stamp-soft:#ece9f8; --ok:#1f7a4d; --ok-soft:#e3f3ea; --warn:#9a5b00; --warn-soft:#fbf0dc;
+  --bad:#a3261f; --bad-soft:#f9e5e3; --focus:#6c5ce0;
+  --f-display:"IBM Plex Sans Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#12151c; --sheet:#1a1e27; --ink:#e7e9ef; --ink-2:#a9b0bf; --rule:#2e3442; --rule-2:#252a35;
+  --stamp:#b3a6f5; --stamp-soft:#2a2547; --ok:#6fd3a0; --ok-soft:#173327; --warn:#f2bc5e; --warn-soft:#3a2c12;
+  --bad:#f08b83; --bad-soft:#3d1c1a; --focus:#b3a6f5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#12151c; --sheet:#1a1e27; --ink:#e7e9ef; --ink-2:#a9b0bf; --rule:#2e3442; --rule-2:#252a35;
+  --stamp:#b3a6f5; --stamp-soft:#2a2547; --ok:#6fd3a0; --ok-soft:#173327; --warn:#f2bc5e; --warn-soft:#3a2c12;
+  --bad:#f08b83; --bad-soft:#3d1c1a; --focus:#b3a6f5; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1080px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:22px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:34px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:22px;font-weight:600}
+h3{font-size:17px;font-weight:600}
+p{margin:0}
+.muted{color:var(--ink-2)}
+.small{font-size:13px}
+.mono{font-family:var(--f-mono);font-size:13px}
+header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;border-bottom:2px solid var(--ink);padding-bottom:14px}
+header.top .lead{max-width:62ch;margin-top:6px;color:var(--ink-2)}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--stamp)}
+.mode{display:inline-flex;align-items:center;gap:8px;font-size:13px;border:1px solid var(--rule);background:var(--sheet);border-radius:999px;padding:5px 12px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ink-2)}
+.dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)}
+section.step{background:var(--sheet);border:1px solid var(--rule);border-radius:6px;padding:22px;display:grid;gap:16px;min-width:0}
+.step-h{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap}
+.num{font-family:var(--f-mono);font-size:13px;color:var(--stamp);border:1.5px solid var(--stamp);border-radius:4px;padding:1px 7px;transform:rotate(-2deg);display:inline-block}
+.banner{border:1px dashed var(--stamp);background:var(--stamp-soft);border-radius:6px;padding:12px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.drop{border:2px dashed var(--rule);border-radius:6px;padding:26px 18px;text-align:center;display:grid;gap:10px;justify-items:center;transition:border-color .15s,background .15s}
+.drop.over{border-color:var(--stamp);background:var(--stamp-soft)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px 16px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 16px}
+label.f{display:grid;gap:4px;font-size:13px;color:var(--ink-2);min-width:0}
+label.f.span2{grid-column:1/-1}
+input[type=text],input[type=email],input[type=password],input[type=date],select,textarea{font:inherit;font-size:14px;color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:8px 10px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:84px;line-height:1.45}
+input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+button{font:inherit;font-size:14px;font-weight:500;border-radius:4px;border:1px solid var(--ink);background:var(--sheet);color:var(--ink);padding:8px 14px;cursor:pointer}
+button.primary{background:var(--ink);color:var(--sheet)}
+button.ghost{border-color:var(--rule)}
+button:disabled{opacity:.45;cursor:not-allowed}
+a{color:var(--stamp)}
+.progress{height:8px;background:var(--rule-2);border-radius:999px;overflow:hidden}
+.progress>div{height:100%;width:0;background:var(--stamp);transition:width .3s}
+.tablebox{overflow-x:auto;border:1px solid var(--rule);border-radius:4px;max-height:420px;overflow-y:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--rule-2);vertical-align:top}
+th{font-family:var(--f-display);font-weight:600;font-size:13px;background:var(--sheet);position:sticky;top:0;z-index:1;border-bottom:1px solid var(--rule)}
+td.num-c{font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip{display:inline-block;font-size:12px;border-radius:999px;padding:1px 9px;border:1px solid var(--rule);white-space:nowrap}
+.chip.ok{background:var(--ok-soft);border-color:transparent;color:var(--ok)}
+.chip.warn{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
+.chip.bad{background:var(--bad-soft);border-color:transparent;color:var(--bad)}
+.chip.st{background:var(--stamp-soft);border-color:transparent;color:var(--stamp)}
+.stamp{font-family:var(--f-mono);font-size:12px;color:var(--stamp);border:1.5px solid var(--stamp);border-radius:3px;padding:0 6px;white-space:nowrap}
+.r0{color:var(--ink-2)}
+.ente{border:1px solid var(--rule);border-radius:6px;padding:18px;display:grid;gap:14px;min-width:0;background:var(--sheet)}
+.ente.off{opacity:.55}
+.ente-h{display:flex;gap:10px 14px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.ente-h .t{display:grid;gap:4px;min-width:0}
+.last{border-left:3px solid var(--stamp);padding:6px 12px;background:var(--stamp-soft);border-radius:0 4px 4px 0}
+ul.crit{margin:0;padding-left:18px;display:grid;gap:4px}
+ul.crit li{color:var(--ink)}
+.critbox{border-left:3px solid var(--warn);padding:8px 12px;background:var(--warn-soft);border-radius:0 4px 4px 0}
+details summary{cursor:pointer;font-weight:500}
+.log{font-family:var(--f-mono);font-size:12px;color:var(--ink-2);min-height:1.5em}
+.kv{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:4px 14px;font-size:14px}
+.kv dt{color:var(--ink-2)} .kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.notice{font-size:13px;padding:10px 12px;border-radius:4px;background:var(--rule-2)}
+.notice.bad{background:var(--bad-soft);color:var(--bad)}
+.notice.warn{background:var(--warn-soft);color:var(--warn)}
+.gen-list{display:grid;gap:8px}
+.gen-item{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;border-bottom:1px solid var(--rule-2);padding-bottom:8px}
+footer{font-size:12px;color:var(--ink-2);display:grid;gap:6px}
+.back-link{font-size:13px;color:var(--ink-2);text-decoration:none;justify-self:start}
+.back-link:hover{color:var(--stamp)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+@media (max-width:520px){h1{font-size:27px} section.step{padding:16px}}
+</style>
+
+<div class="wrap">
+  <a href="index.html" class="back-link">&larr; Torna al portale</a>
+  <header class="top">
+    <div>
+      <div class="eyebrow">Istanze ex L. 241/1990 · DPR 184/2006</div>
+      <h1>Istruttoria Accesso Atti</h1>
+      <p class="lead">Carica la documentazione di un immobile. Lo strumento legge anche le scansioni, ricostruisce per ogni ente i procedimenti e l'ultimo progetto, e prepara le richieste di accesso agli atti in Word, una per ente.</p>
+    </div>
+    <div class="mode" id="mode"><span class="dot" id="modeDot"></span><span id="modeTxt">Verifica collegamento a Claude…</span></div>
+  </header>
+
+  <div class="banner" id="demoBanner">
+    <span><strong>Esempio dimostrativo.</strong> I dati qui sotto sono inventati e mostrano il risultato tipico. Carica la tua documentazione per iniziare.</span>
+    <button class="ghost" id="clearDemo">Svuota esempio</button>
+  </div>
+
+  <!-- 1 -->
+  <section class="step" id="s1">
+    <div class="step-h"><span class="num">1</span><h2>Documentazione</h2><span class="muted small">ZIP (anche annidati), cartelle, PDF anche firmati .p7m, immagini, Word ed Excel</span></div>
+    <div class="drop" id="drop">
+      <strong>Trascina qui file o cartelle</strong>
+      <div class="row" style="justify-content:center">
+        <button class="ghost" id="pickFiles">Scegli file o ZIP</button>
+        <button class="ghost" id="pickDir">Scegli una cartella</button>
+      </div>
+      <input type="file" id="inFiles" multiple accept=".zip,.pdf,.p7m,.jpg,.jpeg,.png,.docx,.xlsx,.txt" hidden>
+      <input type="file" id="inDir" webkitdirectory multiple hidden>
+      <span class="muted small" id="fileCount">Nessun file caricato</span>
+    </div>
+    <div class="grid2">
+      <label class="f">Profondità di lettura
+        <select id="depth">
+          <option value="std">Standard: fino a 6 pagine per documento rilevante</option>
+          <option value="deep">Approfondita: fino a 14 pagine, per pratiche complesse</option>
+          <option value="quick">Rapida: solo prime pagine, per una prima ricognizione</option>
+        </select>
+      </label>
+      <label class="f">Scopo e indicazioni per l'analisi (facoltativo)
+        <input type="text" id="context" placeholder="es. due diligence per acquisizione; interessa soprattutto la pratica antincendio">
+      </label>
+    </div>
+    <div id="apiBox" hidden class="grid2">
+      <label class="f span2">Chiave API Anthropic (solo fuori da Claude: resta in questa scheda del browser e non viene salvata)
+        <input type="password" id="apiKey" autocomplete="off" placeholder="sk-ant-…">
+      </label>
+    </div>
+    <div class="row">
+      <button class="primary" id="run" disabled>Avvia analisi</button>
+      <button class="ghost" id="stop" hidden>Interrompi</button>
+      <button class="ghost" id="retry" hidden>Riprova i lotti non riusciti</button>
+      <span class="muted small">Le pagine vengono lette da Claude con il tuo account. I file restano nel browser.</span>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="step" id="s2">
+    <div class="step-h"><span class="num">2</span><h2>Lettura dei documenti</h2><span class="muted small" id="phase">In attesa</span></div>
+    <div class="progress"><div id="bar"></div></div>
+    <div class="log" id="log"></div>
+    <div class="tablebox">
+      <table>
+        <thead><tr><th>Documento</th><th>Pag.</th><th>Lettura</th><th>Contenuto individuato</th><th>Rilevanza</th></tr></thead>
+        <tbody id="docRows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="step" id="s3">
+    <div class="step-h"><span class="num">3</span><h2>Esito per ente</h2><span class="muted small">Correggi qui ciò che serve: le richieste usano questi campi</span></div>
+    <div id="immobileBox"></div>
+    <div id="noteBox"></div>
+    <div id="enti" style="display:grid;gap:16px"></div>
+    <div class="row">
+      <select id="addEnteSel" aria-label="Ente da aggiungere" style="max-width:420px"></select>
+      <button class="ghost" id="addEnte">Aggiungi ente</button>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="step" id="s4">
+    <div class="step-h"><span class="num">4</span><h2>Richiedente</h2><span class="muted small">Ricordato in questo browser. Campi vuoti = segnaposto evidenziati nel Word</span></div>
+    <div class="grid3">
+      <label class="f">Nome e cognome<input type="text" id="r_nome"></label>
+      <label class="f">Luogo di nascita<input type="text" id="r_luogo"></label>
+      <label class="f">Data di nascita<input type="text" id="r_nascita" placeholder="gg/mm/aaaa"></label>
+      <label class="f">Codice fiscale<input type="text" id="r_cf"></label>
+      <label class="f span2">Residenza o domicilio<input type="text" id="r_ind"></label>
+      <label class="f">Telefono<input type="text" id="r_tel"></label>
+      <label class="f">E-mail<input type="email" id="r_email"></label>
+      <label class="f">PEC per le comunicazioni<input type="email" id="r_pec"></label>
+      <label class="f">Documento di identità<input type="text" id="r_doc" placeholder="es. carta d'identità n. CA00000AA rilasciata da Comune di Roma il …"></label>
+      <label class="f">Qualità del richiedente
+        <select id="r_qual">
+          <option>delegato della società proprietaria</option>
+          <option>tecnico incaricato dall'utilizzatore, delegato dalla società di leasing proprietaria</option>
+          <option>legale rappresentante della società proprietaria</option>
+          <option>proprietario</option>
+          <option>legale rappresentante della società conduttrice</option>
+          <option>delegato della società conduttrice</option>
+          <option>conduttore</option>
+          <option>tecnico incaricato, munito di delega</option>
+          <option>altro (specificare nella motivazione)</option>
+        </select>
+      </label>
+      <label class="f">Soggetto rappresentato (società o persona)<input type="text" id="r_sogg" placeholder="es. Alfa Immobiliare S.r.l."></label>
+      <label class="f">P.IVA / C.F. del rappresentato<input type="text" id="r_piva"></label>
+      <label class="f">Legale rappresentante del delegante (per la delega)<input type="text" id="r_legrap"></label>
+      <label class="f">Tipo di accesso
+        <select id="r_tipo">
+          <option value="semplice">Copia semplice in formato digitale via PEC</option>
+          <option value="conforme">Copia conforme all'originale</option>
+          <option value="visione">Presa visione</option>
+        </select>
+      </label>
+      <label class="f">Motivazione
+        <select id="r_motsel">
+          <option>due diligence tecnico-amministrativa sull'immobile</option>
+          <option>verifica della conformità e aggiornamento delle pratiche</option>
+          <option>progettazione di interventi sull'immobile</option>
+          <option>compravendita o locazione dell'immobile</option>
+          <option>tutela dei propri interessi giuridici (accesso difensivo, art. 24 c. 7 L. 241/1990)</option>
+          <option value="__altro">altra motivazione (scrivi sotto)</option>
+        </select>
+      </label>
+      <label class="f span2">Dettaglio della motivazione (aggiunto alla frase scelta)<input type="text" id="r_motdet" placeholder="es. finalizzata alla verifica della regolarità dei procedimenti di prevenzione incendi dell'attività insediata"></label>
+      <label class="f">Luogo di firma<input type="text" id="r_firma" placeholder="es. Roma"></label>
+      <label class="f">Titolo professionale del tecnico<input type="text" id="r_titolo" placeholder="es. Ing., Arch., Geom."></label>
+    </div>
+    <div id="leaseBox" hidden style="display:grid;gap:12px">
+      <div class="critbox small" id="leaseNote"><strong>Immobile in leasing.</strong> La proprietaria è la società di leasing: serve una sua delega al tecnico, chiesta dall'utilizzatore con lettera di manleva (spese a carico dell'utilizzatore, società di leasing esonerata). Lo strumento prepara lettera, delega unica per tutti gli enti e istanze con la qualità corretta.</div>
+      <div class="grid3">
+        <label class="f">Società di leasing (proprietaria)<input type="text" id="l_soc"></label>
+        <label class="f">Sede della società di leasing<input type="text" id="l_sede" placeholder="via, CAP, città"></label>
+        <label class="f">E-mail o PEC dell'ufficio immobiliare<input type="text" id="l_mail"></label>
+        <label class="f">N. contratto di locazione finanziaria<input type="text" id="l_num"></label>
+        <label class="f">Data del contratto<input type="text" id="l_data" placeholder="gg/mm/aaaa"></label>
+        <label class="f">Uso dell'immobile<input type="text" id="l_uso" placeholder="es. magazzino e uffici"></label>
+        <label class="f">Società utilizzatrice<input type="text" id="l_util"></label>
+        <label class="f">Legale rappresentante dell'utilizzatrice<input type="text" id="l_utilrap"></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="step" id="s5">
+    <div class="step-h"><span class="num">5</span><h2>Richieste</h2><span class="muted small">Un Word per ente, più la scheda dati e le deleghe quando servono</span></div>
+    <div class="gen-list" id="genList"></div>
+    <div class="row">
+      <button class="primary" id="genAll">Scarica tutto (.zip)</button>
+      <button class="ghost" id="genScheda">Solo scheda dati e cronologia (.docx)</button>
+    </div>
+    <div id="genMsg"></div>
+    <p class="muted small">Prima dell'invio verifica sul sito dell'ente PEC e modulistica: alcuni enti richiedono il proprio modulo, nel qual caso riporta lì i dati preparati.</p>
+  </section>
+
+  <footer>
+    <span>Riferimenti: L. 241/1990 artt. 22–25; DPR 184/2006; DPR 445/2000; DPR 151/2011; DPR 380/2001; DPR 160/2010; D.Lgs. 195/2005; D.Lgs. 33/2013 art. 5 (accesso civico generalizzato, se manca un interesse qualificato).</span>
+    <span>I risultati vanno verificati da un tecnico: dove un dato non è leggibile lo strumento lo segnala come mancante invece di dedurlo.</span>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+<script>
+"use strict";
+/* ============================================================
+   BASE DI CONOSCENZA ENTI
+   ============================================================ */
+const KB = {
+  VVF:{label:"Vigili del Fuoco – Prevenzione incendi",
+    dest:p=>`Comando Provinciale dei Vigili del Fuoco di ${p.provincia||"[provincia]"}`, ufficio:"Ufficio Prevenzione Incendi",
+    pec:p=>p.provincia?`com.prev.${slug(p.provincia,"")}@cert.vigilfuoco.it`:"",
+    norme:"L. 241/1990 e DPR 184/2006",
+    rif:"pratica di prevenzione incendi",
+    atti:["istanza di valutazione del progetto con relazione tecnica ed elaborati grafici allegati","parere di conformità rilasciato dal Comando ed eventuali prescrizioni","eventuali richieste di integrazione e relative risposte","SCIA antincendio (mod. PIN 2) con asseverazione e certificazioni allegate (CERT.REI, DICH.IMP, DICH.PROD e simili)","verbale di visita tecnica o esito dei controlli e Certificato di Prevenzione Incendi, se rilasciato","attestazioni di rinnovo periodico di conformità antincendio (art. 5 DPR 151/2011)","eventuali istanze di deroga, nulla osta di fattibilità o voltura"],
+    note:"Il numero di pratica VVF è spesso indispensabile. Una istanza per pratica. Se la pratica è intestata ad altri, il Comando può notificare la richiesta ai controinteressati."},
+  COMUNE_EDILIZIA:{label:"Comune – Edilizia privata",
+    dest:p=>`Comune di ${p.comune||"[comune]"}`, ufficio:"Settore Edilizia Privata – Sportello Unico per l'Edilizia",
+    pec:()=>"", norme:"L. 241/1990, DPR 184/2006 e DPR 380/2001", rif:"pratica edilizia",
+    atti:["titolo edilizio (permesso di costruire, DIA, SCIA o CILA) e relative varianti, con gli elaborati grafici approvati","relazioni tecniche e asseverazioni allegate","comunicazioni di inizio e fine lavori","segnalazione certificata di agibilità o certificato di agibilità con i relativi allegati","pareri e nulla osta acquisiti nel procedimento","eventuali pratiche di sanatoria o condono relative all'immobile"],
+    note:"Molti Comuni usano un modulo o un portale online e applicano diritti di ricerca e visura. Indicare numero e anno di ogni pratica riduce i tempi."},
+  SUAP:{label:"Comune – SUAP (attività produttive)",
+    dest:p=>`Comune di ${p.comune||"[comune]"}`, ufficio:"Sportello Unico per le Attività Produttive (SUAP)",
+    pec:()=>"", norme:"L. 241/1990, DPR 184/2006 e DPR 160/2010", rif:"procedimento SUAP",
+    atti:["domanda di procedimento unico con gli allegati tecnici","verbali della conferenza di servizi","pareri e nulla osta degli enti coinvolti (VVF, ASL, ARPA, gestore della fognatura, consorzi)","provvedimento unico conclusivo","SCIA e comunicazioni relative all'esercizio dell'attività"],
+    note:"Per i procedimenti anteriori al 2010 il riferimento è il DPR 447/1998."},
+  STRUTTURE:{label:"Strutture e sismica (Comune o Genio Civile)",
+    dest:p=>`Ufficio competente per le opere strutturali – ${p.comune?("Comune di "+p.comune):"[Comune o Genio Civile regionale]"}`, ufficio:"Ufficio Sismica / Deposito strutture",
+    pec:()=>"", norme:"L. 241/1990, DPR 184/2006 e DPR 380/2001 (artt. 65, 67, 93, 94)", rif:"pratica strutturale",
+    atti:["denuncia delle opere in conglomerato cementizio armato o metalliche, o deposito/autorizzazione sismica, con il progetto strutturale","relazione a strutture ultimate","certificato di collaudo statico","eventuali varianti strutturali"],
+    note:"La competenza è del Comune o dell'ufficio regionale (Genio Civile) a seconda della regione: verificala prima dell'invio."},
+  ASL:{label:"ASL / ULSS – Igiene pubblica e SPISAL",
+    dest:p=>`Azienda Sanitaria competente per ${p.comune||"[comune]"}`, ufficio:"Dipartimento di Prevenzione",
+    pec:()=>"", norme:"L. 241/1990, DPR 184/2006 e D.Lgs. 81/2008", rif:"pratica",
+    atti:["pareri igienico-sanitari sul progetto","notifica ex art. 67 D.Lgs. 81/2008 per nuovi insediamenti produttivi","verbali di sopralluogo, prescrizioni e relativi riscontri","autorizzazioni o registrazioni sanitarie dell'attività"],note:""},
+  AMBIENTE:{label:"Ambiente – AUA, scarichi, emissioni",
+    dest:()=>"[Provincia / Città metropolitana, ARPA o gestore del servizio idrico]", ufficio:"Ufficio Ambiente",
+    pec:()=>"", norme:"L. 241/1990, D.Lgs. 195/2005, DPR 59/2013 e D.Lgs. 152/2006", rif:"pratica",
+    atti:["autorizzazione unica ambientale (AUA) e allegati tecnici","autorizzazioni allo scarico (civile e industriale) con planimetria delle reti","autorizzazioni alle emissioni in atmosfera","verbali di controllo e analisi","nulla osta all'allaccio in fognatura del gestore"],
+    note:"Le informazioni ambientali sono accessibili a chiunque, senza dimostrare un interesse (D.Lgs. 195/2005)."},
+  INAIL:{label:"INAIL – Impianti e attrezzature",
+    dest:p=>`INAIL – Unità Operativa Territoriale di ${p.provincia||"[provincia]"}`, ufficio:"Settore Ricerca, Certificazione e Verifica",
+    pec:()=>"", norme:"L. 241/1990, DPR 184/2006, DPR 462/2001 e D.Lgs. 81/2008", rif:"matricola",
+    atti:["denunce degli impianti di messa a terra e di protezione dalle scariche atmosferiche (DPR 462/2001) con matricola assegnata","verbali di prima verifica e di verifica periodica","denunce e verbali di verifica di apparecchi a pressione e di sollevamento"],note:""},
+  CATASTO:{label:"Agenzia delle Entrate – Catasto",
+    dest:p=>`Agenzia delle Entrate – Ufficio Provinciale di ${p.provincia||"[provincia]"} – Territorio`, ufficio:"Servizi catastali",
+    pec:()=>"", norme:"L. 241/1990 e DPR 184/2006", rif:"immobile",
+    atti:["visura storica per immobile","planimetrie catastali delle unità immobiliari","elaborato planimetrico ed elenco dei subalterni","dichiarazioni DOCFA e atti di aggiornamento Pregeo depositati","estratto di mappa"],
+    note:"La planimetria è rilasciata ai titolari di diritti reali o ai loro delegati. Visure e planimetrie sono ottenibili anche online."},
+  SOPRINTENDENZA:{label:"Soprintendenza – Vincoli e paesaggio",
+    dest:p=>`Soprintendenza Archeologia, Belle Arti e Paesaggio competente per ${p.comune||"[comune]"}`, ufficio:"Ufficio vincoli e tutela",
+    pec:()=>"", norme:"L. 241/1990, DPR 184/2006 e D.Lgs. 42/2004", rif:"pratica",
+    atti:["provvedimenti di vincolo relativi all'immobile","autorizzazioni ex art. 21 e autorizzazioni paesaggistiche ex art. 146 D.Lgs. 42/2004","pareri resi sui progetti"],note:""},
+  ALTRO:{label:"Altro ente (consorzi, gestori, enti locali)",
+    dest:()=>"[denominazione dell'ente]", ufficio:"", pec:()=>"", norme:"L. 241/1990 e DPR 184/2006", rif:"pratica",
+    atti:["[atti da richiedere]"],note:""}
+};
+const KB_ORDER = ["VVF","COMUNE_EDILIZIA","SUAP","STRUTTURE","ASL","AMBIENTE","INAIL","CATASTO","SOPRINTENDENZA","ALTRO"];
+const VVF_DECENNALI = ["6","7","8","64","71","72","77"];
+
+/* ============================================================
+   UTILITÀ
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function slug(s, sep="-"){ const parts = String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean); return parts.join(sep); }
+function safeName(s){ return String(s||"").replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim().slice(0,120); }
+function parseDate(s){ const m = String(s||"").match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/); if(!m) { const y = String(s||"").match(/(19|20)\d{2}/); return y? new Date(+y[0],0,1).getTime() : 0; } let y=+m[3]; if(y<100) y+= y>50?1900:2000; return new Date(y, +m[2]-1, +m[1]).getTime(); }
+function todayIt(){ const d=new Date(); return d.toLocaleDateString("it-IT",{day:"2-digit",month:"2-digit",year:"numeric"}); }
+function store(k,v){ try{ localStorage.setItem("accessoAtti."+k, JSON.stringify(v)); }catch{} }
+function load(k){ try{ const v = localStorage.getItem("accessoAtti."+k); return v? JSON.parse(v): null; }catch{ return null; } }
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function blobToB64(b){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(",")[1]); r.onerror=rej; r.readAsDataURL(b); }); }
+function lines(t){ return String(t||"").split(/\n+/).map(s=>s.replace(/^\s*(\d+[\.\)]|[-•*])\s*/,"").trim()).filter(Boolean); }
+
+/* ============================================================
+   COLLEGAMENTO A CLAUDE (artifact → sample; altrove → chiave API)
+   ============================================================ */
+const AI = {
+  mode:"pending", sample:null, maxImages:0,
+  models:{quick:"claude-haiku-5-5", default:"claude-sonnet-5-5", complex:"claude-opus-5-5"},
+  async init(){
+    try{ if (window.claude?.use) this.sample = await window.claude.use("sample"); }catch{ this.sample=null; }
+    if (this.sample){
+      this.mode="claude";
+      const lim = await this.sample.limits().catch(()=>null);
+      this.maxImages = lim?.images?.maxCount || 0;
+    } else { this.mode="api"; this.maxImages = 20; }
+    renderMode();
+  },
+  ready(){ return this.mode==="claude" || (this.mode==="api" && !!$("#apiKey").value.trim()); },
+  async json(prompt, images, tier, signal){
+    images = images || [];
+    if (this.mode==="claude"){
+      const opts = {modelTier: tier||"default", signal};
+      if (images.length) opts.images = images;
+      return await this.sample.json(prompt, opts);
+    }
+    const key = $("#apiKey").value.trim();
+    if (!key) throw {code:"no_key", message:"Inserisci la chiave API"};
+    const content = [];
+    for (const b of images) content.push({type:"image", source:{type:"base64", media_type:"image/jpeg", data: await blobToB64(b)}});
+    content.push({type:"text", text: prompt + "\n\nRispondi solo con il JSON richiesto."});
+    const r = await fetch("https://api.anthropic.com/v1/messages",{method:"POST", signal,
+      headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body: JSON.stringify({model:this.models[tier||"default"], max_tokens:16000, messages:[{role:"user", content}]})});
+    if (!r.ok){ const t = await r.text(); throw {code: r.status===429?"rate_limited":"upstream_error", message:t.slice(0,300)}; }
+    const j = await r.json();
+    const text = (j.content||[]).filter(c=>c.type==="text").map(c=>c.text).join("\n");
+    return parseJSONLoose(text);
+  }
+};
+function parseJSONLoose(text){
+  try{ return JSON.parse(text); }catch{}
+  const f = text.match(/```(?:json)?\s*([\s\S]*?)```/); if (f){ try{ return JSON.parse(f[1]); }catch{} }
+  const a = Math.min(...["{","["].map(c=>{const i=text.indexOf(c); return i<0?Infinity:i;}));
+  const b = Math.max(text.lastIndexOf("}"), text.lastIndexOf("]"));
+  if (a<Infinity && b>a){ try{ return JSON.parse(text.slice(a,b+1)); }catch{} }
+  throw {code:"invalid_json", message:"Risposta non leggibile", text};
+}
+function renderMode(){
+  const dot=$("#modeDot"), t=$("#modeTxt");
+  if (AI.mode==="claude"){
+    dot.className = "dot " + (AI.maxImages? "ok":"warn");
+    t.textContent = AI.maxImages? "Claude collegato · lettura scansioni attiva" : "Claude collegato · scansioni non leggibili in questa vista";
+    $("#apiBox").hidden = true;
+  } else if (AI.mode==="api"){
+    $("#apiBox").hidden = false;
+    const ok = !!$("#apiKey").value.trim();
+    dot.className = "dot " + (ok?"ok":"warn"); t.textContent = ok? "Collegato con chiave API" : "Serve una chiave API per l'analisi";
+  }
+  updateRunBtn();
+}
+
+/* ============================================================
+   STATO
+   ============================================================ */
+const S = { docs:[], result:null, enti:[], demo:true, running:false, ctl:null, failed:[] };
+let docSeq = 0;
+
+/* ============================================================
+   CARICAMENTO FILE
+   ============================================================ */
+const SUPPORTED = /\.(pdf|p7m|jpe?g|png|docx|xlsx|txt|csv|xml)$/i;
+function registerFile(file, path){
+  if (!SUPPORTED.test(path)) { S.docs.push({id:"D"+(++docSeq), path, name:path.split("/").pop(), size:file.size||0, kind:"skip", status:"formato non supportato", rel:-1}); return; }
+  const ext = path.toLowerCase().split(".").pop();
+  const kind = ext==="pdf"?"pdf": ext==="p7m"?"p7m": /jpe?g|png/.test(ext)?"image": ext==="docx"?"docx": ext==="xlsx"?"xlsx":"text";
+  S.docs.push({id:"D"+(++docSeq), path, name:path.split("/").pop(), file, size:file.size, kind, status:"in coda", pages:0, text:[], scan:false, rel:null, tri:null, deep:null});
+}
+async function addZip(blob, base, depth){
+  let zip; try{ zip = await JSZip.loadAsync(blob); }catch{ S.docs.push({id:"D"+(++docSeq), path:base, name:base, kind:"skip", status:"ZIP non leggibile", rel:-1}); return; }
+  const entries = Object.values(zip.files).filter(f=>!f.dir && !/(^|\/)(__MACOSX|\.DS_Store|Thumbs\.db)/i.test(f.name));
+  for (const e of entries){
+    const p = base + "/" + e.name;
+    if (/\.zip$/i.test(e.name) && depth<5){ await addZip(await e.async("blob"), p.replace(/\.zip$/i,""), depth+1); continue; }
+    if (!SUPPORTED.test(e.name)){ registerFile({size:0}, p); continue; }
+    const b = await e.async("blob");
+    registerFile(new File([b], e.name.split("/").pop()), p);
+  }
+}
+async function addFiles(items){
+  if (S.demo) clearDemo();
+  $("#fileCount").textContent = "Caricamento…";
+  for (const {file, path} of items){
+    if (/\.zip$/i.test(path)) await addZip(file, path.replace(/\.zip$/i,""), 0);
+    else registerFile(file, path);
+  }
+  await dedupe();
+  renderDocs(); updateCount(); updateRunBtn();
+}
+async function dedupe(){
+  const seen = new Map();
+  for (const d of S.docs){
+    if (!d.file || d.dupOf || d.kind==="skip") continue;
+    let h = d.size + ":";
+    try{ const buf = await d.file.slice(0, 262144).arrayBuffer(); const dig = await crypto.subtle.digest("SHA-1", buf); h += [...new Uint8Array(dig)].map(x=>x.toString(16).padStart(2,"0")).join(""); }catch{ h += d.name; }
+    if (seen.has(h)){ d.dupOf = seen.get(h); d.kind="skip"; d.status="duplicato di "+d.dupOf; d.rel=-1; }
+    else seen.set(h, d.id);
+  }
+}
+function updateCount(){
+  const n = S.docs.filter(d=>d.kind!=="skip").length, sk = S.docs.length-n;
+  $("#fileCount").textContent = S.docs.length? `${n} documenti da leggere${sk?` · ${sk} esclusi (duplicati o formati non supportati)`:""}` : "Nessun file caricato";
+}
+async function walkEntry(entry, path, out){
+  if (entry.isFile){ await new Promise(res=>entry.file(f=>{ out.push({file:f, path: path+f.name}); res(); }, ()=>res())); }
+  else if (entry.isDirectory){
+    const reader = entry.createReader(); let batch;
+    do { batch = await new Promise(res=>reader.readEntries(res, ()=>res([]))); for (const e of batch) await walkEntry(e, path+entry.name+"/", out); } while (batch.length);
+  }
+}
+
+/* ============================================================
+   ESTRAZIONE LOCALE (testo, pagine)
+   ============================================================ */
+function p7mToPdf(u8){
+  const s = new TextDecoder("latin1").decode(u8);
+  const a = s.indexOf("%PDF-"); const b = s.lastIndexOf("%%EOF");
+  if (a<0 || b<a) return null;
+  return u8.slice(a, b+5);
+}
+async function pdfData(d){
+  if (d.kind==="p7m"){ if (!d._pdf){ const u8 = new Uint8Array(await d.file.arrayBuffer()); d._pdf = p7mToPdf(u8); } return d._pdf? d._pdf.slice() : null; }
+  return new Uint8Array(await d.file.arrayBuffer());
+}
+async function openPdf(d){
+  const data = await pdfData(d); if (!data) throw new Error("p7m non apribile");
+  return await pdfjsLib.getDocument({data, isEvalSupported:false, useSystemFonts:true, disableFontFace:false, verbosity:0}).promise;
+}
+function xmlText(xml){ return xml.replace(/<\/w:p>|<\/a:p>|<row[^>]*>/g,"\n").replace(/<w:tab\/>/g,"\t").replace(/<[^>]+>/g," ").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/[ \t]+/g," ").replace(/\n\s+/g,"\n").trim(); }
+async function extractLocal(d){
+  try{
+    if (d.kind==="pdf" || d.kind==="p7m"){
+      const pdf = await openPdf(d); d.pages = pdf.numPages;
+      const lim = Math.min(d.pages, 40); let chars = 0;
+      for (let i=1;i<=lim;i++){
+        const pg = await pdf.getPage(i); const tc = await pg.getTextContent();
+        let t = ""; for (const it of tc.items){ t += it.str + (it.hasEOL? "\n":" "); }
+        t = t.replace(/[ \t]+/g," ").trim(); d.text.push(t); chars += t.replace(/\s/g,"").length; pg.cleanup();
+      }
+      await pdf.destroy();
+      d.scan = chars/lim < 120;
+      d.status = d.scan? "scansione" : "testo";
+    } else if (d.kind==="image"){ d.pages=1; d.scan=true; d.status="immagine"; }
+    else if (d.kind==="docx" || d.kind==="xlsx"){
+      const z = await JSZip.loadAsync(d.file);
+      let t = "";
+      if (d.kind==="docx"){ const f = z.file("word/document.xml"); if (f) t = xmlText(await f.async("string")); }
+      else { const f = z.file("xl/sharedStrings.xml"); if (f) t = xmlText(await f.async("string")); }
+      d.text=[t]; d.pages=1; d.scan=false; d.status="testo";
+    } else { d.text=[(await d.file.text()).slice(0,60000)]; d.pages=1; d.scan=false; d.status="testo"; }
+  }catch(e){ d.kind="skip"; d.status="non leggibile"; d.rel=-1; }
+}
+async function renderPage(pdf, n, target){
+  const pg = await pdf.getPage(n);
+  const v1 = pg.getViewport({scale:1});
+  const scale = Math.max(0.5, Math.min(5, target / Math.max(v1.width, v1.height)));
+  const vp = pg.getViewport({scale});
+  const c = document.createElement("canvas"); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+  const ctx = c.getContext("2d"); ctx.fillStyle="#fff"; ctx.fillRect(0,0,c.width,c.height);
+  await pg.render({canvasContext:ctx, viewport:vp}).promise; pg.cleanup();
+  const b = await new Promise(r=>c.toBlob(r,"image/jpeg",0.85)); c.width=c.height=0; return b;
+}
+async function pageImages(d, pages, target=1500){
+  if (d.kind==="image"){
+    const bmp = await createImageBitmap(d.file); const s = Math.min(1, 2200/Math.max(bmp.width,bmp.height));
+    const c=document.createElement("canvas"); c.width=bmp.width*s; c.height=bmp.height*s; c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);
+    return [await new Promise(r=>c.toBlob(r,"image/jpeg",0.85))];
+  }
+  const pdf = await openPdf(d); const out=[];
+  for (const n of pages){ if (n<=pdf.numPages) out.push(await renderPage(pdf, n, target)); }
+  await pdf.destroy(); return out;
+}
+
+/* ============================================================
+   PROMPT
+   ============================================================ */
+const ROLE = "Sei un tecnico specialista italiano in pratiche edilizie, di prevenzione incendi e ambientali, esperto di L. 241/1990, DPR 184/2006, DPR 151/2011, DPR 380/2001 e DPR 160/2010. Stai esaminando la documentazione di un immobile per preparare richieste di accesso agli atti presso gli enti che detengono i fascicoli.";
+const CATS = KB_ORDER.map(k=>`${k} = ${KB[k].label}`).join("; ");
+function ctxLine(){ const c=$("#context").value.trim(); return c? `Indicazioni dell'utente: ${c}\n` : ""; }
+const RULES_READ = `Leggi con attenzione intestazioni, timbri di protocollo (anche a mano, ruotati o sbiaditi), numeri di pratica, date, ricevute, firme, cartigli delle tavole. Riporta numeri e date esattamente come scritti. Se un dato non è leggibile lascia la stringa vuota: non dedurlo e non inventarlo.`;
+const TRIAGE_SCHEMA = `{"documenti":[{"id":"D1","tipo":"tipo di documento in poche parole","ente_emittente":"","ente_destinatario":"","categoria_ente":"una tra ${KB_ORDER.join("|")}|NESSUNO","data":"GG/MM/AAAA","protocolli":["numero e data come scritti"],"pratiche":["numeri di pratica"],"oggetto":"una riga","riferimenti":[{"ente":"","atto":"","estremi":"","data":""}],"immobile":"indirizzo se presente","rilevanza":0,"motivo":"breve"}]}`;
+const SCALE = `Rilevanza: 3 = atto, istanza, ricevuta, parere, titolo o provvedimento di un ente pubblico, oppure documento che cita gli estremi (numero, protocollo, data) di atti di enti; 2 = elaborato tecnico o dichiarazione presentata a un ente (relazioni, tavole timbrate, asseverazioni, certificazioni REI, dichiarazioni di conformità, collaudi), oppure documento con dati identificativi dell'immobile o dei soggetti (rogiti, visure, DOCFA); 1 = contesto (contratti, corrispondenza tecnica, capitolati); 0 = irrilevante (fatture, polizze, DURC, POS, offerte, preventivi).`;
+function triagePromptImages(batch, order){
+  return `${ROLE}\n${ctxLine()}\nTi mostro le prime pagine di ${batch.length} documenti. Ordine delle immagini: ${order.join(", ")}.\nDocumenti:\n${batch.map(d=>`- ${d.id}: file "${d.path}", ${d.pages} pagine`).join("\n")}\n\nPer ciascun documento compila una scheda. ${RULES_READ}\n${SCALE}\nCategorie di ente: ${CATS}.\nRispondi solo con JSON in questa forma:\n${TRIAGE_SCHEMA}`;
+}
+function triagePromptText(batch){
+  return `${ROLE}\n${ctxLine()}\nEcco il testo iniziale di ${batch.length} documenti (estratto dal PDF, può contenere errori di impaginazione).\n\n${batch.map(d=>`=== ${d.id} · file "${d.path}" · ${d.pages} pagine\n${d.text.join("\n").slice(0,3500)}`).join("\n\n")}\n\nPer ciascun documento compila una scheda. ${RULES_READ}\n${SCALE}\nCategorie di ente: ${CATS}.\nRispondi solo con JSON in questa forma:\n${TRIAGE_SCHEMA}`;
+}
+const DEEP_SCHEMA = `{"id":"D1","sintesi":"2-3 righe","atti":[{"categoria_ente":"${KB_ORDER.join("|")}","ente":"nome completo, es. Comando Provinciale VVF di Padova","tipo_atto":"es. parere di conformità","procedimento":"es. valutazione progetto DPR 151/2011","numero_pratica":"","protocollo":"","data":"GG/MM/AAAA","esito":"","intestatario":"","oggetto":"","pagina":1,"diretto":true}],"immobile":{"indirizzo":"","indirizzi_precedenti":"","comune":"","provincia":"","cap":"","catasto_fabbricati":"","catasto_terreni":""},"soggetti":[{"ruolo":"proprietario|società di leasing proprietaria|utilizzatore in leasing|conduttore|intestatario pratica|progettista|direttore lavori|impresa|tecnico antincendio|altro","nome":"","cf_piva":""}],"leasing":{"societa":"","sede":"","utilizzatore":"","contratto_numero":"","contratto_data":""},"uso_immobile":"","attivita_vvf":[{"codice":"es. 70.2.C","descrizione":""}],"note":""}`;
+function deepPrompt(d, pages, isText){
+  const head = `${ROLE}\n${ctxLine()}\nDocumento ${d.id}, file "${d.path}", ${d.pages} pagine totali. ${isText? "Testo estratto:" : `Ti mostro le pagine ${pages.join(", ")}, in quest'ordine.`}`;
+  const body = isText? "\n\n" + d.text.join("\n\n--- pagina ---\n\n").slice(0, 60000) : "";
+  return `${head}${body}\n\nEstrai TUTTI i riferimenti ad atti e procedimenti amministrativi (titoli edilizi, pareri, SCIA, CPI, autorizzazioni, denunce, protocolli, ricevute) e i dati identificativi di immobile e soggetti. "diretto" è true se il documento è l'atto stesso o la sua ricevuta, false se lo cita soltanto. Per ogni atto indica la pagina in cui compare. ${RULES_READ}\nRispondi solo con JSON in questa forma:\n${DEEP_SCHEMA}`;
+}
+function synthPrompt(records){
+  const kb = KB_ORDER.map(k=>`- ${k}: ${KB[k].label}. Atti tipici: ${KB[k].atti.join("; ")}`).join("\n");
+  return `${ROLE}\nOggi è il ${todayIt()}.\n${ctxLine()}\nDi seguito le schede estratte da ${records.length} documenti dell'immobile (JSON; "id" identifica il documento sorgente).\n\n${JSON.stringify(records)}\n\nCategorie di ente e atti tipici:\n${kb}\n\nCompito:\n1. Ricostruisci l'immobile (indirizzo attuale, indirizzi precedenti, comune, provincia, CAP, dati catastali) e i soggetti (proprietà, utilizzatore o conduttore, intestatari delle pratiche), indicando le fonti.\n2. Per ogni ente presso cui risultano procedimenti: cronologia completa (data, tipo, estremi, esito, fonte), ULTIMO progetto o procedimento rilevante, dati identificativi da riportare nell'istanza con fonte e affidabilità, elenco PUNTUALE degli atti da richiedere (mai "tutto il fascicolo"; includi gli atti successivi all'ultimo progetto e quelli che dovrebbero esistere ma mancano nella documentazione), criticità e dati mancanti.\n3. Uno stesso ente con categorie diverse (es. Comune: edilizia e SUAP) va in voci separate per categoria. Se più pratiche dello stesso ente riguardano oggetti diversi, tienile nella stessa voce ma distinguile negli atti.\n4. Aggiungi enti con "suggerito": true solo se utili allo scopo anche senza documenti (es. catasto per planimetrie aggiornate).\n5. Verifica se l'immobile è in locazione finanziaria (leasing): indizi sono DOCFA o visure con "ditta intestataria" una società di leasing e "ditta utilizzatrice", contratti di leasing, rogiti con acquirente una società di leasing. In tal caso la proprietaria è la società di leasing e l'accesso richiede una sua delega, chiesta dall'utilizzatore: compila "leasing" e segnalalo nelle criticità di ogni ente.\nRegole specialistiche: per i VVF il rinnovo periodico di conformità è ogni 5 anni dalla SCIA o dall'ultimo rinnovo (10 anni per le attività ${VVF_DECENNALI.join(", ")}): calcola le scadenze rispetto a oggi e segnala quelle scadute o imminenti. Segnala titolari diversi tra pratiche (voltura), indirizzi cambiati, procedimenti senza atto conclusivo, pareri rilasciati in regimi normativi precedenti.\nNon inventare: un dato assente dalle schede va in "dati_mancanti". Le fonti sono gli id dei documenti.\nRispondi solo con JSON in questa forma:\n{"immobile":{"indirizzo":"","indirizzi_precedenti":"","comune":"","provincia":"","cap":"","uso":"","catasto_fabbricati":"","catasto_terreni":"","fonti":["D1"]},"soggetti":[{"ruolo":"","nome":"","cf_piva":"","fonte":"D1"}],"leasing":{"presente":false,"societa":"","sede":"","utilizzatore":"","contratto_numero":"","contratto_data":"","fonte":"D1"},"enti":[{"categoria":"VVF","nome_ente":"Comando Provinciale dei Vigili del Fuoco di Padova","ufficio":"Ufficio Prevenzione Incendi","comune":"","provincia":"","suggerito":false,"riferimento_pratica":"pratica n. …","intestatario":"","procedimenti":[{"data":"GG/MM/AAAA","tipo":"","estremi":"","esito":"","fonte":"D1"}],"ultimo_procedimento":"","dati":[{"campo":"","valore":"","fonte":"D1","affidabilita":"certo|da verificare"}],"atti_da_richiedere":[""],"criticita":[""],"dati_mancanti":[""]}],"note":""}`;
+}
+
+/* ============================================================
+   PIPELINE
+   ============================================================ */
+function setPhase(t){ $("#phase").textContent = t; }
+function setLog(t){ $("#log").textContent = t; }
+function setBar(p){ $("#bar").style.width = Math.max(0,Math.min(100,p)) + "%"; }
+async function pool(tasks, n, onDone){
+  let i=0, done=0; const res=[];
+  async function worker(){ while(i<tasks.length){ if (S.ctl?.signal.aborted) return; const k=i++; try{ res[k]=await tasks[k](); }catch(e){ res[k]={__err:e}; } done++; onDone && onDone(done, tasks.length); } }
+  await Promise.all(Array.from({length:Math.min(n,tasks.length)}, worker)); return res;
+}
+function errText(e){
+  const c = e?.code;
+  return c==="not_granted"? "Uso di Claude non consentito per questa pagina: consentilo per proseguire."
+   : c==="rate_limited"? "Limite di utilizzo raggiunto: riprova tra qualche minuto."
+   : c==="sampling_disabled"? "Claude non è disponibile per questo account."
+   : c==="images_unavailable"? "Questa vista non può inviare immagini a Claude: le scansioni non sono leggibili."
+   : c==="no_key"? "Inserisci la chiave API."
+   : c==="cancelled"? "Interrotto."
+   : c==="invalid_json"? "Risposta incompleta per un lotto."
+   : (e?.message? String(e.message).slice(0,160) : "Errore imprevisto.");
+}
+const FATAL = ["not_granted","sampling_disabled","no_key","session_expired"];
+
+async function runAnalysis(){
+  if (S.running) return;
+  S.running = true; S.ctl = new AbortController(); S.failed = [];
+  $("#run").disabled = true; $("#stop").hidden = false; $("#retry").hidden = true;
+  const depth = $("#depth").value;
+  const todo = S.docs.filter(d=>d.kind!=="skip");
+  try{
+    // 1. estrazione locale
+    setPhase("Estrazione del testo"); let k=0;
+    for (const d of todo){ if (S.ctl.signal.aborted) throw {code:"cancelled"}; if (!d.pages) await extractLocal(d); k++; setBar(k/todo.length*15); setLog(`${k}/${todo.length} · ${d.path}`); if (k%5===0) renderDocs(); }
+    renderDocs();
+    const live = todo.filter(d=>d.kind!=="skip");
+    // 2. triage
+    setPhase("Riconoscimento dei documenti");
+    await triage(live.filter(d=>!d.tri));
+    // 3. lettura approfondita
+    if (depth!=="quick"){
+      setPhase("Lettura approfondita dei documenti rilevanti");
+      await deepRead(live, depth);
+    }
+    // 4. sintesi
+    setPhase("Ricostruzione dei procedimenti per ente");
+    await synthesize(live);
+    setPhase(S.failed.length? `Completata con ${S.failed.length} lotti non riusciti` : "Completata"); setBar(100); setLog("");
+  }catch(e){
+    setPhase(e?.code==="cancelled"? "Interrotta" : "Fermata"); setLog(errText(e));
+  }finally{
+    S.running=false; $("#stop").hidden = true; $("#retry").hidden = !S.failed.length; updateRunBtn(); renderDocs();
+  }
+}
+function guardFatal(results){ for (const r of results){ if (r?.__err && FATAL.includes(r.__err.code)) throw r.__err; } }
+
+async function triage(list){
+  const text = list.filter(d=>!d.scan), scans = list.filter(d=>d.scan);
+  const tasks = [];
+  // testo: lotti per dimensione
+  let cur=[], size=0;
+  for (const d of text){ const s = Math.min(3500, d.text.join("").length); if (cur.length && (size+s>40000 || cur.length>=14)){ tasks.push(mkTextTriage(cur)); cur=[]; size=0; } cur.push(d); size+=s; }
+  if (cur.length) tasks.push(mkTextTriage(cur));
+  if (scans.length && !AI.maxImages){ scans.forEach(d=>{ d.status="scansione non leggibile qui"; }); setLog(errText({code:"images_unavailable"})); }
+  else {
+    const per = Math.max(1, Math.min(5, Math.floor(AI.maxImages/2)));
+    for (let i=0;i<scans.length;i+=per) tasks.push(mkImgTriage(scans.slice(i,i+per)));
+  }
+  const res = await pool(tasks, 2, (dn,tot)=>{ setBar(15 + dn/tot*35); setLog(`Riconoscimento: lotto ${dn} di ${tot}`); renderDocs(); });
+  guardFatal(res);
+}
+function applyTriage(batch, out){
+  const arr = Array.isArray(out?.documenti)? out.documenti : Array.isArray(out)? out : [];
+  for (const d of batch){
+    const r = arr.find(x=>String(x.id).trim()===d.id);
+    if (r){ d.tri = r; d.rel = Math.max(0, Math.min(3, parseInt(r.rilevanza)||0)); d.status = d.scan? "letto (prime pagine)" : "letto"; }
+    else { d.status = "non riconosciuto"; S.failed.push({type:"tri", batch:[d]}); }
+  }
+}
+function mkTextTriage(batch){ return async ()=>{
+  batch.forEach(d=>d.status="in lettura");
+  try{ const out = await AI.json(triagePromptText(batch), [], "default", S.ctl.signal); applyTriage(batch, out); }
+  catch(e){ if (FATAL.includes(e?.code)||e?.code==="cancelled") throw e; S.failed.push({type:"tri", batch}); batch.forEach(d=>d.status="non riuscito"); throw e; }
+}; }
+function mkImgTriage(batch){ return async ()=>{
+  batch.forEach(d=>d.status="in lettura");
+  const imgs=[], order=[];
+  for (const d of batch){ const pages = d.pages>1? [1,2]:[1]; try{ const b = await pageImages(d, pages, 1500); b.forEach((x,i)=>{ imgs.push(x); order.push(`${d.id} pag. ${pages[i]}`); }); }catch{ d.status="pagine non rendibili"; } }
+  try{ const out = await AI.json(triagePromptImages(batch, order), imgs, $("#depth").value==="quick"?"quick":"default", S.ctl.signal); applyTriage(batch, out); }
+  catch(e){ if (FATAL.includes(e?.code)||e?.code==="cancelled") throw e; S.failed.push({type:"tri", batch}); batch.forEach(d=>d.status="non riuscito"); throw e; }
+}; }
+
+async function deepRead(live, depth){
+  const perDoc = depth==="deep"? 14 : 6, budget = depth==="deep"? 320 : 140;
+  const cands = live.filter(d=>(d.rel??0)>=2 && !d.deep).sort((a,b)=>(b.rel-a.rel) || (a.pages-b.pages));
+  const tasks=[]; let used=0;
+  for (const d of cands){
+    if (!d.scan){ tasks.push(mkDeep(d, null, true)); continue; }
+    if (!AI.maxImages) continue;
+    const n = Math.min(d.pages, perDoc); if (used + n > budget) continue; used += n;
+    const all = Array.from({length:n},(_,i)=>i+1), chunk = Math.max(1, AI.maxImages);
+    for (let i=0;i<all.length;i+=chunk) tasks.push(mkDeep(d, all.slice(i,i+chunk), false));
+  }
+  const res = await pool(tasks, 2, (dn,tot)=>{ setBar(50 + dn/tot*35); setLog(`Lettura approfondita: ${dn} di ${tot}`); renderDocs(); });
+  guardFatal(res);
+}
+function mkDeep(d, pages, isText){ return async ()=>{
+  d.status = "lettura approfondita";
+  try{
+    const imgs = isText? [] : await pageImages(d, pages, 1600);
+    const out = await AI.json(deepPrompt(d, pages||[], isText), imgs, "default", S.ctl.signal);
+    if (!d.deep) d.deep = {sintesi:"", atti:[], immobile:{}, soggetti:[], attivita_vvf:[], note:""};
+    d.deep.sintesi = [d.deep.sintesi, out.sintesi].filter(Boolean).join(" ");
+    d.deep.atti.push(...(out.atti||[])); d.deep.soggetti.push(...(out.soggetti||[])); d.deep.attivita_vvf.push(...(out.attivita_vvf||[]));
+    for (const [k,v] of Object.entries(out.immobile||{})) if (v && !d.deep.immobile[k]) d.deep.immobile[k]=v;
+    if (out.leasing && Object.values(out.leasing).some(Boolean)) d.deep.leasing = Object.assign(d.deep.leasing||{}, Object.fromEntries(Object.entries(out.leasing).filter(([,v])=>v)));
+    if (out.uso_immobile) d.deep.uso = out.uso_immobile;
+    if (out.note) d.deep.note += (d.deep.note?" ":"") + out.note;
+    d.status = "letto";
+  }catch(e){ if (FATAL.includes(e?.code)||e?.code==="cancelled") throw e; S.failed.push({type:"deep", d, pages, isText}); d.status="lettura parziale"; throw e; }
+}; }
+
+function compactRecord(d){
+  const t = d.tri||{};
+  const r = {id:d.id, file:d.path, pagine:d.pages, tipo:t.tipo, data:t.data, ente:t.ente_emittente||t.ente_destinatario, categoria:t.categoria_ente, oggetto:t.oggetto, protocolli:t.protocolli, pratiche:t.pratiche, riferimenti:t.riferimenti, immobile:t.immobile, rilevanza:d.rel};
+  if (d.deep) Object.assign(r, {sintesi:d.deep.sintesi, atti:d.deep.atti, immobile_dettaglio:d.deep.immobile, soggetti:d.deep.soggetti, leasing:d.deep.leasing, uso_immobile:d.deep.uso, attivita_vvf:d.deep.attivita_vvf, note:d.deep.note});
+  return JSON.parse(JSON.stringify(r, (k,v)=> (v===""||v==null||(Array.isArray(v)&&!v.length))? undefined : v));
+}
+async function synthesize(live){
+  let recs = live.filter(d=>(d.rel??0)>=1 && (d.tri||d.deep)).sort((a,b)=>b.rel-a.rel).map(compactRecord);
+  let p = synthPrompt(recs);
+  while (new Blob([p]).size > 230000 && recs.length>1){ recs = recs.slice(0, Math.floor(recs.length*0.85)); p = synthPrompt(recs); }
+  if (!recs.length) throw {code:"empty", message:"Nessun documento rilevante individuato: controlla i file caricati."};
+  setLog("Sintesi in corso: può richiedere uno o due minuti");
+  setBar(88);
+  const out = await AI.json(p, [], "complex", S.ctl.signal);
+  S.result = out; buildEnti(out); prefillCase(); renderResults();
+}
+
+/* ============================================================
+   ENTI: modello modificabile
+   ============================================================ */
+function newEnte(cat, src){
+  const kb = KB[cat] || KB.ALTRO; src = src || {};
+  const geo = {comune: src.comune || S.result?.immobile?.comune || "", provincia: src.provincia || S.result?.immobile?.provincia || ""};
+  const specific = (src.atti_da_richiedere||[]).filter(Boolean);
+  return {
+    uid: Math.random().toString(36).slice(2,9), cat, include: !src.suggerito, suggerito: !!src.suggerito,
+    dest: src.nome_ente || kb.dest(geo), ufficio: src.ufficio || kb.ufficio,
+    pec: kb.pec(geo), pecGuess: !!kb.pec(geo),
+    rif: src.riferimento_pratica || "", intestatario: src.intestatario || "",
+    procedimenti: (src.procedimenti||[]).slice().sort((a,b)=>parseDate(b.data)-parseDate(a.data)),
+    ultimo: src.ultimo_procedimento || "",
+    dati: (src.dati||[]).filter(x=>x.campo&&x.valore).map(x=>`${x.campo}: ${x.valore}`).join("\n"),
+    datiMeta: src.dati||[],
+    atti: (specific.length? specific : kb.atti).join("\n"),
+    criticita: (src.criticita||[]).filter(Boolean), mancanti:(src.dati_mancanti||[]).filter(Boolean)
+  };
+}
+function buildEnti(out){
+  const list = (out.enti||[]).filter(e=>e && e.categoria);
+  S.enti = list.map(e=>newEnte(KB[e.categoria]? e.categoria : "ALTRO", e));
+  S.enti.sort((a,b)=> (a.suggerito-b.suggerito) || (KB_ORDER.indexOf(a.cat)-KB_ORDER.indexOf(b.cat)));
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function relChip(d){
+  if (d.rel===-1) return `<span class="chip">escluso</span>`;
+  if (d.rel==null) return `<span class="chip r0">—</span>`;
+  return [`<span class="chip">irrilevante</span>`,`<span class="chip">contesto</span>`,`<span class="chip warn">tecnico</span>`,`<span class="chip st">atto di ente</span>`][d.rel];
+}
+function readChip(d){
+  const s=d.status||"";
+  const cls = /letto|^testo|scansione$|immagine/.test(s)? "ok" : /non |parziale|duplicato/.test(s)? "warn" : /lettura/.test(s)? "st" : "";
+  return `<span class="chip ${cls}">${esc(s)}</span>`;
+}
+let renderTimer=null;
+function renderDocs(){
+  clearTimeout(renderTimer);
+  renderTimer = setTimeout(()=>{
+    const rows = S.docs.slice().sort((a,b)=>((b.rel??-0.5)-(a.rel??-0.5))).map(d=>{
+      const t = d.tri||{};
+      const prot = (t.protocolli||[]).slice(0,2).map(p=>`<span class="stamp">${esc(p)}</span>`).join(" ");
+      const what = t.tipo? `<strong>${esc(t.tipo)}</strong>${t.ente_emittente?` · ${esc(t.ente_emittente)}`:""}${t.data?` · ${esc(t.data)}`:""}<br><span class="muted">${esc(t.oggetto||"")}</span> ${prot}` : `<span class="muted">${d.kind==="skip"?"":"—"}</span>`;
+      return `<tr><td style="min-width:220px;overflow-wrap:anywhere">${esc(d.path)}</td><td class="num-c">${d.pages||""}</td><td>${readChip(d)}</td><td style="min-width:260px">${what}</td><td>${relChip(d)}</td></tr>`;
+    }).join("");
+    $("#docRows").innerHTML = rows || `<tr><td colspan="5" class="muted">I documenti caricati compariranno qui con il contenuto riconosciuto.</td></tr>`;
+  }, 120);
+}
+function renderResults(){
+  const im = S.result?.immobile || {};
+  const sogg = S.result?.soggetti || [];
+  $("#immobileBox").innerHTML = S.result? `
+    <div class="grid2">
+      <div><h3 style="margin-bottom:8px">Immobile</h3><dl class="kv">
+        <dt>Indirizzo</dt><dd>${esc(im.indirizzo||"—")}${im.cap?`, ${esc(im.cap)}`:""} ${esc(im.comune||"")} ${im.provincia?`(${esc(im.provincia)})`:""}</dd>
+        ${im.indirizzi_precedenti?`<dt>Già</dt><dd>${esc(im.indirizzi_precedenti)}</dd>`:""}
+        <dt>Catasto fabbricati</dt><dd>${esc(im.catasto_fabbricati||"—")}</dd>
+        <dt>Catasto terreni</dt><dd>${esc(im.catasto_terreni||"—")}</dd>
+        ${im.fonti?.length?`<dt>Fonti</dt><dd class="mono">${esc(im.fonti.join(", "))}</dd>`:""}
+      </dl></div>
+      <div><h3 style="margin-bottom:8px">Soggetti</h3><dl class="kv">${sogg.map(s=>`<dt>${esc(s.ruolo)}</dt><dd>${esc(s.nome)}${s.cf_piva?` <span class="mono">${esc(s.cf_piva)}</span>`:""}${s.fonte?` <span class="muted small">${esc(s.fonte)}</span>`:""}</dd>`).join("") || "<dd class='muted'>—</dd>"}</dl></div>
+    </div>` : "";
+  const L = S.result?.leasing;
+  $("#noteBox").innerHTML = (L?.presente? `<div class="critbox small"><strong>Immobile in leasing.</strong> Proprietaria: ${esc(L.societa||"società di leasing da individuare")}${L.utilizzatore?`; utilizzatrice: ${esc(L.utilizzatore)}`:""}${L.contratto_numero?`; contratto n. ${esc(L.contratto_numero)}${L.contratto_data?` del ${esc(L.contratto_data)}`:""}`:""}${L.fonte?` <span class="mono">(${esc(L.fonte)})</span>`:""}. Prima delle istanze serve la delega della società di leasing, chiesta dall'utilizzatrice con lettera di manleva: lo strumento la prepara al passo 5.</div>` : "")
+    + (S.result?.note? `<div class="notice" style="margin-top:8px">${esc(S.result.note)}</div>` : "");
+  $("#enti").innerHTML = S.enti.length? S.enti.map(renderEnte).join("") : `<p class="muted">Gli enti individuati compariranno qui dopo l'analisi. Puoi anche aggiungerli a mano.</p>`;
+  bindEnti(); renderGen();
+}
+function renderEnte(e){
+  const kb = KB[e.cat]||KB.ALTRO;
+  const proc = e.procedimenti.length? `<div class="tablebox" style="max-height:260px"><table><thead><tr><th>Data</th><th>Procedimento</th><th>Estremi</th><th>Esito</th><th>Fonte</th></tr></thead><tbody>${
+    e.procedimenti.map(p=>`<tr><td class="num-c">${esc(p.data)}</td><td>${esc(p.tipo)}</td><td>${p.estremi?`<span class="stamp">${esc(p.estremi)}</span>`:""}</td><td>${esc(p.esito)}</td><td class="mono">${esc(p.fonte)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted small">Nessun procedimento documentato: richiesta basata sugli atti tipici.</p>`;
+  const crit = (e.criticita.length||e.mancanti.length)? `<div class="critbox"><strong class="small">Da verificare</strong><ul class="crit small">${e.criticita.map(c=>`<li>${esc(c)}</li>`).join("")}${e.mancanti.map(c=>`<li>Manca: ${esc(c)}</li>`).join("")}</ul></div>` : "";
+  return `<article class="ente ${e.include?"":"off"}" data-uid="${e.uid}">
+    <div class="ente-h"><div class="t"><span class="eyebrow">${esc(kb.label)}${e.suggerito?" · suggerito":""}</span><h3>${esc(e.dest)}</h3></div>
+      <label class="row small"><input type="checkbox" data-k="include" ${e.include?"checked":""}> Includi nelle richieste</label></div>
+    ${e.ultimo?`<div class="last small"><strong>Ultimo procedimento:</strong> ${esc(e.ultimo)}</div>`:""}
+    ${proc}
+    ${crit}
+    <details ${e.include?"open":""}><summary>Dati dell'istanza</summary>
+      <div class="grid2" style="margin-top:12px">
+        <label class="f">Ente destinatario<input type="text" data-k="dest" value="${esc(e.dest)}"></label>
+        <label class="f">Ufficio<input type="text" data-k="ufficio" value="${esc(e.ufficio)}"></label>
+        <label class="f">PEC ${e.pecGuess?'<span class="chip warn">formato tipico, da verificare</span>':'<a class="small" target="_blank" rel="noopener" href="https://www.google.com/search?q='+encodeURIComponent("PEC "+e.dest+" "+e.ufficio)+'">cerca la PEC</a>'}<input type="text" data-k="pec" value="${esc(e.pec)}" placeholder="da verificare sul sito dell'ente"></label>
+        <label class="f">Riferimento pratica (per l'oggetto)<input type="text" data-k="rif" value="${esc(e.rif)}" placeholder="es. pratica n. 12345"></label>
+        <label class="f span2">Intestatario della pratica<input type="text" data-k="intestatario" value="${esc(e.intestatario)}"></label>
+        <label class="f span2">Dati identificativi (una riga "campo: valore")<textarea data-k="dati" rows="4">${esc(e.dati)}</textarea></label>
+        <label class="f span2">Atti da richiedere (uno per riga)<textarea data-k="atti" rows="6">${esc(e.atti)}</textarea></label>
+      </div>
+      ${kb.note?`<p class="muted small" style="margin-top:8px">${esc(kb.note)}</p>`:""}
+      <div class="row" style="margin-top:8px"><button class="ghost" data-act="remove">Rimuovi ente</button></div>
+    </details>
+  </article>`;
+}
+function bindEnti(){
+  document.querySelectorAll("#enti .ente").forEach(card=>{
+    const e = S.enti.find(x=>x.uid===card.dataset.uid); if(!e) return;
+    card.querySelectorAll("[data-k]").forEach(inp=>{
+      inp.addEventListener(inp.type==="checkbox"?"change":"input", ()=>{
+        const k = inp.dataset.k; e[k] = inp.type==="checkbox"? inp.checked : inp.value;
+        if (k==="pec") e.pecGuess=false;
+        if (k==="include"){ card.classList.toggle("off", !e.include); renderGen(); }
+        if (k==="dest") { card.querySelector("h3").textContent = e.dest; renderGen(); }
+      });
+    });
+    card.querySelector("[data-act=remove]")?.addEventListener("click", ()=>{ S.enti = S.enti.filter(x=>x!==e); renderResults(); });
+  });
+}
+function renderGen(){
+  const inc = S.enti.filter(e=>e.include), f = getForm();
+  const pre = isLeasing(f)
+    ? `<div class="gen-item"><span><strong>Prima delle istanze</strong><br><span class="muted small">Lettera di richiesta delega con manleva alla società di leasing e bozza della delega unica per tutti gli enti, incluse nello ZIP</span></span></div>`
+    : isDelegato(f) ? `<div class="gen-item"><span><strong>Delega unica</strong><br><span class="muted small">Una sola delega che copre tutti gli enti inclusi, inclusa nello ZIP</span></span></div>` : "";
+  $("#genList").innerHTML = pre + (inc.length? inc.map(e=>`<div class="gen-item"><span><strong>${esc(e.dest)}</strong><br><span class="muted small">${esc(KB[e.cat]?.label||"")} · ${lines(e.atti).length} atti richiesti</span></span><button class="ghost" data-gen="${e.uid}">Word (.docx)</button></div>`).join("") : `<p class="muted">Nessun ente incluso.</p>`);
+  document.querySelectorAll("[data-gen]").forEach(b=>b.addEventListener("click", ()=>downloadOne(S.enti.find(x=>x.uid===b.dataset.gen))));
+}
+function updateRunBtn(){ $("#run").disabled = S.running || !S.docs.some(d=>d.kind!=="skip") || !AI.ready(); }
+
+/* ============================================================
+   RICHIEDENTE
+   ============================================================ */
+const PERSON_IDS = ["r_nome","r_luogo","r_nascita","r_cf","r_ind","r_tel","r_email","r_pec","r_doc","r_qual","r_tipo","r_motsel","r_motdet","r_firma","r_titolo"];
+const CASE_IDS = ["r_sogg","r_piva","r_legrap","l_soc","l_sede","l_mail","l_num","l_data","l_uso","l_util","l_utilrap"];
+const FORM_IDS = [...PERSON_IDS, ...CASE_IDS];
+function getForm(){ const f={}; FORM_IDS.forEach(id=>f[id]=$("#"+id).value.trim()); return f; }
+function initForm(){
+  const f = load("form"); if (f) PERSON_IDS.forEach(id=>{ if (f[id]!=null) $("#"+id).value = f[id]; });
+  PERSON_IDS.forEach(id=>["input","change"].forEach(ev=>$("#"+id).addEventListener(ev, ()=>{ const o={}; PERSON_IDS.forEach(k=>o[k]=$("#"+k).value); store("form", o); })));
+  $("#r_qual").addEventListener("change", ()=>{ renderLease(); renderGen(); });
+}
+function isDelegato(f){ return /delegat|delega/.test(f.r_qual); }
+function isLeasing(f){ return /leasing/.test(f.r_qual); }
+function renderLease(){
+  const det = !!S.result?.leasing?.presente;
+  $("#leaseBox").hidden = !(det || isLeasing(getForm()));
+  $("#leaseNote").style.display = det || isLeasing(getForm()) ? "" : "none";
+}
+function prefillCase(){
+  const L = S.result?.leasing || {}, im = S.result?.immobile || {}, sogg = S.result?.soggetti || [];
+  const set = (id, v)=>{ if (v) $("#"+id).value = v; };
+  CASE_IDS.forEach(id=>$("#"+id).value="");
+  if (L.presente){
+    set("l_soc", L.societa); set("l_sede", L.sede); set("l_num", L.contratto_numero); set("l_data", L.contratto_data); set("l_util", L.utilizzatore);
+    $("#r_qual").value = "tecnico incaricato dall'utilizzatore, delegato dalla società di leasing proprietaria";
+  } else {
+    const prop = sogg.find(s=>/propriet/i.test(s.ruolo)); if (prop){ set("r_sogg", prop.nome); set("r_piva", prop.cf_piva); }
+  }
+  set("l_uso", im.uso);
+  renderLease();
+}
+function motivazione(f){
+  const base = f.r_motsel==="__altro"? "" : f.r_motsel;
+  return [base, f.r_motdet].filter(Boolean).join(", ");
+}
+
+/* ============================================================
+   GENERAZIONE WORD
+   ============================================================ */
+const D = window.docx;
+function P(runs, opt={}){ return new D.Paragraph({children: runs, spacing:{after: opt.after??120, before: opt.before??0, line:300}, alignment: opt.align, indent: opt.indent, keepNext: opt.keepNext}); }
+function T(text, o={}){ return new D.TextRun({text: String(text), bold:o.b, italics:o.i, size:o.size, highlight:o.hl}); }
+function V(val, ph){ return val? T(val) : T(`[${ph}]`, {hl:"yellow"}); }
+function H(text){ return P([T(text,{b:true})], {before:200, after:100, align: D.AlignmentType.CENTER, keepNext:true}); }
+function docOf(children){
+  return new D.Document({creator:"Istruttoria Accesso Atti", styles:{default:{document:{run:{font:"Calibri", size:22}}}},
+    sections:[{properties:{page:{margin:{top:1134,bottom:1134,left:1134,right:1134}}}, children}]});
+}
+function qualRuns(f){
+  if (isLeasing(f)) return [T("tecnico incaricato dalla società utilizzatrice "), V(f.l_util,"società utilizzatrice"), T(", munito di delega della società proprietaria "), V(f.l_soc,"società di leasing"), T(" (contratto di locazione finanziaria n. "), V(f.l_num,"n. contratto"), T(" del "), V(f.l_data,"data"), T(")")];
+  const qual = f.r_qual.replace(/ \(specificare nella motivazione\)/,"");
+  const needs = /società|delegat|tecnico/.test(qual);
+  const sep = /società/.test(qual)? " " : /tecnico/.test(qual)? " da " : " di ";
+  if (f.r_sogg) return [T(qual + sep), T(f.r_sogg,{b:true}), f.r_piva? T(` (P.IVA/C.F. ${f.r_piva})`) : T("")];
+  return needs? [T(qual + sep), V("", "soggetto rappresentato")] : [T(qual)];
+}
+function immobileStr(){
+  const im = S.result?.immobile||{};
+  const loc = [im.cap, im.comune].filter(Boolean).join(" ") + (im.provincia && slug(im.provincia)!==slug(im.comune)? ` (${im.provincia})` : "");
+  return [im.indirizzo, loc.trim()].filter(Boolean).join(", ");
+}
+function richiestaDoc(e, f){
+  const kb = KB[e.cat]||KB.ALTRO, im = immobileStr(), imPrev = S.result?.immobile?.indirizzi_precedenti;
+  const qual = f.r_qual.replace(/ \(specificare nella motivazione\)/,"");
+  const c = [];
+  c.push(P([T("Spett.le ",{b:true}), T(e.dest,{b:true})], {after:0, align:D.AlignmentType.RIGHT}));
+  if (e.ufficio) c.push(P([T(e.ufficio)], {after:0, align:D.AlignmentType.RIGHT}));
+  c.push(P([T("PEC: "), V(e.pec, "PEC dell'ente da verificare")], {after:280, align:D.AlignmentType.RIGHT}));
+  const oggettoTesto = e.cat==="CATASTO"? "Richiesta di rilascio di copia di documenti catastali" : `Richiesta di accesso ai documenti amministrativi ai sensi della ${kb.norme}`;
+  c.push(P([T("Oggetto: ",{b:true}), T(oggettoTesto + " – "), e.rif? T(e.rif+" – ") : T(""), V(im, "indirizzo dell'immobile"), imPrev? T(` (già ${imPrev})`) : T("")], {after:240}));
+  c.push(P([T("Il/La sottoscritto/a "), V(f.r_nome,"nome e cognome"), T(", nato/a a "), V(f.r_luogo,"luogo di nascita"), T(" il "), V(f.r_nascita,"data di nascita"), T(", C.F. "), V(f.r_cf,"codice fiscale"), T(", residente/domiciliato/a in "), V(f.r_ind,"indirizzo"), T(", tel. "), V(f.r_tel,"telefono"), T(", e-mail "), V(f.r_email,"e-mail"), T(", PEC "), V(f.r_pec,"PEC"), T(", identificato/a mediante "), V(f.r_doc,"documento di identità, numero, ente e data di rilascio"), T(", in qualità di "), ...qualRuns(f), T(isDelegato(f)? ", giusta delega allegata," : ","), ], {align:D.AlignmentType.JUSTIFIED}));
+  c.push(H("CHIEDE"));
+  const tipo = f.r_tipo==="visione"? "di prendere visione" : f.r_tipo==="conforme"? "il rilascio di copia conforme all'originale" : "il rilascio di copia semplice, in formato digitale da trasmettere via PEC,";
+  c.push(P([T(tipo + " dei seguenti documenti relativi " + (e.rif? `alla ${e.rif}` : `all'immobile`) + (e.intestatario? `, intestata a ${e.intestatario}` : "") + ", riguardante l'immobile sito in "), V(im,"indirizzo dell'immobile"), T(":")], {align:D.AlignmentType.JUSTIFIED}));
+  lines(e.atti).forEach((a,i)=> c.push(P([T(`${i+1}. `), T(a.replace(/[;.]\s*$/,"") + (i===lines(e.atti).length-1?".":";"))], {indent:{left:360, hanging:300}, after:60, align:D.AlignmentType.JUSTIFIED})));
+  const dati = lines(e.dati).map(l=>{ const i=l.indexOf(":"); return i>0? [l.slice(0,i).trim(), l.slice(i+1).trim()] : ["", l]; });
+  if (dati.length){
+    c.push(P([T("Dati identificativi utili alla ricerca:",{b:true})], {before:160, after:80, keepNext:true}));
+    c.push(new D.Table({width:{size:100,type:D.WidthType.PERCENTAGE}, rows: dati.map(([k,v])=>new D.TableRow({children:[
+      new D.TableCell({width:{size:32,type:D.WidthType.PERCENTAGE}, children:[P([T(k,{b:true, size:20})],{after:40})]}),
+      new D.TableCell({width:{size:68,type:D.WidthType.PERCENTAGE}, children:[P([T(v,{size:20})],{after:40})]})]}))}));
+  }
+  c.push(H("DICHIARA"));
+  const dich = e.cat==="AMBIENTE"
+    ? "ai sensi degli artt. 46 e 47 del DPR 445/2000, consapevole delle sanzioni penali previste dall'art. 76 in caso di dichiarazioni mendaci, che la richiesta è formulata anche ai sensi del D.Lgs. 195/2005 in materia di accesso all'informazione ambientale e di avere comunque interesse all'accesso in qualità di "
+    : "ai sensi degli artt. 46 e 47 del DPR 445/2000, consapevole delle sanzioni penali previste dall'art. 76 in caso di dichiarazioni mendaci, di essere titolare di un interesse diretto, concreto e attuale, corrispondente a una situazione giuridicamente tutelata e collegata ai documenti richiesti, in qualità di ";
+  c.push(P([T(dich), ...qualRuns(f), T(", per la seguente motivazione: "), V(motivazione(f), "motivazione specifica")], {align:D.AlignmentType.JUSTIFIED}));
+  const ric = f.r_tipo==="semplice"? "Chiede che i documenti siano trasmessi all'indirizzo PEC " : f.r_tipo==="conforme"? "Chiede di essere informato/a all'indirizzo PEC sotto indicato su modalità, costi e data di ritiro delle copie conformi: " : "Chiede che data e ora della visione siano comunicate all'indirizzo PEC ";
+  c.push(P([T(ric), V(f.r_pec, "PEC del richiedente"), T(".")]));
+  c.push(P([T("Allegati:",{b:true})], {before:160, after:60, keepNext:true}));
+  const all = ["copia del documento di identità in corso di validità del richiedente"];
+  if (isLeasing(f)){
+    all.push(`delega della società proprietaria ${f.l_soc||"[società di leasing]"}, sottoscritta dal legale rappresentante, con copia del suo documento di identità`);
+    all.push("documentazione attestante la titolarità dell'immobile (visura catastale) e il rapporto di locazione finanziaria");
+    all.push(`lettera di incarico della società utilizzatrice ${f.l_util||"[utilizzatrice]"}`);
+  }
+  else if (/proprietari/.test(qual)) all.push("documentazione attestante la titolarità dell'immobile (visura catastale o atto di provenienza; contratto di leasing, se ricorre)");
+  else if (/conduttr|conduttore/.test(qual)) all.push("copia del contratto di locazione dell'immobile");
+  if (!isLeasing(f) && (/società/.test(qual) || f.r_sogg)) all.push("visura camerale del soggetto rappresentato");
+  if (isDelegato(f) && !isLeasing(f)) all.push("delega sottoscritta dal legale rappresentante del delegante, con copia del suo documento di identità");
+  if (f.r_tipo==="conforme") all.push("marca da bollo da € 16,00 per l'istanza; i bolli per le copie conformi e i diritti di copia saranno corrisposti secondo le indicazioni dell'ufficio");
+  all.forEach(a=>c.push(P([T("– "+a+";")], {indent:{left:360}, after:40})));
+  c.push(P([T("Il/La sottoscritto/a dichiara di aver preso visione dell'informativa sul trattamento dei dati personali ai sensi del Regolamento (UE) 2016/679.",{i:true, size:20})], {before:200}));
+  c.push(P([V(f.r_firma,"luogo"), T(", "), T("[data]",{hl:"yellow"})], {before:240}));
+  c.push(P([T("Firma")], {align:D.AlignmentType.RIGHT, before:120, after:0}));
+  c.push(P([T("__________________________")], {align:D.AlignmentType.RIGHT}));
+  return docOf(c);
+}
+const FACOLTA = {
+  VVF:"pratiche di prevenzione incendi", COMUNE_EDILIZIA:"pratiche edilizie e atti di fabbrica", SUAP:"pratiche dello Sportello Unico Attività Produttive",
+  STRUTTURE:"pratiche strutturali, sismiche e collaudi statici", ASL:"pratiche igienico-sanitarie", AMBIENTE:"autorizzazioni ambientali, allo scarico e alle emissioni",
+  INAIL:"denunce e verifiche di impianti e attrezzature", CATASTO:"visure e planimetrie catastali", SOPRINTENDENZA:"provvedimenti di vincolo e autorizzazioni paesaggistiche", ALTRO:"documenti"
+};
+function catastoStr(){ const im=S.result?.immobile||{}; return [im.catasto_fabbricati?`Catasto Fabbricati ${im.catasto_fabbricati}`:"", im.catasto_terreni?`Catasto Terreni ${im.catasto_terreni}`:""].filter(Boolean).join("; "); }
+function tecnicoRuns(f){ return [V(f.r_titolo,"titolo"), T(" "), V(f.r_nome,"nome e cognome del tecnico"), T(", nato/a a "), V(f.r_luogo,"luogo"), T(" il "), V(f.r_nascita,"data"), T(", C.F. "), V(f.r_cf,"codice fiscale")]; }
+function facoltaLines(enti){ return enti.map(e=>`${FACOLTA[e.cat]||"documenti"} – ${e.dest}${e.rif?` (${e.rif})`:""}`).concat(["elaborati tecnici e descrittivi e ogni altro documento relativo all'immobile detenuto dai suddetti enti"]); }
+function delegaDoc(enti, f){
+  enti = Array.isArray(enti)? enti : [enti];
+  const im = immobileStr(), cat = catastoStr(), L = isLeasing(f); const c=[];
+  c.push(P([T("DELEGA PER L'ACCESSO AGLI ATTI",{b:true, size:26})], {align:D.AlignmentType.CENTER, after:80}));
+  c.push(P([T("[da predisporre su carta intestata della società delegante]",{i:true, size:18})], {align:D.AlignmentType.CENTER, after:280}));
+  const delegante = L
+    ? [T("Il/La sottoscritto/a "), V("","nome e cognome del legale rappresentante"), T(", in qualità di legale rappresentante di "), V(f.l_soc,"società di leasing"), T(", con sede in "), V(f.l_sede,"sede"), T(", proprietaria dell'immobile sito in "), V(im,"indirizzo dell'immobile"), cat? T(`, identificato al ${cat},`) : T(","), T(" concesso in locazione finanziaria a "), V(f.l_util,"società utilizzatrice"), T(" con contratto n. "), V(f.l_num,"n. contratto"), T(" del "), V(f.l_data,"data"), T(",")]
+    : [T("Il/La sottoscritto/a "), V(f.r_legrap,"nome e cognome del legale rappresentante"), T(", nato/a a "), V("","luogo"), T(" il "), V("","data"), T(", C.F. "), V("","codice fiscale"), T(", in qualità di legale rappresentante di "), V(f.r_sogg,"società"), f.r_piva? T(` (P.IVA/C.F. ${f.r_piva})`):T(""), T(", "), T(/conduttr/.test(f.r_qual)? "conduttrice" : "proprietaria"), T(" dell'immobile sito in "), V(im,"indirizzo dell'immobile"), cat? T(`, identificato al ${cat},`) : T(",")];
+  c.push(P(delegante, {align:D.AlignmentType.JUSTIFIED}));
+  c.push(H("DELEGA"));
+  c.push(P([...tecnicoRuns(f), L? T(", professionista abilitato incaricato dalla società utilizzatrice,") : T(","), T(" a presentare in nome e per conto della società istanza di accesso ai documenti amministrativi, a prendere visione ed estrarre copia, relativamente all'immobile sopra indicato, di:")], {align:D.AlignmentType.JUSTIFIED}));
+  facoltaLines(enti).forEach(x=>c.push(P([T("– "+x+";")], {indent:{left:360}, after:40})));
+  c.push(P([T("e a compiere ogni atto connesso.")], {after:120}));
+  if (L) c.push(P([T("Ogni onere relativo alle attività delegate resta a carico della società utilizzatrice, come da sua richiesta di delega con manleva.")], {align:D.AlignmentType.JUSTIFIED}));
+  c.push(P([T("Si allega copia del documento di identità del delegante.")], {before:120}));
+  c.push(P([T("[luogo], [data]",{hl:"yellow"})], {before:360}));
+  c.push(P([T("Timbro e firma del legale rappresentante")], {align:D.AlignmentType.RIGHT, before:120, after:0}));
+  c.push(P([T("__________________________")], {align:D.AlignmentType.RIGHT}));
+  return docOf(c);
+}
+function manlevaDoc(enti, f){
+  const im = immobileStr(), cat = catastoStr(); const c=[];
+  c.push(P([T("[da predisporre su carta intestata della società utilizzatrice]",{i:true, size:18})], {after:200}));
+  c.push(P([T("A mezzo e-mail/PEC a: "), V(f.l_mail,"e-mail dell'ufficio immobiliare della società di leasing")], {after:200}));
+  c.push(P([T("Spett.le ",{b:true}), V(f.l_soc,"società di leasing")], {after:0, align:D.AlignmentType.RIGHT}));
+  c.push(P([V(f.l_sede,"sede")], {after:240, align:D.AlignmentType.RIGHT}));
+  c.push(P([V(f.r_firma,"luogo"), T(", "), T("[data]",{hl:"yellow"})], {after:200}));
+  c.push(P([T("Oggetto: contratto di locazione finanziaria n. ",{b:true}), V(f.l_num,"n. contratto"), T(" del ",{b:true}), V(f.l_data,"data"), T(" – immobile sito in "), V(im,"comune, via, civico"), T(", ad uso "), V(f.l_uso,"uso"), T(" – "), V(cat,"estremi catastali completi")], {after:240}));
+  c.push(P([T("In relazione al contratto in oggetto, con la presente Vi chiediamo di conferire una delega al tecnico di nostra fiducia, "), ...tecnicoRuns(f), T(", professionista abilitato ai sensi di legge, da noi incaricato.")], {align:D.AlignmentType.JUSTIFIED}));
+  c.push(P([T("La delega dovrà prevedere la facoltà di consultazione ed estrazione di copia di:")], {after:60}));
+  facoltaLines(enti).forEach(x=>c.push(P([T("– "+x+";")], {indent:{left:360}, after:40})));
+  c.push(P([T("relativi all'immobile di Vostra proprietà a noi concesso in locazione finanziaria. Per Vostra comodità alleghiamo una bozza della delega.")], {align:D.AlignmentType.JUSTIFIED, before:80}));
+  c.push(P([T("Confermiamo a nostro esclusivo carico l'onere delle spese e delle competenze del professionista incaricato.")], {align:D.AlignmentType.JUSTIFIED}));
+  c.push(P([T("La presente viene pertanto sottoscritta anche dal predetto professionista quale espresso riconoscimento che il credito per il corrispettivo della prestazione professionale è vantato esclusivamente nei nostri confronti, con Vostro totale esonero da obbligazioni e/o responsabilità.")], {align:D.AlignmentType.JUSTIFIED}));
+  c.push(P([T("Distinti saluti.")], {before:120}));
+  c.push(P([V(f.l_util,"società utilizzatrice"), T(" – "), V(f.l_utilrap,"legale rappresentante")], {before:240, after:0}));
+  c.push(P([T("__________________________  (timbro e firma)")], {after:240}));
+  c.push(P([T("Il tecnico incaricato ("), V(f.r_titolo,"titolo"), T(" "), V(f.r_nome,"nome e cognome"), T(")")], {after:0}));
+  c.push(P([T("__________________________  (timbro e firma)")], {after:240}));
+  c.push(P([T("Allegati:",{b:true})], {after:60}));
+  ["documento di identità del legale rappresentante della società utilizzatrice","documento di identità del tecnico incaricato","bozza di delega"].forEach(a=>c.push(P([T("– "+a+";")], {indent:{left:360}, after:40})));
+  return docOf(c);
+}
+function schedaDoc(){
+  const im = S.result?.immobile||{}; const c=[];
+  c.push(P([T("Scheda dati e cronologia dei procedimenti",{b:true, size:30})], {after:80}));
+  c.push(P([T(`Generata il ${todayIt()} con Istruttoria Accesso Atti. Dati da verificare prima dell'uso.`,{i:true, size:18})], {after:240}));
+  c.push(P([T("Immobile",{b:true, size:24})], {after:80}));
+  [["Indirizzo", immobileStr()],["Indirizzi precedenti", im.indirizzi_precedenti],["Catasto fabbricati", im.catasto_fabbricati],["Catasto terreni", im.catasto_terreni]].forEach(([k,v])=> v && c.push(P([T(k+": ",{b:true}), T(v)],{after:40})));
+  const LS = S.result?.leasing;
+  if (LS?.presente) c.push(P([T("Leasing: ",{b:true}), T(`proprietaria ${LS.societa||"[da individuare]"}, utilizzatrice ${LS.utilizzatore||"[da individuare]"}${LS.contratto_numero?`, contratto n. ${LS.contratto_numero}`:""}${LS.contratto_data?` del ${LS.contratto_data}`:""}. Per l'accesso serve la delega della società di leasing.`)],{after:40}));
+  const sogg = S.result?.soggetti||[];
+  if (sogg.length){ c.push(P([T("Soggetti",{b:true, size:24})], {before:200, after:80})); sogg.forEach(s=>c.push(P([T((s.ruolo||"")+": ",{b:true}), T([s.nome, s.cf_piva].filter(Boolean).join(" – "))],{after:40}))); }
+  for (const e of S.enti){
+    c.push(P([T(e.dest,{b:true, size:24})], {before:280, after:40, keepNext:true}));
+    c.push(P([T((KB[e.cat]?.label||"") + (e.suggerito?" · suggerito":""),{i:true, size:18})], {after:100}));
+    if (e.ultimo) c.push(P([T("Ultimo procedimento: ",{b:true}), T(e.ultimo)]));
+    if (e.procedimenti.length){
+      const hdr = ["Data","Procedimento","Estremi","Esito","Fonte"];
+      c.push(new D.Table({width:{size:100,type:D.WidthType.PERCENTAGE}, rows:[
+        new D.TableRow({tableHeader:true, children: hdr.map(h=>new D.TableCell({shading:{fill:"ECE9F8"}, children:[P([T(h,{b:true,size:18})],{after:20})]}))}),
+        ...e.procedimenti.map(p=>new D.TableRow({children:[p.data,p.tipo,p.estremi,p.esito,p.fonte].map(v=>new D.TableCell({children:[P([T(v||"",{size:18})],{after:20})]}))}))]}));
+    }
+    const crit = [...e.criticita, ...e.mancanti.map(m=>"Manca: "+m)];
+    if (crit.length){ c.push(P([T("Da verificare",{b:true})], {before:120, after:40})); crit.forEach(x=>c.push(P([T("– "+x)],{indent:{left:300}, after:30}))); }
+  }
+  const rel = S.docs.filter(d=>(d.rel??0)>=2);
+  if (rel.length){
+    c.push(P([T("Documenti rilevanti esaminati",{b:true, size:24})], {before:300, after:80}));
+    rel.forEach(d=>c.push(P([T(d.id+" ",{b:true, size:18}), T(d.path+(d.tri?.tipo?` – ${d.tri.tipo}`:"")+(d.tri?.data?` (${d.tri.data})`:""),{size:18})],{after:20})));
+  }
+  return docOf(c);
+}
+async function saveBlob(name, blob){
+  const dl = window.claude?.use ? await window.claude.use("downloads").catch(()=>null) : null;
+  if (dl){
+    try{ await dl.save({filename:name, data:blob}); msg(`Pronto: ${name}`, ""); }
+    catch(e){ msg(e?.code==="declined"? "Download annullato." : `Download non riuscito (${e?.code||"errore"}).`, e?.code==="declined"?"":"warn"); }
+    return;
+  }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+  msg(`Pronto: ${name}`, "");
+}
+function msg(t, cls){ $("#genMsg").innerHTML = t? `<div class="notice ${cls||""}">${esc(t)}</div>` : ""; }
+function baseName(){ const im=S.result?.immobile||{}; return safeName([im.comune, im.indirizzo].filter(Boolean).join(" ") || "immobile"); }
+function enteFile(e){ return safeName(`Richiesta accesso atti - ${e.dest}`) + ".docx"; }
+async function addPreliminari(z, enti, f){
+  if (isLeasing(f)){
+    z.file(safeName(`1 - Richiesta delega e manleva - ${f.l_soc||"societa di leasing"}`)+".docx", await D.Packer.toBlob(manlevaDoc(enti,f)));
+    z.file(safeName(`2 - Delega della societa di leasing (bozza) - ${f.l_soc||""}`)+".docx", await D.Packer.toBlob(delegaDoc(enti,f)));
+  } else if (isDelegato(f)) {
+    z.file("1 - Delega.docx", await D.Packer.toBlob(delegaDoc(enti,f)));
+  }
+}
+async function downloadOne(e){
+  if (!e) return; const f = getForm();
+  if (isDelegato(f)){
+    const z = new JSZip(); await addPreliminari(z, [e], f); z.file(enteFile(e), await D.Packer.toBlob(richiestaDoc(e,f)));
+    return saveBlob(safeName(`Richiesta e delega - ${e.dest}`)+".zip", await z.generateAsync({type:"blob"}));
+  }
+  saveBlob(enteFile(e), await D.Packer.toBlob(richiestaDoc(e,f)));
+}
+async function downloadAll(){
+  const inc = S.enti.filter(e=>e.include); if (!inc.length){ msg("Includi almeno un ente.", "warn"); return; }
+  const f = getForm(), z = new JSZip();
+  await addPreliminari(z, inc, f);
+  for (const e of inc) z.file((isDelegato(f)?"3 - Istanze/":"")+enteFile(e), await D.Packer.toBlob(richiestaDoc(e,f)));
+  z.file("Scheda dati e cronologia.docx", await D.Packer.toBlob(schedaDoc()));
+  saveBlob(`Richieste accesso atti - ${baseName()}.zip`, await z.generateAsync({type:"blob"}));
+}
+
+/* ============================================================
+   ESEMPIO DIMOSTRATIVO (dati inventati)
+   ============================================================ */
+function loadDemo(){
+  S.result = {
+    immobile:{indirizzo:"Via dell'Artigianato 14", indirizzi_precedenti:"Via Lunga snc", comune:"Verona", provincia:"Verona", cap:"37135", catasto_fabbricati:"Fg. 42, Part. 118, sub 3 (cat. D/7)", catasto_terreni:"Fg. 42, Part. 118, ente urbano 18.400 m²", fonti:["D2","D5"]},
+    soggetti:[{ruolo:"proprietario", nome:"Alfa Immobiliare S.r.l.", fonte:"D5"},{ruolo:"conduttore e intestatario SCIA", nome:"Beta Logistica S.p.A.", fonte:"D3"}],
+    note:"Esempio: i numeri di pratica e i nomi sono inventati."
+  };
+  const vvf = newEnte("VVF", {nome_ente:"Comando Provinciale dei Vigili del Fuoco di Verona", provincia:"Verona", riferimento_pratica:"pratica di prevenzione incendi n. 40211", intestatario:"Beta Logistica S.p.A.",
+    procedimenti:[{data:"14/05/2019",tipo:"SCIA antincendio, attività 70.2.C e 74.1.A",estremi:"prot. 0012877 del 14/05/2019",esito:"ricevuta",fonte:"D3"},{data:"02/11/2018",tipo:"Parere di conformità (valutazione progetto)",estremi:"prot. 9921 del 02/11/2018",esito:"favorevole con prescrizioni",fonte:"D4"},{data:"10/09/2018",tipo:"Istanza di valutazione progetto",estremi:"—",esito:"",fonte:"D4"}],
+    ultimo_procedimento:"Parere di conformità prot. 9921 del 02/11/2018, seguito da SCIA del 14/05/2019.",
+    dati:[{campo:"Numero pratica VVF",valore:"40211"},{campo:"Attività DPR 151/2011",valore:"70.2.C deposito merci > 3.000 m²; 74.1.A impianto termico"},{campo:"Intestatario",valore:"Beta Logistica S.p.A."},{campo:"Indirizzo",valore:"Via dell'Artigianato 14, Verona (già Via Lunga snc)"}],
+    atti_da_richiedere:["istanza di valutazione progetto del 10/09/2018 con relazione tecnica e tavole","parere di conformità prot. 9921 del 02/11/2018 e prescrizioni","SCIA prot. 0012877 del 14/05/2019 con asseverazione e certificazioni allegate","verbale di visita tecnica ed eventuale CPI","attestazione di rinnovo periodico in scadenza il 14/05/2024, se presentata"],
+    criticita:["Rinnovo periodico scaduto il 14/05/2024: nessuna attestazione nella documentazione.","SCIA intestata al conduttore: il Comando può notificare la richiesta come controinteressato."], dati_mancanti:[]});
+  const ed = newEnte("COMUNE_EDILIZIA", {nome_ente:"Comune di Verona", comune:"Verona", riferimento_pratica:"permesso di costruire n. 455/2017 e successive varianti",
+    procedimenti:[{data:"20/03/2019",tipo:"Segnalazione certificata di agibilità",estremi:"prot. 88412",esito:"depositata",fonte:"D6"},{data:"12/06/2017",tipo:"Permesso di costruire",estremi:"n. 455/2017",esito:"rilasciato",fonte:"D2"}],
+    ultimo_procedimento:"Agibilità del 20/03/2019.", dati:[{campo:"Titolo edilizio",valore:"PdC n. 455/2017"},{campo:"Catasto",valore:"Fg. 42, Part. 118"}],
+    atti_da_richiedere:["permesso di costruire n. 455/2017 con elaborati grafici approvati","eventuali varianti in corso d'opera","comunicazioni di inizio e fine lavori","segnalazione certificata di agibilità prot. 88412 del 20/03/2019 con allegati"], criticita:[], dati_mancanti:["numero delle varianti, se presentate"]});
+  const cat = newEnte("CATASTO", {provincia:"Verona", suggerito:true, riferimento_pratica:"", atti_da_richiedere:["planimetrie catastali aggiornate delle unità","elaborato planimetrico ed elenco subalterni"], criticita:[], dati_mancanti:[]});
+  S.enti = [vvf, ed, cat];
+  S.docs = [
+    {id:"D3", path:"Esempio/VVF/SCIA 2019.pdf", pages:6, status:"letto", kind:"pdf", rel:3, tri:{tipo:"SCIA antincendio", ente_emittente:"Comando VVF Verona", data:"14/05/2019", oggetto:"Deposito merci > 3.000 m²", protocolli:["0012877 del 14/05/2019"]}},
+    {id:"D4", path:"Esempio/VVF/Parere progetto.pdf", pages:4, status:"letto", kind:"pdf", rel:3, tri:{tipo:"Parere di conformità", ente_emittente:"Comando VVF Verona", data:"02/11/2018", oggetto:"Valutazione progetto", protocolli:["9921 del 02/11/2018"]}},
+    {id:"D2", path:"Esempio/Comune/Permesso di costruire.pdf", pages:3, status:"letto", kind:"pdf", rel:3, tri:{tipo:"Permesso di costruire", ente_emittente:"Comune di Verona", data:"12/06/2017", oggetto:"Nuovo magazzino logistico"}},
+    {id:"D9", path:"Esempio/Amministrazione/Fattura impresa.pdf", pages:1, status:"testo", kind:"pdf", rel:0, tri:{tipo:"Fattura", oggetto:"SAL n. 2"}}
+  ];
+  S.demo = true; $("#demoBanner").hidden = false;
+  renderDocs(); renderResults();
+}
+function clearDemo(){
+  if (!S.demo) return; S.demo=false; S.result=null; S.enti=[]; S.docs=[]; docSeq=0; $("#demoBanner").hidden = true;
+  setPhase("In attesa"); renderDocs(); renderResults(); updateCount();
+}
+
+/* ============================================================
+   EVENTI
+   ============================================================ */
+$("#pickFiles").onclick = ()=>$("#inFiles").click();
+$("#pickDir").onclick = ()=>$("#inDir").click();
+$("#inFiles").onchange = e=>{ const fs=[...e.target.files].map(f=>({file:f, path:f.name})); e.target.value=""; addFiles(fs); };
+$("#inDir").onchange = e=>{ const fs=[...e.target.files].map(f=>({file:f, path:f.webkitRelativePath||f.name})); e.target.value=""; addFiles(fs); };
+const drop = $("#drop");
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", async e=>{
+  const items = [...(e.dataTransfer.items||[])]; const out=[];
+  const entries = items.map(it=>it.webkitGetAsEntry?.()).filter(Boolean);
+  if (entries.length){ for (const en of entries) await walkEntry(en, "", out); }
+  else for (const f of e.dataTransfer.files) out.push({file:f, path:f.name});
+  addFiles(out);
+});
+$("#run").onclick = runAnalysis;
+$("#stop").onclick = ()=>S.ctl?.abort();
+$("#retry").onclick = async ()=>{
+  const f = S.failed.splice(0); S.ctl = new AbortController();
+  for (const x of f){
+    if (x.type==="tri") x.batch.forEach(d=>{ d.tri=null; d.status=d.scan?"scansione":"testo"; });
+    if (x.type==="deep"){ x.d.deep=null; x.d.status=x.d.scan?"scansione":"testo"; }
+  }
+  runAnalysis();
+};
+$("#apiKey").addEventListener("input", renderMode);
+$("#clearDemo").onclick = clearDemo;
+$("#addEnteSel").innerHTML = KB_ORDER.map(k=>`<option value="${k}">${esc(KB[k].label)}</option>`).join("");
+$("#addEnte").onclick = ()=>{ if (S.demo) clearDemo(); const e = newEnte($("#addEnteSel").value, {}); S.enti.push(e); renderResults(); };
+$("#genAll").onclick = ()=>downloadAll().catch(e=>msg("Generazione non riuscita: "+(e?.message||e), "bad"));
+$("#genScheda").onclick = async ()=>{ try{ saveBlob(`Scheda dati - ${baseName()}.docx`, await D.Packer.toBlob(schedaDoc())); }catch(e){ msg("Generazione non riuscita: "+(e?.message||e), "bad"); } };
+
+initForm();
+loadDemo();
+renderLease();
+updateCount();
+AI.init();
+</script>
+
+</body>
+</html>
