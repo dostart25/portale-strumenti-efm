@@ -119,6 +119,17 @@ footer{font-size:12px;color:var(--ink-2);display:grid;gap:6px}
       <label class="f">Destinazione d'uso
         <select id="imUso"><option>Logistica / magazzino</option><option>Produttivo</option><option>Uffici</option><option>Commerciale / retail</option><option>Misto</option><option>Altro</option></select></label>
     </div>
+    <div class="grid3">
+      <label class="f">Tipo di pacchetto
+        <select id="pkTipo"><option value="archivio">Archivio dell'immobile</option><option value="vvf">Accesso agli atti VVF (fascicolo da conservare)</option></select></label>
+      <label class="f vvfOnly" hidden>Voce del fascicolo VVF
+        <select id="vvfCode"><option value="">Automatica (dai documenti)</option></select></label>
+      <div class="vvfOnly row" hidden style="gap:10px;align-items:flex-end">
+        <label class="f" style="flex:1">Protocollo pratica VVF<input type="text" id="vvfProt" placeholder="facoltativo, es. 12345"></label>
+        <label class="f" style="flex:1">Data pratica<input type="text" id="vvfData" placeholder="GG/MM/AAAA"></label>
+      </div>
+    </div>
+    <p class="vvfOnly muted small" hidden>Il fascicolo VVF viene esportato integro (tutti i file, con cartelle e nomi originali più protocollo e data) nella voce di catalogo della pratica; i documenti allegati che rispondono ad altre voci (DICO, certificazioni REI, dichiarazioni di posa, omologazioni, collaudi…) vengono copiati anche nella loro voce di catalogo.</p>
     <div class="drop" id="drop">
       <strong>Trascina qui il pacchetto: ZIP, cartelle o PDF</strong>
       <div class="row" style="justify-content:center">
@@ -153,8 +164,9 @@ footer{font-size:12px;color:var(--ink-2);display:grid;gap:6px}
     <div class="step-h"><span class="num">2</span><h2>Lettura e classificazione</h2><span class="muted small" id="phase">In attesa</span></div>
     <div class="progress"><div id="bar"></div></div>
     <div class="log" id="log"></div>
+      <div id="beat" class="muted small" aria-live="polite"></div>
     <div class="tablebox" style="max-height:440px">
-      <table><thead><tr><th>Documento</th><th>Pag.</th><th>Cartella attuale</th><th>Codici attribuiti (pagine)</th><th>Archiviazione</th></tr></thead>
+      <table><thead><tr><th>Documento</th><th>Pag.</th><th>Cartella attuale</th><th>Collegamento al catalogo · data del documento</th><th>Archiviazione</th></tr></thead>
       <tbody id="docRows"><tr><td colspan="5" class="muted">I documenti caricati compariranno qui con i codici di catalogo attribuiti.</td></tr></tbody></table>
     </div>
   </section>
@@ -181,6 +193,7 @@ footer{font-size:12px;color:var(--ink-2);display:grid;gap:6px}
     <div class="row">
       <button class="primary" id="xlsx">Matrice Excel (.xlsx)</button>
       <button class="ghost" id="docx">Relazione di verifica (.docx)</button>
+      <button class="primary" id="pack">Pacchetto catalogato (.zip)</button>
       <button class="ghost" id="json">Dati analisi (.json)</button>
     </div>
     <div id="expMsg"></div>
@@ -198,6 +211,7 @@ footer{font-size:12px;color:var(--ink-2);display:grid;gap:6px}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script>
 "use strict";
 /* ============ CATALOGO ============ [codice, categoria, tipologia, descrizione, importanza, scadenza, codifica cartella] */
@@ -213,6 +227,14 @@ function todayIt(){ return new Date().toLocaleDateString("it-IT",{day:"2-digit",
 function safeName(s){ return String(s||"").replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim().slice(0,120); }
 function blobToB64(b){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(",")[1]); r.onerror=rej; r.readAsDataURL(b); }); }
 function catByCode(c){ return CAT.find(r=>r[0]===c); }
+function normDate(v){
+  const t = String(v||"").trim(); if (!t) return "";
+  let m = t.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/); if (m) return `${m[3].padStart(2,"0")}/${m[2].padStart(2,"0")}/${m[1]}`;
+  m = t.match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/); if (m){ let y=m[3]; if (y.length===2) y=(+y>40?"19":"20")+y; return `${m[1].padStart(2,"0")}/${m[2].padStart(2,"0")}/${y}`; }
+  m = t.match(/^(\d{1,2})[\/.\-](\d{4})$/); if (m) return `${m[1].padStart(2,"0")}/${m[2]}`;
+  m = t.match(/(19|20)\d{2}/); return m? m[0] : t.slice(0,20);
+}
+function dateKey(v){ const p=String(v||"").split("/"); if (p.length===3) return p[2]+p[1]+p[0]; if (p.length===2) return p[1]+p[0]+"00"; return /^\d{4}$/.test(v||"")? v+"0000" : "99999999"; }
 function normCode(c){ const m = String(c||"").toUpperCase().match(CODE_RE); return m? `${m[1]}.${m[2]}.${m[3]}` : ""; }
 
 /* ============ CLAUDE ============ */
@@ -227,14 +249,38 @@ const AI = {
   },
   ready(){ return this.mode==="claude" || (this.mode==="api" && !!$("#apiKey").value.trim()); },
   async json(prompt, images, tier, signal){
+    // riprova automaticamente sugli errori temporanei (limite, sovraccarico, rete) invece di fermare il lavoro
+    const waits = [4000, 12000, 30000, 60000];
+    const limit = tier==="complex"? 360000 : 240000;   // nessuna chiamata può restare appesa: 4 min lettura, 6 min valutazione
+    for (let a=0;;a++){
+      const ctl = new AbortController(); let timedOut=false;
+      const onAbort = ()=>ctl.abort(); signal?.addEventListener("abort", onAbort, {once:true});
+      const timer = setTimeout(()=>{ timedOut=true; ctl.abort(); }, limit);
+      S.lastBeat = Date.now(); S.inflight = (S.inflight||0)+1;
+      try{ return await this._json(prompt, images, tier, ctl.signal); }
+      catch(e){
+        if (timedOut && !signal?.aborted) e = {code:"timeout", message:`Nessuna risposta in ${limit/60000} minuti`};
+        const temp = ["rate_limited","overloaded","upstream_error","network","timeout"].includes(e?.code) && !(e?.status>=400 && e?.status<500 && e?.status!==429 && e?.status!==408);
+        if (!temp || a>=(e?.code==="timeout"?1:waits.length) || signal?.aborted) throw e;
+        setLog(`Servizio occupato (${e.code}${e.status?" "+e.status:""}): nuovo tentativo tra ${waits[a]/1000}s…`);
+        await new Promise((res,rej)=>{ const t=setTimeout(res, waits[a]); signal?.addEventListener("abort",()=>{ clearTimeout(t); rej({code:"cancelled"}); }, {once:true}); });
+      }
+      finally{ clearTimeout(timer); signal?.removeEventListener("abort", onAbort); S.inflight--; S.lastBeat = Date.now(); }
+    }
+  },
+  async _json(prompt, images, tier, signal){
     images = images || [];
     if (this.mode==="claude"){ const o={modelTier:tier||"default", signal}; if (images.length) o.images=images; return await this.sample.json(prompt, o); }
     const key = $("#apiKey").value.trim(); if (!key) throw {code:"no_key"};
     const content=[]; for (const b of images) content.push({type:"image", source:{type:"base64", media_type:"image/jpeg", data: await blobToB64(b)}});
     content.push({type:"text", text: prompt + "\n\nRispondi solo con il JSON richiesto."});
-    const r = await fetch("https://api.anthropic.com/v1/messages",{method:"POST", signal, headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"}, body:JSON.stringify({model:this.models[tier||"default"], max_tokens:16000, messages:[{role:"user", content}]})});
-    if (!r.ok){ const t=await r.text(); throw {code:r.status===429?"rate_limited":"upstream_error", message:t.slice(0,300)}; }
-    const j = await r.json(); return parseJSONLoose((j.content||[]).filter(c=>c.type==="text").map(c=>c.text).join("\n"));
+    let r; try{ r = await fetch("https://api.anthropic.com/v1/messages",{method:"POST", signal, headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"}, body:JSON.stringify({model:this.models[tier||"default"], max_tokens:16000, messages:[{role:"user", content}]})}); }
+    catch(e){ if (signal?.aborted) throw {code:"cancelled"}; throw {code:"network", message:"Connessione non riuscita"}; }
+    if (!r.ok){ const t=await r.text().catch(()=>""); throw {code: r.status===429?"rate_limited": (r.status===529||r.status===503)?"overloaded": r.status===401?"bad_key":"upstream_error", status:r.status, message:t.slice(0,300)}; }
+    const j = await r.json().catch(()=>null);
+    if (!j || j.type==="error") throw {code:"upstream_error", status:500, message: j?.error?.message || "Risposta vuota"};
+    const txt = (Array.isArray(j.content)? j.content : []).filter(c=>c.type==="text").map(c=>c.text).join("\n");
+    try{ return parseJSONLoose(txt); }catch(e){ if (j.stop_reason==="max_tokens") throw {code:"truncated", message:"Risposta troppo lunga"}; throw e; }
   }
 };
 function parseJSONLoose(text){
@@ -260,17 +306,17 @@ const SUPPORTED = /\.(pdf|p7m|jpe?g|png|docx|xlsx|txt|csv|xml)$/i;
 function registerFile(file, path){
   const id = "D"+String(++docSeq).padStart(3,"0");
   const parts = path.split("/"); let folderCode = ""; for (let i=parts.length-2;i>=0 && !folderCode;i--) folderCode = normCode(parts[i]); if (!folderCode) folderCode = normCode(parts[parts.length-1]);
-  if (!SUPPORTED.test(path)) { S.docs.push({id, path, name:path.split("/").pop(), size:file.size||0, kind:"skip", status:"formato non supportato", folderCode, segs:[]}); return; }
+  if (!SUPPORTED.test(path)) { S.docs.push({id, path, name:path.split("/").pop(), file: file instanceof Blob? file : null, size:file.size||0, kind:"skip", status:"formato non supportato", folderCode, segs:[], elems:[], cites:[], text:[], read:new Set()}); return; }
   const ext = path.toLowerCase().split(".").pop();
   const kind = ext==="pdf"?"pdf": ext==="p7m"?"p7m": /jpe?g|png/.test(ext)?"image": ext==="docx"?"docx": ext==="xlsx"?"xlsx":"text";
   S.docs.push({id, path, name:path.split("/").pop(), file, size:file.size, kind, status:"in coda", pages:0, text:[], scan:false, folderCode, segs:[], elems:[], read:new Set(), done:false});
 }
 async function addZip(blob, base, depth){
-  let zip; try{ zip = await JSZip.loadAsync(blob); }catch{ S.docs.push({id:"D"+String(++docSeq).padStart(3,"0"), path:base, name:base, kind:"skip", status:"ZIP non leggibile", segs:[]}); return; }
+  let zip; try{ zip = await JSZip.loadAsync(blob); }catch{ S.docs.push({id:"D"+String(++docSeq).padStart(3,"0"), path:base, name:base, kind:"skip", status:"ZIP non leggibile", segs:[], elems:[], cites:[], text:[], read:new Set()}); return; }
   for (const e of Object.values(zip.files).filter(f=>!f.dir && !/(^|\/)(__MACOSX|\.DS_Store|Thumbs\.db)/i.test(f.name))){
     const p = base + "/" + e.name;
     if (/\.zip$/i.test(e.name) && depth<5){ await addZip(await e.async("blob"), p.replace(/\.zip$/i,""), depth+1); continue; }
-    if (!SUPPORTED.test(e.name)){ registerFile({size:0}, p); continue; }
+    if (!SUPPORTED.test(e.name)){ registerFile(new File([await e.async("blob")], e.name.split("/").pop()), p); continue; }
     registerFile(new File([await e.async("blob")], e.name.split("/").pop()), p);
   }
 }
@@ -338,11 +384,13 @@ const RULES = `Regole di classificazione (applicale con giudizio):
 - "ruolo": atto = il documento stesso firmato/completo; allegato = allegato o elaborato di un atto; ricevuta = ricevuta di deposito/protocollo; copia_incompleta = mancano pagine, firme o allegati obbligatori; bozza = non firmato/non protocollato.
 - "elementi_rilevati": impianti, sistemi ed elementi dell'immobile di cui il documento prova l'esistenza (es. "impianto sprinkler", "rete idranti", "gruppo elettrogeno", "fotovoltaico", "ascensore", "centrale termica gas", "pedane idrauliche", "porte tagliafuoco", "attività VVF 70.2.C", "copertura con lucernari", "serbatoio interrato", "vincolo paesaggistico"): servono a decidere quali voci del catalogo sono applicabili.
 - Leggi con cura timbri, protocolli, date, firme, numeri; riporta i dati come scritti, lascia vuoto ciò che non è leggibile.`;
-const SEG_SCHEMA = `{"id":"D001","documenti":[{"pagine":"1-4","codice":"PI.01.02 oppure FUORI_CATALOGO","codici_secondari":["..."],"tipo":"descrizione breve del documento","data":"GG/MM/AAAA","estremi":"numeri di protocollo, pratica, matricola","emittente":"ente o soggetto","oggetto":"una riga, riferita all'impianto o alla parte di immobile","ruolo":"atto|allegato|ricevuta|copia_incompleta|bozza","firmato":true,"completezza":"note sintetiche su allegati o firme mancanti","confidenza":"alta|media|bassa"}],"citazioni":[{"codice":"","descrizione":"documento citato","estremi":"","data":""}],"elementi_rilevati":["..."]}`;
-function segPrompt(d, pages, isText){
+const SEG_SCHEMA = `{"id":"D001","documenti":[{"pagine":"1-4","codice":"PI.01.02 oppure FUORI_CATALOGO","codici_secondari":["..."],"tipo":"descrizione breve del documento","data":"data del documento (firma, rilascio o protocollo) in GG/MM/AAAA; MM/AAAA o AAAA se incompleta; vuoto se assente","estremi":"numeri di protocollo, pratica, matricola","emittente":"ente o soggetto","oggetto":"una riga, riferita all'impianto o alla parte di immobile","ruolo":"atto|allegato|ricevuta|copia_incompleta|bozza","firmato":true,"completezza":"note sintetiche su allegati o firme mancanti","confidenza":"alta|media|bassa"}],"citazioni":[{"codice":"","descrizione":"documento citato","estremi":"","data":""}],"elementi_rilevati":["..."]}`;
+function segPrompt(d, pages, isText, range){
   const ctx = $("#context").value.trim();
   const head = `${ROLE}\nImmobile: ${$("#imCod").value||"n.d."} – ${$("#imInd").value||""} – uso ${$("#imUso").value}.${ctx?` Note dell'utente: ${ctx}.`:""}\n\nCATALOGO (codice | tipologia | documento):\n${catalogText()}\n\n${RULES}\n\nDocumento ${d.id}: file "${d.path}"${d.folderCode?` (archiviato nella cartella ${d.folderCode})`:""}, ${d.pages} pagine totali.`;
-  const body = isText? `\nTesto estratto (pagine separate da "--- pagina N ---"):\n${d.text.map((t,i)=>`--- pagina ${i+1} ---\n${t}`).join("\n").slice(0,70000)}` : `\nTi mostro le pagine ${pages.join(", ")} in quest'ordine${pages.length<d.pages?` (le altre pagine non sono mostrate: indica nel campo "pagine" solo intervalli coerenti con quelle viste, es. "6-?" se un documento prosegue oltre)`:""}.`;
+  const r0 = range? range[0] : 1, txt = range? (d.text||[]).slice(range[0]-1, range[1]) : (d.text||[]);
+  const vvf = $("#pkTipo")?.value==="vvf"? `\nIl pacchetto proviene da un ACCESSO AGLI ATTI presso il Comando dei Vigili del Fuoco (pratica di prevenzione incendi). Distingui gli atti della pratica (istanza di valutazione progetto, SCIA, parere, ricevute, relazione tecnica e tavole antincendio, asseverazioni della pratica: codice PI.01 pertinente) dagli allegati che rispondono ad altre voci del catalogo (DICO/DIRI degli impianti, certificazioni di resistenza al fuoco, dichiarazioni di corretta posa, omologazioni, collaudi, verifiche): a questi ultimi attribuisci il codice proprio e indica in "codici_secondari" il codice PI.01 della pratica.` : "";
+  const body = vvf + (isText? `\nTesto estratto${range?` delle pagine ${range[0]}-${range[1]}`:""} (pagine separate da "--- pagina N ---"):\n${txt.map((t,i)=>`--- pagina ${i+r0} ---\n${t}`).join("\n").slice(0,70000)}` : `\nTi mostro le pagine ${pages.join(", ")} in quest'ordine${pages.length<d.pages?` (le altre pagine non sono mostrate: indica nel campo "pagine" solo intervalli coerenti con quelle viste, es. "6-?" se un documento prosegue oltre)`:""}.`);
   return `${head}${body}\n\nRispondi solo con JSON in questa forma:\n${SEG_SCHEMA}`;
 }
 function synthPrompt(area, evidence, profile){
@@ -353,12 +401,14 @@ function synthPrompt(area, evidence, profile){
 /* ============ PIPELINE ============ */
 function setPhase(t){ $("#phase").textContent=t; } function setLog(t){ $("#log").textContent=t; } function setBar(p){ $("#bar").style.width=Math.max(0,Math.min(100,p))+"%"; }
 async function pool(tasks, n, onDone){ let i=0, done=0; const res=[]; async function w(){ while(i<tasks.length){ if (S.ctl?.signal.aborted) return; const k=i++; try{ res[k]=await tasks[k](); }catch(e){ res[k]={__err:e}; } done++; onDone&&onDone(done,tasks.length); } } await Promise.all(Array.from({length:Math.min(n,tasks.length)},w)); return res; }
-const FATAL = ["not_granted","sampling_disabled","no_key","session_expired"];
-function errText(e){ const c=e?.code; return c==="not_granted"?"Uso di Claude non consentito per questa pagina: consentilo per proseguire.":c==="rate_limited"?"Limite di utilizzo raggiunto: riprova più tardi.":c==="no_key"?"Inserisci la chiave API.":c==="cancelled"?"Interrotto.":c==="images_unavailable"?"Questa vista non può inviare immagini: le scansioni non sono leggibili.":(e?.message? String(e.message).slice(0,160):"Errore imprevisto."); }
+const FATAL = ["not_granted","sampling_disabled","no_key","session_expired","bad_key"];
+function errText(e){ const c=e?.code; return c==="not_granted"?"Uso di Claude non consentito per questa pagina: consentilo per proseguire.":c==="rate_limited"?"Limite di utilizzo raggiunto: riprova più tardi.":c==="no_key"?"Inserisci la chiave API.":c==="cancelled"?"Interrotto.":c==="images_unavailable"?"Questa vista non può inviare immagini: le scansioni non sono leggibili.":c==="truncated"?"Risposta troppo lunga (documento molto esteso).":c==="timeout"?"Nessuna risposta entro il tempo massimo.":c==="overloaded"?"Servizio temporaneamente sovraccarico.":c==="network"?"Connessione non riuscita.":c==="bad_key"?"Chiave API non valida.":c==="invalid_json"?"Risposta non interpretabile.":(e?.message? String(e.message).slice(0,160):"Errore imprevisto."); }
 function guardFatal(res){ for (const r of res) if (r?.__err && FATAL.includes(r.__err.code)) throw r.__err; }
 
 async function runAnalysis(){
-  if (S.running) return; S.running=true; S.ctl=new AbortController(); S.failed=[];
+  if (S.running) return; S.running=true; S.ctl=new AbortController(); S.failed=[]; S.lastBeat=Date.now(); S.t0=Date.now();
+  const hb = setInterval(()=>{ const el=$("#beat"); if (!el) return; const tot=Math.round((Date.now()-S.t0)/1000), idle=Math.round((Date.now()-S.lastBeat)/1000);
+    el.textContent = `In corso da ${Math.floor(tot/60)}:${String(tot%60).padStart(2,"0")}` + (S.inflight? ` · ${S.inflight} richieste a Claude in attesa${idle>20?` (ultima risposta ${idle}s fa – i documenti lunghi possono richiedere qualche minuto)`:""}` : ""); }, 1000);
   $("#run").disabled=true; $("#stop").hidden=false; $("#retry").hidden=true;
   const depth=$("#depth").value; const todo=S.docs.filter(d=>d.kind!=="skip");
   try{
@@ -383,39 +433,63 @@ async function runAnalysis(){
     live.forEach(d=>{ if (!S.failed.some(f=>f.d===d)) { d.done=true; if (d.status==="in lettura"||d.status==="scansione"||d.status==="testo") d.status="classificato"; } });
     renderDocs();
     setPhase("Valutazione esperta del catalogo");
-    await synthesize();
+    try{ await synthesize(); }
+    catch(e){ if (FATAL.includes(e?.code)||e?.code==="cancelled") throw e;
+      // la valutazione non si ferma: le voci non valutate restano "da verificare" e si possono riprovare
+      for (const r of CAT) if (!S.status[r[0]]?.stato) S.status[r[0]] = {stato:"da_verificare", motivazione:"Valutazione non completata: "+errText(e), azione:""};
+      S.failed.push({synth:"tutte"}); }
     S.analyzed=true;
     setPhase(S.failed.length? `Completata con ${S.failed.length} lotti non riusciti` : "Completata"); setBar(100); setLog("");
   }catch(e){ setPhase(e?.code==="cancelled"?"Interrotta":"Fermata"); setLog(errText(e)); }
-  finally{ S.running=false; $("#stop").hidden=true; $("#retry").hidden=!S.failed.length; updateRunBtn(); renderDocs(); renderMatrix(); }
+  finally{ clearInterval(hb); if ($("#beat")) $("#beat").textContent=""; S.running=false; $("#stop").hidden=true; $("#retry").hidden=!S.failed.length; updateRunBtn(); renderDocs(); renderMatrix(); }
 }
 function mkSeg(d, pages, isText){ return async ()=>{
   d.status="in lettura";
+  const take = (out)=>{
+    if (!out || typeof out!=="object") return;
+    const docs = Array.isArray(out)? out : Array.isArray(out.documenti)? out.documenti : [];
+    for (const s of docs){ if (!s || typeof s!=="object") continue; s.codice = s.codice==="FUORI_CATALOGO"? "FUORI_CATALOGO" : (normCode(s.codice) || "FUORI_CATALOGO"); s.codici_secondari=(Array.isArray(s.codici_secondari)? s.codici_secondari:[]).map(normCode).filter(Boolean); s.data=normDate(s.data); d.segs.push(s); }
+    for (const c of (Array.isArray(out.citazioni)? out.citazioni:[])){ const n=normCode(c?.codice); if (n) (d.cites=d.cites||[]).push({...c, codice:n, data:normDate(c?.data)}); }
+    (d.elems=d.elems||[]).push(...(Array.isArray(out.elementi_rilevati)? out.elementi_rilevati:[]).map(x=>String(x).trim()).filter(Boolean));
+  };
   try{
-    const imgs = isText? [] : await pageImages(d, pages, 1600);
-    const out = await AI.json(segPrompt(d, pages||[], isText), imgs, "default", S.ctl.signal);
-    for (const s of (out.documenti||[])){ s.codice = s.codice==="FUORI_CATALOGO"? "FUORI_CATALOGO" : (normCode(s.codice) || "FUORI_CATALOGO"); s.codici_secondari=(s.codici_secondari||[]).map(normCode).filter(Boolean); d.segs.push(s); }
-    for (const c of (out.citazioni||[])){ const n=normCode(c.codice); if (n) (d.cites=d.cites||[]).push({...c, codice:n}); }
-    d.elems.push(...(out.elementi_rilevati||[]).map(x=>String(x).trim()).filter(Boolean));
-    (pages||[]).forEach(p=>d.read.add(p)); if (isText) for (let i=1;i<=d.pages;i++) d.read.add(i);
-  }catch(e){ if (FATAL.includes(e?.code)||e?.code==="cancelled") throw e; S.failed.push({d, pages, isText}); d.status="lettura parziale"; throw e; }
+    if (isText){
+      try{ take(await AI.json(segPrompt(d, [], true), [], "default", S.ctl.signal)); }
+      catch(e){
+        // documento lungo: risposta troncata o non leggibile → si divide in blocchi di pagine e si prosegue
+        if (!["truncated","invalid_json"].includes(e?.code) || (d.text||[]).length<2) throw e;
+        const n=(d.text||[]).length, step=Math.max(1, Math.ceil(n/Math.ceil(n/8))); let ok=0;
+        for (let a=1;a<=n;a+=step){ setLog(`${d.id}: documento lungo, lettura a blocchi (pagine ${a}-${Math.min(n,a+step-1)})`);
+          try{ take(await AI.json(segPrompt(d, [], true, [a, Math.min(n,a+step-1)]), [], "default", S.ctl.signal)); ok++; }
+          catch(e2){ if (FATAL.includes(e2?.code)||e2?.code==="cancelled") throw e2; }
+        }
+        if (!ok) throw e;
+      }
+      for (let i=1;i<=d.pages;i++) d.read.add(i);
+    } else {
+      const imgs = await pageImages(d, pages, 1600);
+      take(await AI.json(segPrompt(d, pages||[], false), imgs, "default", S.ctl.signal));
+      (pages||[]).forEach(p=>d.read.add(p));
+    }
+  }catch(e){ if (FATAL.includes(e?.code)||e?.code==="cancelled") throw e; S.failed.push({d, pages, isText, err:errText(e)}); d.status="non letto: "+errText(e).slice(0,60); throw e; }
 }; }
 
 function buildEvidence(){
   const ev = {}, ref = {};
   for (const d of S.docs){
-    for (const s of d.segs){
+    for (const s of (d.segs||[])){
       const codes = [s.codice, ...(s.codici_secondari||[])].filter(c=>c && c!=="FUORI_CATALOGO");
       codes.forEach((c,i)=>{ (ref[c]=ref[c]||[]).push({d, s, sec:i>0}); });
     }
     for (const c of (d.cites||[])) (ref[c.codice]=ref[c.codice]||[]).push({d, s:{pagine:"", ruolo:"citato", data:c.data, estremi:c.estremi, tipo:c.descrizione}, cite:true});
   }
+  for (const list of Object.values(ref)) list.sort((a,b)=>{ const k=x=>{ const v=dateKey(x.s.data); return v==="99999999"?"0":v; }; return k(b).localeCompare(k(a)); });
   for (const [c, list] of Object.entries(ref)) ev[c] = list.slice(0,8).map(x=>`${x.d.id} p.${x.s.pagine||"?"} ${x.cite?"citato":x.s.ruolo||""}${x.sec?" (secondario)":""}${x.s.data?" "+x.s.data:""}${x.s.estremi?" "+x.s.estremi:""}${x.s.completezza?" – "+x.s.completezza:""}${x.s.tipo?" – "+x.s.tipo:""}`).join("; ").slice(0,900);
   return {ev, ref};
 }
 function buildProfile(){
   const m = new Map();
-  for (const d of S.docs) for (const e of new Set(d.elems.map(x=>x.toLowerCase()))) m.set(e, (m.get(e)||0)+1);
+  for (const d of S.docs) for (const e of new Set((d.elems||[]).map(x=>String(x).toLowerCase()))) m.set(e, (m.get(e)||0)+1);
   return [...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,60);
 }
 function baseline(ref){
@@ -431,8 +505,9 @@ async function synthesize(){
   const res = await pool(areas.map(a=>async ()=>{
     setLog(`Valutazione area ${a}`);
     const out = await AI.json(synthPrompt(a, ev, S.profile), [], "complex", S.ctl.signal);
-    for (const v of (out.voci||[])){ const c=normCode(v.codice); if (!c || !catByCode(c) || S.status[c]?.manual) continue; S.status[c] = {stato: STATI[v.stato]? v.stato : (S.status[c]?.stato||"da_verificare"), motivazione: v.motivazione||"", azione: v.azione||""}; }
-    (out.criticita||[]).forEach(x=>S.crit.push({area:a, testo:x}));
+    const voci = Array.isArray(out)? out : Array.isArray(out?.voci)? out.voci : [];
+    for (const v of voci){ if (!v) continue; const c=normCode(v.codice); if (!c || !catByCode(c) || S.status[c]?.manual) continue; S.status[c] = {stato: STATI[v.stato]? v.stato : (S.status[c]?.stato||"da_verificare"), motivazione: v.motivazione||"", azione: v.azione||""}; }
+    (Array.isArray(out?.criticita)? out.criticita:[]).forEach(x=>S.crit.push({area:a, testo:String(x)}));
   }), 3, (dn,tot)=>{ setBar(80+dn/tot*20); renderMatrix(); });
   guardFatal(res);
   res.forEach((r,i)=>{ if (r?.__err) S.failed.push({synth:areas[i]}); });
@@ -444,7 +519,9 @@ let rt=null;
 function renderDocs(){ clearTimeout(rt); rt=setTimeout(()=>{
   const rows = S.docs.map(d=>{
     const codes = [...new Set(d.segs.map(s=>s.codice))];
-    const segs = d.segs.map(s=>`<span class="mono" title="${esc(s.tipo||"")}">${esc(s.codice==="FUORI_CATALOGO"?"fuori catalogo":s.codice)}</span> <span class="muted small">p.${esc(s.pagine||"?")}${s.tipo?` · ${esc(s.tipo)}`:""}</span>`).join("<br>");
+    const segs = d.segs.map(s=>{ const cat = s.codice==="FUORI_CATALOGO"? null : catByCode(s.codice);
+      return `<div style="margin-bottom:5px"><span class="mono">${esc(s.codice==="FUORI_CATALOGO"?"fuori catalogo":s.codice)}</span>${cat?` <span class="small">${esc(cat[3])}</span>`:""}`
+      + `<div class="small"><strong>${esc(s.data||"senza data")}</strong> <span class="muted">· p.${esc(s.pagine||"?")}${s.tipo?` · ${esc(s.tipo)}`:""}${s.estremi?` · ${esc(s.estremi)}`:""}</span></div></div>`; }).join("");
     let arch = `<span class="muted small">—</span>`;
     if (d.segs.length && d.folderCode){
       const ok = codes.includes(d.folderCode);
@@ -505,7 +582,7 @@ async function loadCatalogXlsx(file){
   for (const r of rows.slice(hdr+1)){ if (r[iCat]) cat=String(r[iCat]).trim(); if (r[iTip]) tip=String(r[iTip]).trim(); const code=normCode(r[iCod]); if (!code) continue; out.push([code, cat, tip, String(r[iDes]).replace(/\s+/g," ").trim(), String(r[iImp]||"").trim().toUpperCase(), String(r[iSc]||"").trim(), iDir>=0? String(r[iDir]||"").trim():""]); }
   if (!out.length) throw new Error("Nessuna voce riconosciuta");
   CAT = out; CAT_NAME = file.name.replace(/\.xlsx?$/i,""); S.status={}; S.ref=null; S.analyzed=false;
-  $("#catName").textContent = `${CAT_NAME} (${CAT.length} voci)`; fillCatFilter(); renderMatrix();
+  $("#catName").textContent = `${CAT_NAME} (${CAT.length} voci)`; fillCatFilter(); fillVvfCodes(); renderMatrix();
 }
 function fillCatFilter(){ $("#fCat").innerHTML = `<option value="">Tutte</option>` + [...new Set(CAT.map(r=>r[1]))].map(c=>`<option>${esc(c)}</option>`).join(""); }
 
@@ -565,6 +642,9 @@ async function exportDocx(){
   sect("Da verificare", st=>st.stato==="da_verificare");
   const pres = CAT.filter(r=>S.status[r[0]]?.stato==="presente").map(r=>[r[0], r[3], (S.ref?.[r[0]]||[]).slice(0,3).map(x=>`${x.d.id} p.${x.s.pagine||"?"}`).join(", "), estremiText(r[0]).split("\n")[0]||""]);
   if (pres.length){ ch.push(P([T(`Documenti presenti (${pres.length})`,{b:true,size:26})],{before:280,after:80,keepNext:true})); ch.push(table(["Codice","Documento","Riferimento nel pacchetto","Data – estremi"], pres, [10,40,25,25])); }
+  const elenco = []; for (const d of S.docs) for (const sg of d.segs) elenco.push([sg.codice==="FUORI_CATALOGO"?"fuori catalogo":sg.codice, catByCode(sg.codice)?.[3]||sg.tipo||"", sg.data||"senza data", [sg.estremi, sg.emittente].filter(Boolean).join(" – "), `${d.id} ${d.path} p.${sg.pagine||"?"}`, dateKey(sg.data)]);
+  elenco.sort((a,b)=> a[0]===b[0]? a[5].localeCompare(b[5]) : a[0]==="fuori catalogo"? 1 : b[0]==="fuori catalogo"? -1 : a[0].localeCompare(b[0]));
+  if (elenco.length){ ch.push(P([T(`Elenco dei documenti analizzati (${elenco.length})`,{b:true,size:26})],{before:280,after:80,keepNext:true})); ch.push(table(["Codice","Documento a catalogo","Data","Estremi – emittente","File e pagine"], elenco.map(r=>r.slice(0,5)), [10,30,10,22,28])); }
   const mf = misfiled();
   if (mf.length){ ch.push(P([T(`File archiviati in cartella errata (${mf.length})`,{b:true,size:26})],{before:280,after:80,keepNext:true})); ch.push(table(["ID","File","Cartella attuale","Contenuto","Cartella corretta"], mf.map(d=>[d.id, d.path, d.folderCode, [...new Set(d.segs.map(s=>s.tipo||s.codice))].join("; "), suggestedFolder(d)]), [7,38,12,25,18])); }
   if (S.profile.length){ ch.push(P([T("Profilo dell'immobile rilevato dai documenti",{b:true,size:26})],{before:280,after:80})); ch.push(P([T(S.profile.map(p=>`${p[0]} (${p[1]})`).join("; "),{size:20})])); }
@@ -576,6 +656,129 @@ function exportJson(){
   const data = {immobile:{codice:$("#imCod").value, indirizzo:$("#imInd").value, uso:$("#imUso").value}, catalogo:CAT_NAME, data:todayIt(), stati:S.status, profilo:S.profile, criticita:S.crit,
     documenti:S.docs.map(d=>({id:d.id, percorso:d.path, pagine:d.pages, cartella:d.folderCode, stato:d.status, segmenti:d.segs, citazioni:d.cites||[], elementi:d.elems}))};
   saveBlob(`Dati verifica catalogo - ${baseName()}.json`, new Blob([JSON.stringify(data,null,1)],{type:"application/json"}));
+}
+
+
+/* ============ PACCHETTO CATALOGATO ============ */
+// Cartelle: Categoria / Tipologia / Codifica cartella del catalogo caricato. Nome file: CODICE_AAAA-MM-GG_prot-NNN_tipo.ext
+function isoDate(v){ const p=String(v||"").split("/"); if (p.length===3) return `${p[2]}-${p[1]}-${p[0]}`; if (p.length===2) return `${p[1]}-${p[0]}`; return /^\d{4}$/.test(v||"")? v : "sd"; }
+function protocollo(sg){
+  const t = [sg.estremi, sg.oggetto].filter(Boolean).join(" ");
+  let m = t.match(/prot(?:ocollo)?\.?\s*(?:n\.?|nr\.?|n°)?\s*[:.]?\s*([A-Za-z0-9][A-Za-z0-9\/._-]*)/i)
+       || t.match(/(?:pratica|n\.|nr\.?|n°|numero)\s*[:.]?\s*([A-Za-z0-9][A-Za-z0-9\/._-]*\d[A-Za-z0-9\/._-]*)/i)
+       || String(sg.estremi||"").match(/([A-Za-z]*\d[A-Za-z0-9\/._-]{1,})/);
+  return m? "prot-" + m[1].replace(/[\/\\]+/g,"-").replace(/[^A-Za-z0-9._-]/g,"").replace(/^[-.]+|[-.]+$/g,"").slice(0,30) : "senza-prot";
+}
+function folderOf(code){
+  if (!code || code==="FUORI_CATALOGO") return "99_FUORI CATALOGO";
+  const r = catByCode(code); if (!r) return "99_FUORI CATALOGO";
+  return [safeName(r[1]), safeName(r[2]), safeName(r[6] || `${r[0]}_${r[3]}`)].join("/");
+}
+function parsePages(txt, n){
+  const out=new Set(); const t=String(txt||"").replace(/\s/g,""); if (!t) return null;
+  for (const part of t.split(/[,;]/)){
+    let m = part.match(/^(\d+)-(\d+|\?)$/); if (m){ const a=+m[1], b= m[2]==="?"? n : +m[2]; if (!a||b<a) return null; for (let i=a;i<=Math.min(b,n);i++) out.add(i); continue; }
+    m = part.match(/^(\d+)$/); if (m){ if (+m[1]<=n) out.add(+m[1]); continue; }
+    return null;
+  }
+  return out.size? [...out].sort((a,b)=>a-b) : null;
+}
+// Nome file: nome originale invariato + protocollo + data (AAAA-MM-GG), aggiunti solo se non già presenti
+function stemExt(name){ const m=name.match(/^(.*?)((?:\.pdf)?\.p7m|\.[^.]+)?$/i); return [m[1]||name, (m[2]||"").toLowerCase()]; }
+function withProtData(name, prot, data, extra){
+  let [stem, e] = stemExt(name); const low = stem.toLowerCase(); const add=[];
+  if (extra) add.push(extra);
+  const pn = prot? prot.replace(/^prot-/,"") : "";
+  if (pn && !low.includes(pn.toLowerCase())) add.push("prot-"+pn);
+  if (data && data!=="sd" && !low.includes(data) && !low.includes(data.split("-").reverse().join("-"))) add.push(data);
+  return safeName(stem + (add.length? "_"+add.join("_") : "")) + e;
+}
+function protOf(sg){ const p = sg? protocollo(sg) : ""; return p && p!=="senza-prot"? p : ""; }
+async function exportPackage(){
+  if (!window.JSZip) throw new Error("libreria ZIP non caricata");
+  const vvf = $("#pkTipo").value==="vvf";
+  const zip = new JSZip(), root = `${baseName()} - pacchetto catalogato`, used = new Set(), idx = [];
+  const put = (folder, name, data)=>{ let base=`${root}/${folder}/${name}`, k=1, path=base;
+    while (used.has(path.toLowerCase())){ k++; path = base.replace(/((?:\.pdf)?\.p7m|\.[^./]+)$/i, `_${k}$1`); if (path===base) path = base+"_"+k; }
+    used.add(path.toLowerCase()); zip.file(path, data); return path.slice(root.length+1); };
+  const catDesc = c => catByCode(c)?.[3] || "";
+  // --- dati della pratica VVF
+  let fasc = null;
+  if (vvf){
+    const all = S.docs.flatMap(d=>(d.segs||[]).map(sg=>({d, sg})));
+    const pi01 = all.filter(x=>/^PI\.01\./.test(x.sg.codice));
+    let code = $("#vvfCode").value;
+    if (!code){ const cnt={}; pi01.forEach(x=>cnt[x.sg.codice]=(cnt[x.sg.codice]||0)+1); code = Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0]?.[0] || "PI.01.02"; }
+    const main = pi01.filter(x=>x.sg.codice===code).sort((a,b)=>(a.sg.ruolo==="atto"?0:1)-(b.sg.ruolo==="atto"?0:1)).find(x=>protOf(x.sg)||x.sg.data) || pi01[0];
+    const prot = ($("#vvfProt").value.trim()? "prot-"+$("#vvfProt").value.trim().replace(/[\/\\]+/g,"-").replace(/[^A-Za-z0-9._-]/g,"") : protOf(main?.sg));
+    const data = isoDate(normDate($("#vvfData").value.trim()) || main?.sg.data || "");
+    const label = ["Fascicolo VVF", prot.replace("prot-","prot. "), data!=="sd"? "del "+data : ""].filter(Boolean).join(" ");
+    fasc = {code, prot, data, folder: `${folderOf(code)}/${safeName(label)}`};
+  }
+  let n=0; const tot=S.docs.length;
+  for (const d of S.docs){
+    n++; msg(`Preparazione pacchetto: ${n} di ${tot} file…`);
+    const segs = (d.segs||[]).filter(Boolean);
+    const main = segs.find(sg=>sg.codice!=="FUORI_CATALOGO") || segs[0];
+    // ---------- modalità VVF: il fascicolo resta integro
+    if (vvf){
+      if (!d.file){ idx.push(["", "", "", "", "", "", d.path, "", d.status||"file non disponibile"]); continue; }
+      const dir = d.path.split("/").slice(0,-1).map(safeName).filter(Boolean).filter((x,i,arr)=>i===0||x!==arr[i-1]).join("/");
+      const ownProt = protOf(main), ownData = main?.data? isoDate(main.data) : "";
+      const nm = withProtData(d.name, ownProt || fasc.prot, ownData || fasc.data);
+      const pth = put(fasc.folder + (dir? "/"+dir : ""), nm, d.file);
+      idx.push([pth, fasc.code, catDesc(fasc.code), main?.data||"", main?.estremi||"", main?.emittente||"", d.path, "", (d.dupOf? `Fascicolo VVF (duplicato di ${d.dupOf})` : "Fascicolo VVF – originale") + (segs.length? " · contiene: "+segs.map(sg=>`${sg.codice==="FUORI_CATALOGO"?"fuori catalogo":sg.codice} p.${sg.pagine||"?"}`).join(", ") : "")]);
+      // copie degli allegati nelle voci di catalogo proprie
+      if (d.dupOf) continue;
+      const altri = segs.filter(sg=>sg.codice && sg.codice!=="FUORI_CATALOGO" && sg.codice!==fasc.code && !/^PI\.01\./.test(sg.codice));
+      if (!altri.length) continue;
+      const canSplit = d.kind==="pdf" && window.PDFLib && d.pages && (segs.length>1);
+      let src=null; if (canSplit){ try{ src = await PDFLib.PDFDocument.load(await d.file.arrayBuffer(), {ignoreEncryption:true}); }catch{ src=null; } }
+      for (const sg of altri){
+        const pages = src? parsePages(sg.pagine, d.pages) : null;
+        const pr = protOf(sg) || fasc.prot, dt = sg.data? isoDate(sg.data) : fasc.data;
+        if (src && pages){
+          const out = await PDFLib.PDFDocument.create(); (await out.copyPages(src, pages.map(x=>x-1))).forEach(x=>out.addPage(x));
+          const cp = put(folderOf(sg.codice), withProtData(d.name, pr, dt, `p${pages[0]}-${pages.at(-1)}`), await out.save());
+          idx.push([cp, sg.codice, catDesc(sg.codice), sg.data||"", sg.estremi||"", sg.emittente||"", d.path, `${pages[0]}-${pages.at(-1)}`, `Copia (pagine estratte) dal fascicolo VVF: ${pth}`]);
+        } else {
+          const cp = put(folderOf(sg.codice), withProtData(d.name, pr, dt), d.file);
+          idx.push([cp, sg.codice, catDesc(sg.codice), sg.data||"", sg.estremi||"", sg.emittente||"", d.path, sg.pagine||"", `Copia dal fascicolo VVF: ${pth}`]);
+        }
+      }
+      continue;
+    }
+    // ---------- archivio dell'immobile
+    if (d.dupOf){ idx.push(["", "", "", "", "", "", d.path, "", `Escluso: duplicato di ${d.dupOf}`]); continue; }
+    if (!d.file){ idx.push(["", "", "", "", "", "", d.path, "", d.status||"file non disponibile"]); continue; }
+    if (!segs.length){ const pth = put("00_DA CLASSIFICARE", safeName(d.name), d.file); idx.push([pth, "", "", "", "", "", d.path, "", d.status||"non classificato"]); continue; }
+    let split = null;
+    if (d.kind==="pdf" && window.PDFLib && segs.length>1 && d.pages){ const ranges = segs.map(sg=>parsePages(sg.pagine, d.pages)); if (ranges.every(Boolean)) split = ranges; }
+    if (split){
+      try{
+        const src = await PDFLib.PDFDocument.load(await d.file.arrayBuffer(), {ignoreEncryption:true});
+        for (let i=0;i<segs.length;i++){ const sg=segs[i];
+          const out = await PDFLib.PDFDocument.create(); (await out.copyPages(src, split[i].map(x=>x-1))).forEach(x=>out.addPage(x));
+          const pth = put(folderOf(sg.codice), withProtData(d.name, protOf(sg), sg.data? isoDate(sg.data):"", `p${split[i][0]}-${split[i].at(-1)}`), await out.save());
+          idx.push([pth, sg.codice, catDesc(sg.codice)||sg.tipo||"", sg.data||"senza data", sg.estremi||"", sg.emittente||"", d.path, sg.pagine||"", `Estratto pagine ${split[i][0]}-${split[i].at(-1)} da ${d.id}`]);
+        }
+        continue;
+      }catch{ /* PDF non divisibile: si archivia intero */ }
+    }
+    const pth = put(folderOf(main.codice), withProtData(d.name, protOf(main), main.data? isoDate(main.data):""), d.file);
+    const altri = segs.filter(sg=>sg!==main).map(sg=>`${sg.codice==="FUORI_CATALOGO"?"fuori catalogo":sg.codice} p.${sg.pagine||"?"}${sg.data?" "+sg.data:""}`);
+    idx.push([pth, main.codice, catDesc(main.codice)||main.tipo||"", main.data||"senza data", main.estremi||"", main.emittente||"", d.path, main.pagine||"", altri.length? "Contiene anche: "+altri.join("; ") : ""]);
+  }
+  idx.sort((a,b)=> (a[0]||"~").localeCompare(b[0]||"~"));
+  if (window.XLSX){
+    const ws = XLSX.utils.aoa_to_sheet([["Percorso nel pacchetto","Codice","Documento a catalogo","Data","Protocollo / estremi","Emittente","File originale","Pagine","Note"], ...idx]);
+    ws["!cols"]=[80,10,44,11,30,28,60,10,60].map(w=>({wch:w})); ws["!autofilter"]={ref:`A1:I${idx.length+1}`};
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Indice");
+    zip.file(`${root}/00_INDICE PACCHETTO.xlsx`, XLSX.write(wb, {bookType:"xlsx", type:"array"}));
+  }
+  msg("Compressione del pacchetto…");
+  const blob = await zip.generateAsync({type:"blob", compression:"DEFLATE", compressionOptions:{level:6}});
+  await saveBlob(`${root}.zip`, blob);
 }
 
 /* ============ EVENTI ============ */
@@ -594,6 +797,10 @@ $("#apiKey").addEventListener("input", renderMode);
 $("#xlsx").onclick=()=>{ try{ exportXlsx(); }catch(e){ msg("Export non riuscito: "+(e.message||e),"bad"); } };
 $("#docx").onclick=()=>exportDocx().catch(e=>msg("Export non riuscito: "+(e.message||e),"bad"));
 $("#json").onclick=exportJson;
+function fillVvfCodes(){ const sel=$("#vvfCode"); const cur=sel.value; sel.innerHTML = `<option value="">Automatica (dai documenti)</option>` + CAT.filter(r=>r[0].startsWith("PI.")).map(r=>`<option value="${r[0]}">${r[0]} – ${esc(r[3].slice(0,60))}</option>`).join(""); sel.value=cur; }
+$("#pkTipo").onchange=()=>{ const on=$("#pkTipo").value==="vvf"; document.querySelectorAll(".vvfOnly").forEach(e=>e.hidden=!on); };
+fillVvfCodes();
+$("#pack").onclick=()=>exportPackage().catch(e=>msg("Pacchetto non riuscito: "+(e?.message||e),"bad"));
 fillCatFilter(); renderMatrix(); renderDocs();
 /* chiave API: facoltativamente ricordata nel browser (mai nel codice) */
 const API_LS = "efm.anthropicKey";
