@@ -189,12 +189,28 @@ footer{font-size:12px;color:var(--ink-2);display:grid;gap:6px}
   </section>
 
   <section class="step">
-    <div class="step-h"><span class="num">4</span><h2>Esporta</h2></div>
+    <div class="step-h"><span class="num">4</span><h2>Dal documentale al campo</h2></div>
+    <p class="muted small">Al termine della verifica lo strumento: controlla se la lettura dei documenti è affidabile; imposta il sito (dati generali dell'immobile, zone, sistemi da censire con caso DM 37 preliminare, verifiche periodiche e scadenze); prepara la guida operativa di campo partendo dalle mancanze (su cosa concentrarsi, controlli per zona, cosa portare a casa, come cambia la relazione se l'esito è difforme); precompila la bozza della relazione tecnica con i dati generali e la schedule preliminare.</p>
+    <div class="row" style="margin:8px 0">
+      <button class="primary" id="guideRun" disabled>Genera guida e bozza</button>
+      <button class="ghost" id="guideDocx" disabled>Guida operativa di campo (.docx)</button>
+      <button class="ghost" id="relDocx" disabled>Bozza relazione tecnica (.docx)</button>
+      <button class="ghost" id="loadJson">Carica una verifica precedente (.json)</button>
+      <input type="file" id="jsonIn" accept=".json,application/json" hidden>
+      <span class="muted small" id="guideMsg" aria-live="polite"></span>
+    </div>
+    <div id="guideBox"></div>
+  </section>
+
+  <section class="step">
+    <div class="step-h"><span class="num">5</span><h2>Esporta</h2></div>
     <div class="row">
       <button class="primary" id="xlsx">Matrice Excel (.xlsx)</button>
       <button class="ghost" id="docx">Relazione di verifica (.docx)</button>
       <button class="primary" id="pack">Pacchetto catalogato (.zip)</button>
       <button class="ghost" id="json">Dati analisi (.json)</button>
+      <button class="ghost" id="guideDocx2">Guida operativa di campo (.docx)</button>
+      <button class="ghost" id="relDocx2">Bozza relazione tecnica (.docx)</button>
     </div>
     <div id="expMsg"></div>
     <p class="muted small">L'Excel contiene la matrice completa con documenti, pagine e motivazioni, l'elenco dei file con la cartella corretta e la sintesi. Gli stati corretti a mano nella matrice vengono esportati come modificati.</p>
@@ -334,7 +350,7 @@ async function dedupe(){
     if (seen.has(h)){ d.dupOf = seen.get(h); d.kind="skip"; d.status="duplicato di "+d.dupOf; } else seen.set(h, d.id);
   }
 }
-function updateCount(){ const n=S.docs.filter(d=>d.kind!=="skip").length, sk=S.docs.length-n; $("#fileCount").textContent = S.docs.length? `${n} documenti da leggere${sk?` · ${sk} esclusi (duplicati o formati non supportati)`:""}` : "Nessun file caricato"; }
+function updateCount(){ const im=S.docs.filter(d=>d.imported && d.kind!=="skip").length; if (im){ $("#fileCount").textContent = `${im} documenti da una verifica precedente (file originali non caricati)`; return; } const n=S.docs.filter(d=>d.kind!=="skip").length, sk=S.docs.length-n; $("#fileCount").textContent = S.docs.length? `${n} documenti da leggere${sk?` · ${sk} esclusi (duplicati o formati non supportati)`:""}` : "Nessun file caricato"; }
 async function walkEntry(entry, path, out){
   if (entry.isFile){ await new Promise(res=>entry.file(f=>{ out.push({file:f, path:path+f.name}); res(); }, ()=>res())); }
   else if (entry.isDirectory){ const rd=entry.createReader(); let b; do{ b = await new Promise(res=>rd.readEntries(res,()=>res([]))); for (const e of b) await walkEntry(e, path+entry.name+"/", out); } while(b.length); }
@@ -410,7 +426,7 @@ async function runAnalysis(){
   const hb = setInterval(()=>{ const el=$("#beat"); if (!el) return; const tot=Math.round((Date.now()-S.t0)/1000), idle=Math.round((Date.now()-S.lastBeat)/1000);
     el.textContent = `In corso da ${Math.floor(tot/60)}:${String(tot%60).padStart(2,"0")}` + (S.inflight? ` · ${S.inflight} richieste a Claude in attesa${idle>20?` (ultima risposta ${idle}s fa – i documenti lunghi possono richiedere qualche minuto)`:""}` : ""); }, 1000);
   $("#run").disabled=true; $("#stop").hidden=false; $("#retry").hidden=true;
-  const depth=$("#depth").value; const todo=S.docs.filter(d=>d.kind!=="skip");
+  const depth=$("#depth").value; const todo=S.docs.filter(d=>d.kind!=="skip" && !d.imported);
   try{
     setPhase("Estrazione del testo"); let k=0;
     for (const d of todo){ if (S.ctl.signal.aborted) throw {code:"cancelled"}; if (!d.pages) await extractLocal(d); k++; setBar(k/todo.length*10); setLog(`${k}/${todo.length} · ${d.path}`); if (k%8===0) renderDocs(); }
@@ -439,9 +455,12 @@ async function runAnalysis(){
       for (const r of CAT) if (!S.status[r[0]]?.stato) S.status[r[0]] = {stato:"da_verificare", motivazione:"Valutazione non completata: "+errText(e), azione:""};
       S.failed.push({synth:"tutte"}); }
     S.analyzed=true;
+    if (!S.ctl.signal.aborted){ setPhase("Dal documentale al campo"); setLog("Controllo della lettura, impostazione del sito, schedule preliminare e guida di campo (2-4 minuti)"); setBar(97);
+      try{ await buildGuide(S.ctl.signal); }
+      catch(e){ if (FATAL.includes(e?.code)||e?.code==="cancelled") throw e; S.guide = {...(S.guide||{}), err:[...(S.guide?.err||[]), "Guida non preparata: "+errText(e)]}; } }
     setPhase(S.failed.length? `Completata con ${S.failed.length} lotti non riusciti` : "Completata"); setBar(100); setLog("");
   }catch(e){ setPhase(e?.code==="cancelled"?"Interrotta":"Fermata"); setLog(errText(e)); }
-  finally{ clearInterval(hb); if ($("#beat")) $("#beat").textContent=""; S.running=false; $("#stop").hidden=true; $("#retry").hidden=!S.failed.length; updateRunBtn(); renderDocs(); renderMatrix(); }
+  finally{ clearInterval(hb); if ($("#beat")) $("#beat").textContent=""; S.running=false; $("#stop").hidden=true; $("#retry").hidden=!S.failed.length; updateRunBtn(); renderDocs(); renderMatrix(); renderGuide(); }
 }
 function mkSeg(d, pages, isText){ return async ()=>{
   d.status="in lettura";
@@ -465,7 +484,7 @@ function mkSeg(d, pages, isText){ return async ()=>{
         }
         if (!ok) throw e;
       }
-      for (let i=1;i<=d.pages;i++) d.read.add(i);
+      for (let i=1;i<=Math.max(1,(d.text||[]).length);i++) d.read.add(i);
     } else {
       const imgs = await pageImages(d, pages, 1600);
       take(await AI.json(segPrompt(d, pages||[], false), imgs, "default", S.ctl.signal));
@@ -512,6 +531,288 @@ async function synthesize(){
   guardFatal(res);
   res.forEach((r,i)=>{ if (r?.__err) S.failed.push({synth:areas[i]}); });
   for (const r of CAT) if (!S.status[r[0]]?.stato) S.status[r[0]] = {stato:"da_verificare", motivazione:"Valutazione non completata", azione:""};
+}
+
+/* ============ GUIDA AL SOPRALLUOGO ============ */
+/* Dopo la lettura: (A) controllo della lettura, (S) impostazione del sito e dati generali,
+   (R) schedule preliminare per la relazione, (G) guida operativa di campo costruita dalle mancanze. */
+function readCount(d){ return d.read instanceof Set? d.read.size : Array.isArray(d.read)? d.read.length : 0; }
+function readQC(){
+  const live = S.docs.filter(d=>d.kind!=="skip");
+  const nonLetti = live.filter(d=>!d.segs.length);
+  const campione = live.filter(d=>d.segs.length && d.pages>1 && readCount(d) < d.pages);
+  const bassa = []; for (const d of live) for (const s of d.segs) if (s.confidenza==="bassa") bassa.push({d,s});
+  const senzaData = CAT.filter(r=>r[5]==="Si" && (S.ref?.[r[0]]||[]).some(x=>!x.cite) && !(S.ref?.[r[0]]||[]).some(x=>!x.cite && x.s.data));
+  const fuori = live.filter(d=>d.segs.length && d.segs.every(s=>s.codice==="FUORI_CATALOGO"));
+  const esclusi = S.docs.filter(d=>d.kind==="skip" && /non leggibile|non supportato/.test(d.status||""));
+  return {tot:live.length, letti:live.length-nonLetti.length, nonLetti, campione, bassa, senzaData, fuori, esclusi};
+}
+function qcText(q){
+  const L = (a,f)=>a.slice(0,40).map(f).join("; ");
+  return [`Documenti da leggere ${q.tot}, letti ${q.letti}.`,
+    q.nonLetti.length? `Non letti (${q.nonLetti.length}): ${L(q.nonLetti, d=>`${d.id} ${d.name} (${d.status||""})`)}` : "",
+    q.campione.length? `Letti solo in parte (${q.campione.length}): ${L(q.campione, d=>`${d.id} ${readCount(d)}/${d.pages} pagine`)}` : "",
+    q.bassa.length? `Attribuzioni a confidenza bassa (${q.bassa.length}): ${L(q.bassa, x=>`${x.d.id} p.${x.s.pagine||"?"} ${x.s.codice}`)}` : "",
+    q.senzaData.length? `Voci con scadenza senza data leggibile: ${q.senzaData.map(r=>r[0]).join(", ")}` : "",
+    q.fuori.length? `Documenti interamente fuori catalogo: ${q.fuori.length}` : "",
+    q.esclusi.length? `File non leggibili o in formato non supportato: ${q.esclusi.length}` : ""].filter(Boolean).join("\n");
+}
+function factsDigest(limit){
+  const rows=[];
+  for (const d of S.docs) for (const s of (d.segs||[])){
+    const txt = `${s.tipo||""} ${s.oggetto||""} ${s.estremi||""}`;
+    if (s.codice==="FUORI_CATALOGO" && !/matricol|kw|potenz|dichiaraz|verbale|libretto|collaud|verific|certific|manutenz|registro|rapporto|contratt|locazion/i.test(txt)) continue;
+    const pr = /^(TI|PI)\./.test(s.codice)? 0 : /^EU\./.test(s.codice)? 1 : 2;
+    rows.push({pr, k:s.codice+dateKey(s.data), t:`${d.id} p.${s.pagine||"?"} | ${s.codice} | ${s.data||"s.d."} | ${s.tipo||""} | ${s.oggetto||""} | ${s.estremi||""} | ${s.emittente||""} | ${s.ruolo||""}${s.completezza?" | "+s.completezza:""}${s.confidenza==="bassa"?" | CONFIDENZA BASSA":""}`.replace(/\s+/g," ").slice(0,420)});
+  }
+  rows.sort((a,b)=>a.pr-b.pr || a.k.localeCompare(b.k));
+  let out="", n=0; for (const r of rows){ if (out.length+r.t.length>limit) break; out+=r.t+"\n"; n++; }
+  return {text:out, n, tot:rows.length};
+}
+function statusDigest(){
+  return CAT.filter(r=>["mancante","parziale","da_verificare"].includes(S.status[r[0]]?.stato)).map(r=>{ const st=S.status[r[0]]; return `${r[0]} | ${r[3]} | imp. ${r[4]} | ${STATI[st.stato]} | ${st.motivazione||""}`; }).join("\n");
+}
+function presentDigest(){ return CAT.filter(r=>S.status[r[0]]?.stato==="presente").map(r=>`${r[0]} | ${r[3]} | ${estremiText(r[0]).split("\n")[0]||""}`).join("\n"); }
+function guideHead(){ return `${ROLE}\nOggi è il ${todayIt()}. Immobile: ${$("#imCod").value||"n.d."} – ${$("#imInd").value||""} – uso ${$("#imUso").value}.${$("#context").value.trim()?` Note: ${$("#context").value.trim()}.`:""} Prospettiva: Proprietà (distingui ciò che compete al conduttore).`; }
+function ctxBlock(dg){
+  return `Profilo dell'immobile dai documenti (elemento, n. documenti): ${S.profile.map(p=>`${p[0]} (${p[1]})`).join("; ")||"n.d."}\n\nVoci PRESENTI (codice | documento | estremi):\n${presentDigest()||"nessuna"}\n\nVoci MANCANTI, PARZIALI o DA VERIFICARE (codice | documento | importanza | stato | motivazione):\n${statusDigest()||"nessuna"}\n\nCriticità:\n${S.crit.map(x=>"- "+x.testo).join("\n")||"nessuna"}\n\nEstratti dei documenti letti (id p.pagine | codice | data | tipo | oggetto | estremi | emittente | ruolo | note), ${dg.n} di ${dg.tot}, ordinati per codice:\n${dg.text}`;
+}
+const ELEMENTI = ["Impianto elettrico","Illuminazione di sicurezza","Impianto di terra e scariche atmosferiche","Rete idranti e alimentazione idrica antincendio","Estintori","Rivelazione e allarme incendio","Porte e compartimentazioni","Uscite di sicurezza","Impianti meccanici (riscaldamento e climatizzazione)","Impianto gas","Impianto idrico-sanitario e scarichi","Pedane, portoni e chiusure motorizzate","Antintrusione e videosorveglianza","Ascensori e sollevamento","Fotovoltaico","Involucro e copertura","Aree esterne"];
+const CAMPI = ["Indirizzo","Comune e provincia","Dati catastali","Proprietà","Conduttore / utilizzatore","Destinazione d'uso","Anno di costruzione","Interventi successivi","Superficie","Piani e corpi di fabbrica","Struttura e copertura","Titoli edilizi","Agibilità","Attività soggette VVF (DPR 151/2011)","Pratica VVF e ultimo atto","Fornitura elettrica","Fornitura gas","Alimentazione idrica antincendio"];
+const PERCORSO = "esterno e piazzale; involucro e copertura; consegna energia e quadri elettrici; centrale termica e impianti meccanici; antincendio (alimentazione idrica e idranti, estintori, porte e compartimentazioni, uscite e maniglioni, illuminazione di sicurezza, rivelazione); aree operative (ribalte, pedane, portoni, cancelli, lavaggio); uffici e locali tecnici";
+function promptLettura(dg, q){
+  return `${guideHead()}\n\nUno strumento automatico ha letto il pacchetto documentale e ha attribuito ogni documento a una voce del catalogo. Prima di mandare il tecnico in campo devi CONTROLLARE CHE LA LETTURA SIA STATA FATTA BENE.\n\nIndicatori di qualità della lettura:\n${qcText(q)}\n\n${ctxBlock(dg)}\n\nCerca, citando sempre gli id dei documenti:\n- numeri letti in modo diverso tra documenti (pratiche, protocolli, matricole, POD/PDR), date impossibili o incoerenti (future, anteriori alla costruzione, rinnovi prima del rilascio);\n- documenti attribuiti a una voce non pertinente, o voci valutate mancanti/parziali per le quali gli estratti mostrano un documento idoneo (e il contrario);\n- dati di impianto discordanti tra documenti (numero e potenza di generatori, quantità di porte, idranti, apparecchi);\n- documenti superati da documenti più recenti, scadenze già trascorse alla data di oggi;\n- lacune di lettura che possono cambiare l'esito (documenti non letti o letti in parte su voci di importanza alta).\nNon inventare: se un punto non è dimostrabile dagli estratti, non scriverlo.\nRispondi solo con JSON: {"giudizio":"affidabile|affidabile con riserve|da integrare prima del sopralluogo","sintesi":"max 60 parole: quanto ci si può fidare della lettura e perché","punti":[{"tipo":"lettura|classificazione|valutazione|lacuna","tema":"max 6 parole","problema":"max 30 parole con i valori trovati","rif":"es. D012 p.3; D045","azione":"max 20 parole (es. rileggere a mano D012 p.3; correggere TI.03.02 in parziale)"}],"incoerenze":[{"tema":"max 6 parole","dettaglio":"max 35 parole con i valori discordanti","rif":"id documenti","come":"in campo|richiesta documentale|accesso agli atti","verifica":"max 20 parole: cosa fare per scioglierla"}]}\nMassimo 15 punti e 10 incoerenze, i più rilevanti per il giudizio sull'immobile.`;
+}
+function promptSito(dg){
+  return `${guideHead()}\n\nDall'analisi documentale ricava la PRIMA IMPOSTAZIONE DEL SITO e i DATI GENERALI che compileranno la relazione tecnica da consegnare (modello Technical Due Diligence). Usa solo dati presenti negli estratti, citando gli id; se un dato non c'è lascia "valore" vuoto (sarà rilevato in campo). "certezza": documento = letto in un documento; dedotto = ricavato da più documenti o per esclusione.\n\n${ctxBlock(dg)}\n\nCampi dei dati generali, in quest'ordine: ${CAMPI.join("; ")}.\nElementi della relazione (usa esattamente questi nomi in "elemento"): ${ELEMENTI.join("; ")}.\n- "sistemi": un elemento per ogni sistema di cui i documenti provano l'esistenza o che è tipico e obbligatorio per questo uso; "componenti" con quantità, potenze, marche, matricole e anni letti; "dm37": ante = realizzato prima del 27/03/2008, post = dopo, misto = parti ante e post; "dico": presente/parziale/assente per la documentazione DM 37/08 o L.46/90; "caso" = caso preliminare di regolarizzazione (A documentato; B DICO senza allegati; C ante 2008 senza DICO → DIRI; D post 2008 senza DICO → relazione di adeguamento e nuova DICO; E non applicabile) da confermare in campo; "documenti" = paragrafo per la relazione su cosa risulta dai documenti; "da_rilevare" = cosa il tecnico deve censire in campo per completare la scheda.\n- "verifiche": verifiche periodiche obbligatorie (DPR 462/01, rinnovo periodico VVF, presidi antincendio DM 01/09/2021, centrali termiche DPR 74/2013, F-gas, ascensori DPR 162/99, porte e cancelli motorizzati) con ultima evidenza e scadenza calcolata ad oggi.\n- "zone": corpi di fabbrica, aree e locali tecnici da percorrere, come risultano dalle tavole e dai documenti.\nRispondi solo con JSON: {"immobile":[{"campo":"","valore":"max 30 parole","rif":"","certezza":"documento|dedotto|"}],"descrizione":"80-130 parole: descrizione dell'immobile per la relazione, solo da documenti","zone":["..."],"sistemi":[{"elemento":"","componenti":"max 35 parole","anno":"","dm37":"ante|post|misto|n.d.","dico":"presente|parziale|assente","caso":"A|B|C|D|E|n.d.","voci":["codici catalogo"],"documenti":"max 60 parole con id","rif":"","da_rilevare":"max 25 parole"}],"verifiche":[{"impianto":"","norma":"","ultima":"data o vuoto","scadenza":"","stato":"in corso|scaduta|non documentata","rif":""}]}`;
+}
+function promptSchedule(dg){
+  return `${guideHead()}\n\nPrepara la SCHEDULE PRELIMINARE e la sintesi provvisoria per la bozza della relazione tecnica (modello RICS Technical Due Diligence), basate SOLO sull'analisi documentale. Ogni riga è una carenza documentale, una scadenza o un rischio che i documenti dimostrano.\n- Semaforo provvisorio: ROSSO = obbligo scaduto o violato, o rischio per la sicurezza dimostrato dai documenti (es. rinnovo VVF scaduto, verifiche DPR 462 scadute); GIALLO = carenza documentale regolarizzabile; non usare VERDE nella schedule.\n- Orizzonte: IMMEDIATO | BREVE (entro 1 anno) | MEDIO (2-5 anni) | LUNGO (6-10 anni) | ENQUIRY (approfondimento).\n- Resp: P = proprietà, C = conduttore, P/C = da ripartire secondo contratto.\n- Le azioni sono reperimento documenti, accessi agli atti, verifiche, DIRI, relazioni di adeguamento: non proporre sostituzioni o lavori che i documenti non dimostrano necessari.\n- "conferma": cosa deve vedere il tecnico in campo per confermare, ridimensionare o chiudere la riga.\n\n${ctxBlock(dg)}\n\nRispondi solo con JSON: {"ambiti":[{"ambito":"Impianti elettrici e speciali|Prevenzione incendi|Impianti meccanici e gas|Involucro e strutture|Titoli edilizi e catasto|Ambiente e materiali pericolosi","semaforo":"ROSSO|GIALLO|VERDE|N.V.","commento":"max 25 parole"}],"rischi":["max 6 frasi: principali rischi per la Proprietà emersi dai documenti"],"schedule":[{"elemento":"nome elemento","rilievo":"max 25 parole con id","conseguenza":"max 20 parole","azione":"max 20 parole","orizzonte":"","semaforo":"ROSSO|GIALLO","resp":"P|C|P/C","voce":"codice catalogo","conferma":"max 20 parole"}],"indagini":["max 8 richieste o indagini da completare, con destinatario"]}\nMassimo 25 righe di schedule, ordinate per gravità; tutti e sei gli ambiti.`;
+}
+function promptCampo(dg){
+  return `${guideHead()}\n\nPrepara la GUIDA OPERATIVA DI CAMPO per il verificatore, PARTENDO DALLE MANCANZE e dalle carenze rilevate nell'analisi documentale (voci mancanti, parziali, da verificare, criticità, scadenze). Per ogni mancanza che il campo può chiarire, ridimensionare o quantificare definisci uno o più controlli; aggiungi i controlli che servono a confermare i dati chiave dei documenti (quantità, potenze, matricole) e a scoprire modifiche non documentate. Non creare controlli per voci puramente amministrative (catasto, titoli) salvo che il campo ne possa verificare il presupposto (es. opere visibili non documentate: tettoie, tunnel, ampliamenti).\n\n${ctxBlock(dg)}\n\nRegole:\n- "zona": usa l'ordine di percorso ${PERCORSO}.\n- "mancanza": la lacuna documentale o l'incoerenza da cui nasce il controllo.\n- "atteso": cosa risulta dai documenti, con dati concreti e id; "non documentato" se nulla.\n- "rilievo": cosa portare a casa (foto di targhe, conteggi, misure, dichiarazione del referente).\n- "se_difforme": come cambia la relazione (es. caso DM 37 da C a D → relazione di adeguamento; riga a ROSSO; servizio di verifica da attivare).\n- Ogni controllo verificabile a vista o con domanda in sito; prove strumentali solo "se previsto dall'incarico".\n- "focus": le 5-7 cose su cui il verificatore deve concentrarsi, perché decidono il giudizio della Proprietà.\n- Massimo 45 controlli; priorità alta solo se l'esito cambia rischio o costi.\nRispondi solo con JSON: {"focus":[{"tema":"max 6 parole","perche":"max 30 parole","portare_a_casa":"max 25 parole"}],"controlli":[{"zona":"","mancanza":"max 15 parole","voce":"codice catalogo","verifica":"max 20 parole","atteso":"max 35 parole","rif":"","rilievo":"max 20 parole","se_difforme":"max 25 parole","priorita":"alta|media|bassa"}],"da_cercare":[{"elemento":"","motivo":"max 25 parole","rif":""}],"richieste":[{"a_chi":"conduttore|proprietà|manutentore|referente in sito","richiesta":"max 25 parole","voce":"codice catalogo"}]}`;
+}
+const arrObj = v=>Array.isArray(v)? v.filter(x=>x && typeof x==="object") : [];
+const arrStr = v=>Array.isArray(v)? v.map(x=>typeof x==="string"? x : x?.testo||x?.text||"").filter(Boolean) : [];
+function numberControls(list){
+  const order=[]; for (const c of list){ const z=String(c.zona||"Altro"); if (!order.includes(z)) order.push(z); }
+  const out=[]; let n=0; for (const z of order) for (const c of list.filter(c=>String(c.zona||"Altro")===z)) out.push({...c, zona:z, id:"C"+String(++n).padStart(2,"0"), voce:normCode(c.voce)||String(c.voce||"")});
+  return out;
+}
+function normGuide(g){
+  if (!g) return g;
+  if (g.campo && !g.campo.controlli && Array.isArray(g.campo.zone)) g.campo.controlli = g.campo.zone.flatMap(z=>(z.controlli||[]).map(c=>({...c, zona:z.zona})));
+  if (g.campo){ g.campo.focus = arrObj(g.campo.focus); g.campo.da_cercare = arrObj(g.campo.da_cercare); g.campo.richieste = arrObj(g.campo.richieste); }
+  g.err = g.err||[]; return g;
+}
+async function buildGuide(signal){
+  const q = readQC(); const dg = factsDigest(100000);
+  S.guide = {data:todayIt(), qc:{tot:q.tot, letti:q.letti, nonLetti:q.nonLetti.map(d=>`${d.id} ${d.path} – ${d.status||""}`), campione:q.campione.map(d=>`${d.id} ${d.path} – ${readCount(d)} di ${d.pages} pagine`), bassa:q.bassa.map(x=>`${x.d.id} p.${x.s.pagine||"?"} – ${x.s.codice} – ${x.s.tipo||""}`), senzaData:q.senzaData.map(r=>`${r[0]} ${r[3]}`), fuori:q.fuori.length, esclusi:q.esclusi.length, estratti:`${dg.n} di ${dg.tot}`}, lettura:null, sito:null, relazione:null, campo:null, err:[]};
+  renderGuide();
+  const jobs = [["lettura", "Controllo della lettura", promptLettura(dg,q)], ["sito", "Impostazione del sito", promptSito(dg)], ["relazione", "Schedule preliminare", promptSchedule(dg)], ["campo", "Guida operativa", promptCampo(dg)]];
+  const res = await Promise.allSettled(jobs.map(([k,,p])=>AI.json(p, [], "complex", signal).then(o=>{ store(k,o); renderGuide(); return o; })));
+  res.forEach((r,i)=>{ if (r.status==="rejected"){ if (FATAL.includes(r.reason?.code)||r.reason?.code==="cancelled") throw r.reason; S.guide.err.push(`${jobs[i][1]}: ${errText(r.reason)}`); } });
+  renderGuide();
+  function store(k, o){
+    if (!o || typeof o!=="object") throw {code:"invalid_json"};
+    if (k==="lettura") S.guide.lettura = {giudizio:String(o.giudizio||""), sintesi:String(o.sintesi||""), punti:arrObj(o.punti), incoerenze:arrObj(o.incoerenze)};
+    if (k==="sito") S.guide.sito = {immobile:arrObj(o.immobile), descrizione:String(o.descrizione||""), zone:arrStr(o.zone), sistemi:arrObj(o.sistemi).map(s=>({...s, voci:(Array.isArray(s.voci)?s.voci:[]).map(normCode).filter(Boolean)})), verifiche:arrObj(o.verifiche)};
+    if (k==="relazione"){ let n=0; S.guide.relazione = {ambiti:arrObj(o.ambiti), rischi:arrStr(o.rischi), indagini:arrStr(o.indagini), schedule:arrObj(o.schedule).map(r=>({...r, id:"D"+String(++n).padStart(2,"0"), voce:normCode(r.voce)||String(r.voce||"")}))}; }
+    if (k==="campo") S.guide.campo = {focus:arrObj(o.focus), controlli:numberControls(arrObj(o.controlli)), da_cercare:arrObj(o.da_cercare), richieste:arrObj(o.richieste)};
+  }
+}
+async function runGuide(){
+  if (S.running || !S.analyzed) return; S.running=true; S.ctl=new AbortController(); $("#guideRun").disabled=true; $("#stop").hidden=false;
+  $("#guideMsg").textContent="Preparazione in corso (2-4 minuti): controllo della lettura, impostazione del sito, schedule preliminare, guida di campo…";
+  try{ await buildGuide(S.ctl.signal); $("#guideMsg").textContent = S.guide.err.length? "Completata in parte: "+S.guide.err.join(" · ") : "Pronta: scarica la guida operativa e la bozza della relazione."; }
+  catch(e){ $("#guideMsg").textContent = errText(e); }
+  finally{ S.running=false; $("#stop").hidden=true; updateRunBtn(); renderGuide(); }
+}
+function controlsFor(sys){ const C=S.guide?.campo?.controlli||[]; const v=new Set(sys.voci||[]); return C.filter(c=>v.has(c.voce)).map(c=>c.id); }
+const GIUD = {"affidabile":"presente","affidabile con riserve":"parziale","da integrare prima del sopralluogo":"mancante"};
+const SEM = {ROSSO:"mancante", GIALLO:"parziale", VERDE:"presente"};
+function renderGuide(){
+  const g=normGuide(S.guide), box=$("#guideBox"); if (!box) return;
+  $("#guideRun").disabled = S.running || !S.analyzed || !AI.ready(); $("#guideRun").textContent = g? "Rigenera guida e bozza" : "Genera guida e bozza";
+  const ok = !!(g && (g.campo || g.sito || g.relazione || g.lettura)); ["#guideDocx","#guideDocx2","#relDocx","#relDocx2"].forEach(s=>{ if ($(s)) $(s).disabled=!ok; });
+  if (!g){ box.innerHTML = `<p class="muted small">${S.analyzed? "Genera la guida operativa e la bozza della relazione dai risultati della verifica." : "Guida e bozza si preparano da sole al termine della verifica. Puoi anche caricare i dati di una verifica precedente (.json)."}</p>`; return; }
+  const q=g.qc, L=g.lettura, Si=g.sito, R=g.relazione, C=g.campo; let h="";
+  const wait = t=>`<p class="muted small">${t} in preparazione…</p>`;
+  h += `<div class="tiles"><div class="tile ${q.nonLetti.length?"miss":"ok"}"><b>${q.letti}/${q.tot}</b><span>documenti letti</span></div><div class="tile ${q.campione.length?"part":"ok"}"><b>${q.campione.length}</b><span>letti solo in parte</span></div><div class="tile ${q.bassa.length?"part":"ok"}"><b>${q.bassa.length}</b><span>attribuzioni incerte</span></div><div class="tile"><b>${C? C.controlli.length : "…"}</b><span>controlli in campo</span></div><div class="tile"><b>${R? R.schedule.length : "…"}</b><span>righe di schedule preliminare</span></div></div>`;
+  if (L) h += `<div class="notice" style="margin-top:12px"><span class="st st-${GIUD[L.giudizio]||"vuoto"}">Lettura: ${esc(L.giudizio||"n.d.")}</span> ${esc(L.sintesi)}</div>`;
+  if (C?.focus.length) h += `<div class="crit" style="margin-top:12px;border-left-color:var(--acc);background:var(--rule-2)"><strong>Su cosa concentrare il sopralluogo</strong><ol>${C.focus.map(f=>`<li><strong>${esc(f.tema)}</strong> – ${esc(f.perche)}${f.portare_a_casa?` <span class="muted">Portare a casa: ${esc(f.portare_a_casa)}</span>`:""}</li>`).join("")}</ol></div>`;
+  h += `<h3 style="margin:16px 0 6px">Impostazione del sito</h3>`;
+  if (Si){
+    h += `<div class="tablebox" style="max-height:360px"><table><thead><tr><th>Dato</th><th>Valore dai documenti</th><th>Fonte</th></tr></thead><tbody>${Si.immobile.map(r=>`<tr><td>${esc(r.campo)}</td><td class="small">${r.valore? esc(r.valore) : '<span class="st st-da_verificare">da rilevare</span>'}</td><td class="mono small">${esc(r.rif||"")}${r.certezza==="dedotto"?" · dedotto":""}</td></tr>`).join("")}</tbody></table></div>`;
+    if (Si.zone.length) h += `<p class="small" style="margin-top:8px"><strong>Zone da percorrere:</strong> ${Si.zone.map(esc).join(" · ")}</p>`;
+    h += `<div class="tablebox" style="max-height:420px;margin-top:8px"><table><thead><tr><th>Sistema</th><th>Componenti dai documenti</th><th>DM 37</th><th>DICO</th><th>Caso</th><th>Da censire in campo</th><th>Controlli</th></tr></thead><tbody>${Si.sistemi.map(s=>`<tr><td>${esc(s.elemento)}</td><td class="small">${esc(s.componenti||"")}${s.anno?` · ${esc(s.anno)}`:""}</td><td class="small">${esc(s.dm37||"")}</td><td class="small">${esc(s.dico||"")}</td><td class="mono">${esc(s.caso||"")}</td><td class="small">${esc(s.da_rilevare||"")}</td><td class="mono small">${controlsFor(s).join(" ")}</td></tr>`).join("")}</tbody></table></div>`;
+  } else if (!g.err.some(e=>e.startsWith("Impostazione"))) h += wait("Impostazione del sito");
+  if (C){
+    h += `<h3 style="margin:16px 0 6px">Guida operativa: dalle mancanze ai controlli</h3><div class="tablebox" style="max-height:640px"><table><thead><tr><th>ID</th><th>Mancanza di partenza</th><th>Verifica in campo</th><th>Cosa dicono i documenti</th><th>Da rilevare</th><th>Se difforme</th><th>Pr.</th></tr></thead><tbody>`;
+    let z=""; for (const c of C.controlli){ if (c.zona!==z){ z=c.zona; h+=`<tr class="cat"><td colspan="7">${esc(z)}</td></tr>`; }
+      h += `<tr><td class="mono">${c.id}</td><td class="small">${esc(c.mancanza||"")}${c.voce?` <span class="mono">${esc(c.voce)}</span>`:""}</td><td>${esc(c.verifica||"")}</td><td class="small">${esc(c.atteso||"")}${c.rif?` <span class="mono small">${esc(c.rif)}</span>`:""}</td><td class="small">${esc(c.rilievo||"")}</td><td class="small">${esc(c.se_difforme||"")}</td><td class="imp imp-${c.priorita==="alta"?"ALTO":c.priorita==="media"?"MEDIO":"BASSO"}">${esc(c.priorita||"")}</td></tr>`; }
+    h += `</tbody></table></div>`;
+    if (C.da_cercare.length) h += `<h3 style="margin:16px 0 6px">Da cercare in sito</h3><ul class="small">${C.da_cercare.map(x=>`<li><strong>${esc(x.elemento)}</strong> – ${esc(x.motivo)}${x.rif?` <span class="mono small">${esc(x.rif)}</span>`:""}</li>`).join("")}</ul>`;
+    if (C.richieste.length) h += `<h3 style="margin:16px 0 6px">Da chiedere il giorno del sopralluogo</h3><ul class="small">${C.richieste.map(x=>`<li><strong>${esc(x.a_chi)}</strong>: ${esc(x.richiesta)}${x.voce?` <span class="mono">${esc(x.voce)}</span>`:""}</li>`).join("")}</ul>`;
+  } else if (!g.err.some(e=>e.startsWith("Guida"))) h += wait("Guida operativa");
+  if (R){
+    h += `<h3 style="margin:16px 0 6px">Bozza della relazione: sintesi e schedule preliminare</h3><div class="row" style="gap:6px;margin-bottom:8px">${R.ambiti.map(a=>`<span class="st st-${SEM[a.semaforo]||"vuoto"}" title="${esc(a.commento||"")}">${esc(a.ambito)}: ${esc(a.semaforo||"")}</span>`).join("")}</div>`;
+    h += `<div class="tablebox" style="max-height:420px"><table><thead><tr><th>ID</th><th>Elemento</th><th>Rilievo documentale</th><th>Azione</th><th>Orizzonte</th><th>Semaforo</th><th>Resp.</th><th>Da confermare in campo</th></tr></thead><tbody>${R.schedule.map(r=>`<tr><td class="mono">${r.id}</td><td>${esc(r.elemento||"")}</td><td class="small">${esc(r.rilievo||"")}</td><td class="small">${esc(r.azione||"")}</td><td class="small">${esc(r.orizzonte||"")}</td><td><span class="st st-${SEM[r.semaforo]||"vuoto"}">${esc(r.semaforo||"")}</span></td><td class="mono">${esc(r.resp||"")}</td><td class="small">${esc(r.conferma||"")}</td></tr>`).join("")}</tbody></table></div>`;
+  } else if (!g.err.some(e=>e.startsWith("Schedule"))) h += wait("Schedule preliminare");
+  if (L?.punti.length || L?.incoerenze.length){
+    h += `<details style="margin-top:14px"><summary><strong>Controllo della lettura: ${L.punti.length} punti, ${L.incoerenze.length} incoerenze</strong></summary>`;
+    if (L.punti.length) h += `<div class="tablebox" style="margin-top:8px"><table><thead><tr><th>Tipo</th><th>Tema</th><th>Problema</th><th>Documenti</th><th>Azione prima del campo</th></tr></thead><tbody>${L.punti.map(p=>`<tr><td class="small">${esc(p.tipo)}</td><td>${esc(p.tema)}</td><td class="small">${esc(p.problema)}</td><td class="mono small">${esc(p.rif)}</td><td class="small">${esc(p.azione)}</td></tr>`).join("")}</tbody></table></div>`;
+    if (L.incoerenze.length) h += `<div class="tablebox" style="margin-top:8px"><table><thead><tr><th>Incoerenza</th><th>Dettaglio</th><th>Documenti</th><th>Come</th><th>Verifica</th></tr></thead><tbody>${L.incoerenze.map(p=>`<tr><td>${esc(p.tema)}</td><td class="small">${esc(p.dettaglio)}</td><td class="mono small">${esc(p.rif)}</td><td class="small">${esc(p.come)}</td><td class="small">${esc(p.verifica)}</td></tr>`).join("")}</tbody></table></div>`;
+    h += `</details>`;
+  }
+  if (g.err.length) h += `<div class="notice warn" style="margin-top:10px">${g.err.map(esc).join("<br>")} – usa «Rigenera guida e bozza».</div>`;
+  box.innerHTML = h;
+}
+
+/* ---------- Word: helpers ---------- */
+const BOX="☐";
+function PH(t){ return new D.TextRun({text:t, highlight:"yellow"}); }
+function Hd(t, lvl){ return new D.Paragraph({heading: lvl===1? D.HeadingLevel.HEADING_1 : D.HeadingLevel.HEADING_2, keepNext:true, spacing:{before: lvl===1? 320:200, after:100}, children:[new D.TextRun({text:t, bold:true, size: lvl===1? 28:23, color: lvl===1? "1F3A44":"2E5A66", font:"Calibri"})]}); }
+function cellR(runs, o={}){ return new D.TableCell({width:o.w?{size:o.w,type:D.WidthType.PERCENTAGE}:undefined, shading:o.fill?{fill:o.fill}:undefined, children:[new D.Paragraph({spacing:{after:20}, children: (Array.isArray(runs)? runs : [T(runs,{size:o.size||17, b:o.b})])})]}); }
+function tableR(hdr, rows, widths, fills){ return new D.Table({width:{size:100,type:D.WidthType.PERCENTAGE}, columnWidths: widths? widths.map(w=>Math.round(9900*w/100)) : undefined,
+  rows:[new D.TableRow({tableHeader:true, cantSplit:true, children:hdr.map((h,i)=>cellR(h,{b:true,fill:"E1F1F1",w:widths?.[i]}))}), ...rows.map((r,ri)=>new D.TableRow({cantSplit:true, children:r.map((v,i)=>cellR(v,{w:widths?.[i], fill:fills?.[ri]?.[i]}))}))]}); }
+const SEMFILL = {ROSSO:"F4C7C3", GIALLO:"FCE8B2", VERDE:"CDE9D6"};
+const val = (v, ph="[da rilevare in campo]")=> v? [T(v,{size:17})] : [PH(ph)];
+function docHeaderFooter(title){
+  return { headers:{default:new D.Header({children:[new D.Paragraph({alignment:D.AlignmentType.RIGHT, children:[T(title,{size:16,color:"666666"})]})]})},
+           footers:{default:new D.Footer({children:[new D.Paragraph({alignment:D.AlignmentType.CENTER, children:[T("Documento riservato ad uso della Committenza · pag. ",{size:16,color:"666666"}), new D.TextRun({children:[D.PageNumber.CURRENT], size:16, color:"666666"})]})]})} };
+}
+function immTitle(){ return `${$("#imCod").value||"Immobile"}${$("#imInd").value?" – "+$("#imInd").value:""}`; }
+
+/* ---------- Word: guida operativa di campo ---------- */
+async function exportGuideDocx(){
+  const g=normGuide(S.guide); if (!g) throw new Error("genera prima la guida");
+  const ch=[], q=g.qc, L=g.lettura, C=g.campo, Si=g.sito;
+  ch.push(P([T("Guida operativa di campo",{b:true,size:34})],{after:60}));
+  ch.push(P([T(`${immTitle()} · ${$("#imUso").value}`,{size:22})],{after:40}));
+  ch.push(P([T(`Preparata il ${g.data} dall'analisi documentale (${q.letti} documenti letti su ${q.tot}). Parte dalle mancanze della base documentale e dice al verificatore cosa controllare, cosa portare a casa e come cambia la relazione se l'esito è difforme.`,{i:true,size:18})],{after:120}));
+  ch.push(table(["Verificatore","Data sopralluogo","Referente in sito","Condizioni meteo / accessi"],[["","","",""]],[25,25,25,25]));
+  let n=0; const H=t=>ch.push(Hd(`${++n}. ${t}`,1));
+  if (C?.focus.length){ H("Su cosa concentrare il sopralluogo");
+    C.focus.forEach((f,i)=>ch.push(P([T(`${i+1}. ${f.tema}. `,{b:true}), T(f.perche||""), f.portare_a_casa? T(` Portare a casa: ${f.portare_a_casa}`,{i:true}) : T("")],{indent:{left:200},after:80}))); }
+  if (Si){ H("Impostazione del sito");
+    ch.push(P([T("Dati generali ricavati dai documenti. Le righe evidenziate vanno completate in campo e confluiscono nel capitolo 3 della relazione.",{size:18,i:true})]));
+    ch.push(tableR(["Dato","Valore dai documenti","Fonte","Confermato"], Si.immobile.map(r=>[r.campo||"", val(r.valore), `${r.rif||""}${r.certezza==="dedotto"?" (dedotto)":""}`, `${BOX} sì ${BOX} no`]), [24,48,16,12]));
+    if (Si.zone.length) ch.push(P([T("Zone da percorrere: ",{b:true}), T(Si.zone.join(" · "))],{before:120}));
+    ch.push(P([T("Sistemi da censire",{b:true,size:22})],{before:160,after:60,keepNext:true}));
+    ch.push(tableR(["Sistema","Dai documenti","DM 37 · DICO · caso","Da censire in campo","Controlli"], Si.sistemi.map(s=>[s.elemento||"", `${s.componenti||""}${s.anno?" · "+s.anno:""}${s.rif?" ("+s.rif+")":""}`, `${s.dm37||"n.d."} · ${s.dico||"n.d."} · ${s.caso||"n.d."}`, s.da_rilevare||"", controlsFor(s).join(" ")]), [18,32,14,26,10])); }
+  if (L){ H("Affidabilità della lettura documentale");
+    ch.push(P([T("Giudizio: ",{b:true}),T(L.giudizio||"n.d.",{b:true}),T(" – "+(L.sintesi||""))]));
+    ch.push(table(["Indicatore","Valore"],[["Documenti letti / da leggere",`${q.letti} / ${q.tot}`],["Letti solo in parte",String(q.campione.length)],["Attribuzioni a confidenza bassa",String(q.bassa.length)],["Voci con scadenza senza data leggibile",String(q.senzaData.length)]],[60,40]));
+    if (L.punti.length){ ch.push(P([T("Da correggere o rileggere prima del campo",{b:true})],{before:140,keepNext:true})); ch.push(table(["Problema","Documenti","Azione",""], L.punti.map(p=>[`${p.tema?p.tema+": ":""}${p.problema||""}`, p.rif||"", p.azione||"", BOX]), [50,16,30,4])); }
+    if (L.incoerenze.length){ ch.push(P([T("Incoerenze da sciogliere",{b:true})],{before:140,keepNext:true})); ch.push(table(["Incoerenza","Documenti","Come","Verifica",""], L.incoerenze.map(p=>[`${p.tema?p.tema+": ":""}${p.dettaglio||""}`,p.rif||"",p.come||"",p.verifica||"",BOX]), [44,14,14,24,4])); } }
+  if (C){ H("Dalle mancanze ai controlli");
+    ch.push(P([T("Perché si fa ogni controllo e come cambia la relazione se l'esito è difforme.",{size:18,i:true})]));
+    ch.push(tableR(["ID","Mancanza di partenza","Verifica","Se difforme"], C.controlli.map(c=>[`${c.id}${c.priorita==="alta"?" ●":""}`, `${c.mancanza||""}${c.voce?" ["+c.voce+"]":""}`, c.verifica||"", c.se_difforme||""]), [8,34,30,28]));
+    H("Scheda di campo per zona");
+    ch.push(P([T("Esito: C = conforme a quanto dicono i documenti, D = difforme, NV = non visto o non accessibile. Riportare gli ID nella relazione e nella numerazione delle foto.",{size:18,i:true})]));
+    let z=""; for (const c of C.controlli){ if (c.zona!==z){ z=c.zona; ch.push(P([T(z,{b:true,size:22})],{before:160,after:60,keepNext:true})); ch.push(table(["ID","Verifica","Cosa dicono i documenti","Da rilevare","Esito","Note / foto"], C.controlli.filter(x=>x.zona===z).map(x=>[x.id+(x.priorita==="alta"?" ●":""), x.verifica||"", `${x.atteso||""}${x.rif?` (${x.rif})`:""}`, x.rilievo||"", `${BOX}C ${BOX}D ${BOX}NV`, ""]), [7,22,29,18,9,15])); } }
+    ch.push(P([T("● = priorità alta: l'esito può cambiare il giudizio di rischio o i costi.",{i:true,size:17})],{before:60}));
+    if (C.da_cercare.length){ H("Elementi da cercare in sito"); ch.push(table(["Elemento","Perché","Documenti","Presente?"], C.da_cercare.map(x=>[x.elemento||"",x.motivo||"",x.rif||"",`${BOX} sì  ${BOX} no`]), [24,46,14,16])); }
+    if (C.richieste.length){ H("Da chiedere il giorno del sopralluogo"); ch.push(table(["A chi","Richiesta","Voce","Ricevuto"], C.richieste.map(x=>[x.a_chi||"",x.richiesta||"",x.voce||"",`${BOX} sì  ${BOX} no`]), [16,56,12,16])); } }
+  if (q.nonLetti.length || q.campione.length){ ch.push(Hd("Allegato – documenti non letti o letti in parte",1));
+    ch.push(table(["Documento","Esito della lettura"], [...q.nonLetti.map(x=>[x,"non letto"]), ...q.campione.map(x=>[x,"letto in parte"])].slice(0,200), [80,20])); }
+  ch.push(P([T("Guida preparata automaticamente dai documenti letti: le indicazioni vanno validate dal verificatore. Rilievo a vista: non sostituisce DIRI, collaudi o verifiche periodiche.",{i:true,size:17})],{before:240}));
+  const doc = new D.Document({styles:{default:{document:{run:{font:"Calibri",size:20}}}}, sections:[{properties:{page:{margin:{top:850,bottom:850,left:850,right:850}}}, ...docHeaderFooter(`Guida operativa di campo · ${immTitle()}`), children:ch}]});
+  saveBlob(`Guida operativa di campo - ${baseName()}.docx`, await D.Packer.toBlob(doc));
+}
+
+/* ---------- Word: bozza della relazione tecnica (modello TDD) ---------- */
+async function exportRelazioneDocx(){
+  const g=normGuide(S.guide); if (!g) throw new Error("genera prima la guida");
+  const Si=g.sito||{immobile:[],sistemi:[],verifiche:[],zone:[],descrizione:""}, R=g.relazione||{ambiti:[],rischi:[],indagini:[],schedule:[]}, C=g.campo, c=counts();
+  const im = k=>Si.immobile.find(r=>String(r.campo||"").toLowerCase().startsWith(k.toLowerCase()))?.valore||"";
+  const ch=[]; const para=(runs,o)=>ch.push(P(runs,o)); const bullet=(runs)=>ch.push(new D.Paragraph({bullet:{level:0}, spacing:{after:40}, children:runs}));
+  // copertina
+  para([T("Technical Due Diligence – Compliance Assessment",{b:true,size:36,color:"1F3A44"})],{before:1200,after:120});
+  para([T(immTitle(),{b:true,size:28})],{after:60});
+  para([T($("#imUso").value,{size:22})],{after:400});
+  ch.push(tableR(["Voce","Contenuto"],[["Committente",[PH("[committente]")]],["Codice commessa / documento",[PH("[codice documento]")]],["Data del sopralluogo",[PH("[gg/mm/aaaa]")]],["Redatto da",[PH("[nome e qualifica]")]],["Verificato da",[PH("[nome]")]],["Revisione",`00 – bozza preimpostata dall'analisi documentale del ${g.data}`]],[35,65]));
+  para([T("Le parti evidenziate in giallo vanno completate dopo il sopralluogo. Semafori e righe della schedule sono provvisori: derivano dalla sola analisi documentale e vanno confermati con i controlli della Guida operativa di campo (ID C01…).",{i:true,size:18})],{before:300});
+  ch.push(new D.Paragraph({children:[new D.PageBreak()]}));
+  // 1
+  ch.push(Hd("1  Executive summary",1));
+  ch.push(Hd("1.1  L'immobile",2)); para(Si.descrizione? [T(Si.descrizione)] : [PH("[descrizione dell'immobile]")]); para([PH("[integrare con l'esito del sopralluogo: stato generale, uso effettivo, modifiche non documentate]")]);
+  ch.push(Hd("1.2  Sintesi per ambito",2));
+  ch.push(tableR(["Ambito","Semaforo provvisorio (documenti)","Commento","Esito dopo il sopralluogo"], R.ambiti.map(a=>[a.ambito||"", a.semaforo||"", a.commento||"", [PH("[semaforo e commento]")]]), [24,16,40,20], R.ambiti.map(a=>[null, SEMFILL[a.semaforo], null, null])));
+  ch.push(Hd("1.3  Principali rischi e azioni raccomandate",2)); R.rischi.forEach(x=>bullet([T(x)])); bullet([PH("[rischi emersi dal sopralluogo]")]);
+  ch.push(Hd("1.4  Costi stimati per orizzonte temporale",2)); para([PH("[da stimare dopo il sopralluogo, per orizzonte: immediato, entro 1 anno, 2–5 anni, 6–10 anni]")]);
+  ch.push(Hd("1.5  Indagini e richieste da completare",2)); R.indagini.forEach(x=>bullet([T(x)])); if (!R.indagini.length) para([PH("[indagini e richieste]")]);
+  // 2
+  ch.push(Hd("2  Introduzione",1));
+  ch.push(Hd("2.1  Istruzioni",2)); para([PH("[incarico, perimetro, prospettiva della Proprietà]")]);
+  ch.push(Hd("2.2  Il sopralluogo",2)); ch.push(tableR(["Voce","Contenuto"],[["Data e fascia oraria",[PH("[...]")]],["Condizioni meteo",[PH("[...]")]],["Accompagnatori",[PH("[...]")]],["Zone percorse", Si.zone.length? [T(Si.zone.join(" · "),{size:17}), PH(" [confermare]")] : [PH("[...]")]]],[35,65]));
+  ch.push(Hd("2.3  Aree ed elementi non ispezionati",2)); para([PH("[aree non accessibili e motivo]")]);
+  ch.push(Hd("2.4  Documenti esaminati",2));
+  para([T(`Sono stati esaminati ${g.qc.letti} documenti del pacchetto fornito, ricondotti al ${CAT_NAME} (${CAT.length} voci): ${c.presente} voci presenti, ${c.parziale} parziali, ${c.mancante} mancanti (${c.mancALTO||0} di importanza alta), ${c.da_verificare} da verificare, ${c.non_applicabile} non applicabili.${g.lettura?` Affidabilità della lettura: ${g.lettura.giudizio}.`:""} Il dettaglio è nella Relazione di verifica del catalogo documentale.`)]);
+  const pres = CAT.filter(r=>S.status[r[0]]?.stato==="presente").map(r=>[r[0], r[3], estremiText(r[0]).split("\n")[0]||""]);
+  if (pres.length) ch.push(tableR(["Voce","Documento","Estremi"], pres, [12,44,44]));
+  // 3
+  ch.push(Hd("3  Descrizione dell'immobile",1));
+  ch.push(tableR(["Dato","Valore","Fonte"], (Si.immobile.length? Si.immobile : CAMPI.map(k=>({campo:k}))).map(r=>[r.campo||"", val(r.valore), `${r.rif||""}${r.certezza==="dedotto"?" (dedotto)":""}`]), [26,56,18]));
+  ch.push(Hd("3.1  Impianti presenti",2));
+  ch.push(tableR(["Impianto","Caratteristiche (documenti)","Anno","Caratteristiche rilevate in campo"], Si.sistemi.map(s=>[s.elemento||"", s.componenti||"", s.anno||"", [PH("[potenze, quantità, targhe]")]]), [22,40,10,28]));
+  // 4
+  ch.push(Hd("4  Condizione per elementi",1));
+  para([T("Per ciascun elemento: quanto risulta dai documenti, quanto rilevato in campo, valutazione. I controlli indicati sono quelli della Guida operativa di campo.",{i:true,size:18})]);
+  const els = [...Si.sistemi].sort((a,b)=>ELEMENTI.indexOf(a.elemento)-ELEMENTI.indexOf(b.elemento));
+  els.forEach((s,i)=>{ ch.push(Hd(`4.${i+1}  ${s.elemento}`,2));
+    para([T("Dai documenti: ",{b:true}), T(`${s.documenti||s.componenti||"nessuna documentazione"}${s.rif?` (${s.rif})`:""}`)]);
+    para([T("Rilievo in campo: ",{b:true}), PH(`[descrizione, condizione e foto F-${String(i+1)}01…${s.da_rilevare?` – rilevare: ${s.da_rilevare}`:""}]`)]);
+    const ids = controlsFor(s); if (ids.length) para([T("Controlli di riferimento: ",{b:true}), T(ids.join(", "))]);
+    para([T("Valutazione: ",{b:true}), PH("[idoneità, vita residua, conformità; righe della schedule collegate]")]); });
+  if (!els.length) para([PH("[elementi da descrivere dopo il sopralluogo]")]);
+  // 5
+  ch.push(Hd("5  Prevenzione incendi",1));
+  para([T("Attività soggette: ",{b:true}), ...val(im("Attività soggette"), "[attività DPR 151/2011]")]);
+  para([T("Pratica e ultimo atto: ",{b:true}), ...val(im("Pratica VVF"), "[n. pratica, ultimo atto, scadenza rinnovo]")]);
+  para([T("Alimentazione idrica antincendio: ",{b:true}), ...val(im("Alimentazione idrica"), "[da rilevare]")]);
+  const sAI = R.schedule.filter(r=>/^PI\./.test(r.voce)); if (sAI.length){ para([T("Carenze documentali rilevate (righe della schedule): ",{b:true}), T(sAI.map(r=>`${r.id} ${r.elemento}`).join("; "))]); }
+  para([PH("[esito del confronto tra stato dei luoghi e progetto approvato; presidi, compartimentazioni, esodo]")]);
+  // 6
+  ch.push(Hd("6  Ambiente e materiali pericolosi",1));
+  const amb = R.ambiti.find(a=>/ambiente/i.test(a.ambito||"")); para(amb? [T(amb.commento||"")] : [PH("[...]")]); para([PH("[materiali contenenti amianto, scarichi, serbatoi, aree di lavaggio: esito del sopralluogo]")]);
+  // 7
+  ch.push(Hd("7  Conformità normativa e aspetti legali",1));
+  ch.push(Hd("7.1  Classificazione DM 37/2008",2));
+  para([T("Caso preliminare dai documenti, da confermare in campo: A documentato; B DICO priva di allegati; C ante 27/03/2008 senza DICO → Dichiarazione di Rispondenza; D post 2008 senza DICO → relazione di adeguamento e nuova DICO.",{size:18,i:true})]);
+  ch.push(tableR(["Impianto","Realizzazione","DICO","Caso preliminare","Caso confermato"], Si.sistemi.filter(s=>s.dico||s.caso).map(s=>[s.elemento||"", `${s.anno||""} ${s.dm37||""}`.trim(), s.dico||"", s.caso||"", [PH("[...]")]]), [28,18,14,18,22]));
+  ch.push(Hd("7.2  Verifiche periodiche",2));
+  ch.push(tableR(["Impianto","Riferimento","Ultima evidenza","Scadenza","Stato"], Si.verifiche.map(v=>[v.impianto||"", v.norma||"", v.ultima? `${v.ultima}${v.rif?" ("+v.rif+")":""}` : [PH("[non documentata]")], v.scadenza||"", v.stato||""]), [24,22,22,14,18], Si.verifiche.map(v=>[null,null,null,null, v.stato==="scaduta"? SEMFILL.ROSSO : v.stato==="non documentata"? SEMFILL.GIALLO : null])));
+  ch.push(Hd("7.3  Obblighi locativi e questioni per i legali",2)); para([PH("[ripartizione Proprietà/conduttore secondo contratto]")]);
+  // 8
+  ch.push(Hd("8  Certificazione",1)); para([PH("[firma del tecnico, data, limiti di affidamento]")]);
+  // Appendici
+  const iA = ch.length;
+  ch.push(Hd("Appendice A – Schedule preliminare (da analisi documentale)",1));
+  para([T("Semaforo e orizzonte provvisori. Dopo il sopralluogo: confermare, modificare o chiudere ogni riga e aggiungere i difetti rilevati in campo; stimare i costi.",{i:true,size:18})]);
+  ch.push(tableR(["ID","Elemento","Rilievo documentale","Conseguenza","Azione","Orizz.","Sem.","Resp.","Conferma in campo","Costo"],
+    R.schedule.map(r=>[r.id, r.elemento||"", r.rilievo||"", r.conseguenza||"", r.azione||"", r.orizzonte||"", r.semaforo||"", r.resp||"", r.conferma||"", [PH("[€]")]]), [5,11,16,12,14,8,7,5,15,7], R.schedule.map(r=>[null,null,null,null,null,null,SEMFILL[r.semaforo],null,null,null])));
+  const iB = ch.length;
+  ch.push(Hd("Appendice B – Piano delle prove raccomandate",1)); para([PH("[prove strumentali da prevedere: verifiche DPR 462, prova idraulica UNI 10779, verifica illuminotecnica, ecc.]")]);
+  ch.push(Hd("Appendice C – Documentazione fotografica",1)); para([PH("[foto F-xxx con riferimento agli ID dei controlli]")]);
+  ch.push(Hd("Appendice D – Perimetro del servizio e limitazioni",1));
+  para([T("La bozza è stata preimpostata con l'analisi automatica del pacchetto documentale fornito; i dati riportati sono quelli letti nei documenti e citati con il loro identificativo. Il rilievo in campo è a vista e non costituisce Dichiarazione di Rispondenza, collaudo o verifica periodica.")]);
+  const doc = new D.Document({styles:{default:{document:{run:{font:"Calibri",size:20}}}}, features:{updateFields:false},
+    sections:[[ch.slice(0,iA),false],[ch.slice(iA,iB),true],[ch.slice(iB),false]].map(([children,land])=>({properties:{page:{size: land? {orientation:D.PageOrientation.LANDSCAPE} : undefined, margin:{top:900,bottom:900,left:900,right:900}}}, ...docHeaderFooter(`Technical Due Diligence – Compliance Assessment · ${immTitle()} · Bozza`), children}))});
+  saveBlob(`Bozza relazione tecnica - ${baseName()}.docx`, await D.Packer.toBlob(doc));
+}
+
+async function importJson(file){
+  const j = JSON.parse(await file.text());
+  if (!Array.isArray(j.documenti) || !j.stati) throw new Error("file non riconosciuto: usa «Dati analisi (.json)» esportato da questo strumento");
+  $("#imCod").value = j.immobile?.codice||""; $("#imInd").value = j.immobile?.indirizzo||"";
+  if (j.immobile?.uso && [...$("#imUso").options].some(o=>o.text===j.immobile.uso)) $("#imUso").value = j.immobile.uso;
+  S.docs = j.documenti.map(x=>({id:x.id, path:x.percorso||"", name:String(x.percorso||"").split("/").pop(), pages:x.pagine||0, folderCode:x.cartella||"", status:x.stato||"", segs:Array.isArray(x.segmenti)?x.segmenti:[], cites:x.citazioni||[], elems:x.elementi||[], read:new Set(x.letti || (x.segmenti?.length? Array.from({length:x.pagine||0},(_,i)=>i+1):[])), scan:!!x.scansione, kind:/non supportato|non leggibile/.test(x.stato||"")?"skip":"imported", imported:true, done:true, text:[]}));
+  docSeq = S.docs.length;
+  S.status = j.stati; S.crit = Array.isArray(j.criticita)? j.criticita : []; S.guide = normGuide(j.guida||null);
+  const {ref} = buildEvidence(); S.ref = ref; S.profile = Array.isArray(j.profilo) && j.profilo.length? j.profilo : buildProfile(); S.analyzed = true;
+  updateCount(); updateRunBtn(); renderDocs(); renderMatrix(); renderGuide();
 }
 
 /* ============ RENDER ============ */
@@ -568,7 +869,7 @@ function renderMatrix(){
   $("#matRows").innerHTML = html || `<tr><td colspan="6" class="muted">Nessuna voce con questi filtri.</td></tr>`;
   document.querySelectorAll("#matRows select[data-code]").forEach(s=>s.onchange=()=>{ const c=s.dataset.code; S.status[c] = {...(S.status[c]||{}), stato:s.value, manual:true}; renderMatrix(); });
 }
-function updateRunBtn(){ $("#run").disabled = S.running || !S.docs.some(d=>d.kind!=="skip") || !AI.ready(); }
+function updateRunBtn(){ $("#run").disabled = S.running || !S.docs.some(d=>d.kind!=="skip" && !d.imported) || !AI.ready(); if ($("#guideRun")) $("#guideRun").disabled = S.running || !S.analyzed || !AI.ready(); }
 
 /* ============ CATALOGO DA EXCEL ============ */
 async function loadCatalogXlsx(file){
@@ -615,6 +916,14 @@ function exportXlsx(){
   const s = [["Verifica catalogo documentale"],["Immobile", $("#imCod").value],["Indirizzo",$("#imInd").value],["Destinazione d'uso",$("#imUso").value],["Catalogo", `${CAT_NAME} (${CAT.length} voci)`],["Data verifica", todayIt()],[],["Stato","Voci"],["Presenti",c.presente],["Parziali",c.parziale],["Mancanti",c.mancante],["  di cui importanza ALTO",c.mancALTO||0],["  di cui importanza MEDIO",c.mancMEDIO||0],["  di cui importanza BASSO",c.mancBASSO||0],["Da verificare",c.da_verificare],["Non applicabili",c.non_applicabile],[],["Documenti letti", S.docs.filter(x=>x.segs.length).length],["File in cartella errata", misfiled().length],[],["Criticità principali"], ...S.crit.map(x=>[x.area, x.testo]),[],["Profilo immobile rilevato"], ...S.profile.map(p=>[p[0], p[1]])];
   const ws3 = XLSX.utils.aoa_to_sheet(s); ws3["!cols"]=[{wch:30},{wch:90}];
   XLSX.utils.book_append_sheet(wb, ws3, "Sintesi");
+  const G = normGuide(S.guide);
+  if (G?.campo){ const gz=[["ID","Zona","Mancanza di partenza","Voce","Verifica","Cosa dicono i documenti","Documenti","Da rilevare","Se difforme","Priorità","Esito (C/D/NV)","Note / foto"]];
+    for (const c of G.campo.controlli) gz.push([c.id, c.zona, c.mancanza||"", c.voce||"", c.verifica||"", c.atteso||"", c.rif||"", c.rilievo||"", c.se_difforme||"", c.priorita||"", "", ""]);
+    const ws4 = XLSX.utils.aoa_to_sheet(gz); ws4["!cols"]=[6,24,34,11,40,50,16,30,34,9,12,30].map(w=>({wch:w})); ws4["!autofilter"]={ref:`A1:L${gz.length}`}; XLSX.utils.book_append_sheet(wb, ws4, "Guida di campo"); }
+  if (G?.sito){ const si=[["Dati generali dell'immobile"],["Dato","Valore dai documenti","Fonte","Certezza","Valore confermato in campo"], ...G.sito.immobile.map(r=>[r.campo||"", r.valore||"", r.rif||"", r.certezza||"", ""]), [], ["Zone"], ...G.sito.zone.map(z=>[z]), [], ["Sistemi da censire"], ["Sistema","Componenti dai documenti","Anno","DM 37","DICO","Caso preliminare","Voci","Documenti","Da censire in campo","Controlli"], ...G.sito.sistemi.map(x=>[x.elemento||"", x.componenti||"", x.anno||"", x.dm37||"", x.dico||"", x.caso||"", (x.voci||[]).join(" "), x.rif||"", x.da_rilevare||"", controlsFor(x).join(" ")]), [], ["Verifiche periodiche"], ["Impianto","Norma","Ultima","Scadenza","Stato","Documenti"], ...G.sito.verifiche.map(v=>[v.impianto||"", v.norma||"", v.ultima||"", v.scadenza||"", v.stato||"", v.rif||""])];
+    const ws5 = XLSX.utils.aoa_to_sheet(si); ws5["!cols"]=[30,50,14,10,10,12,18,18,36,14].map(w=>({wch:w})); XLSX.utils.book_append_sheet(wb, ws5, "Impostazione sito"); }
+  if (G?.relazione){ const sc=[["ID","Elemento","Rilievo documentale","Conseguenza","Azione","Orizzonte","Semaforo provvisorio","Resp.","Voce","Conferma in campo","Esito campo","Costo min","Costo max"], ...G.relazione.schedule.map(r=>[r.id, r.elemento||"", r.rilievo||"", r.conseguenza||"", r.azione||"", r.orizzonte||"", r.semaforo||"", r.resp||"", r.voce||"", r.conferma||"", "", "", ""])];
+    const ws6 = XLSX.utils.aoa_to_sheet(sc); ws6["!cols"]=[5,22,40,30,32,11,10,6,10,34,14,10,10].map(w=>({wch:w})); XLSX.utils.book_append_sheet(wb, ws6, "Schedule preliminare"); }
   const out = XLSX.write(wb, {bookType:"xlsx", type:"array"});
   saveBlob(`Verifica catalogo - ${baseName()}.xlsx`, new Blob([out], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
 }
@@ -631,6 +940,7 @@ async function exportDocx(){
   ch.push(P([T("Sintesi",{b:true,size:26})],{after:80}));
   ch.push(table(["Presenti","Parziali","Mancanti (di cui alta)","Da verificare","Non applicabili","File in cartella errata"],[[c.presente,c.parziale,`${c.mancante} (${c.mancALTO||0})`,c.da_verificare,c.non_applicabile,misfiled().length].map(String)],[16,16,18,16,16,18]));
   if (S.crit.length){ ch.push(P([T("Criticità principali",{b:true,size:26})],{before:240,after:80})); S.crit.forEach(x=>ch.push(P([T("– "+x.testo)],{indent:{left:300},after:40}))); }
+  if (S.guide?.lettura){ const L=S.guide.lettura, q=S.guide.qc; ch.push(P([T("Affidabilità della lettura",{b:true,size:26})],{before:240,after:80})); ch.push(P([T(`${L.giudizio}. `,{b:true}), T(`${L.sintesi} Documenti letti ${q.letti} su ${q.tot}; letti in parte ${q.campione.length}; attribuzioni incerte ${q.bassa.length}. I punti da rileggere, le incoerenze e i controlli in campo sono nella Guida operativa di campo.`)])); }
   const sect = (title, filter)=>{
     const rows = CAT.filter(r=>filter(S.status[r[0]]||{}, r)).map(r=>{ const st=S.status[r[0]]||{}; return [r[0], r[3], r[4], st.motivazione||"", st.azione||""]; });
     if (!rows.length) return; ch.push(P([T(`${title} (${rows.length})`,{b:true,size:26})],{before:280,after:80,keepNext:true}));
@@ -653,8 +963,8 @@ async function exportDocx(){
   saveBlob(`Relazione verifica catalogo - ${baseName()}.docx`, await D.Packer.toBlob(doc));
 }
 function exportJson(){
-  const data = {immobile:{codice:$("#imCod").value, indirizzo:$("#imInd").value, uso:$("#imUso").value}, catalogo:CAT_NAME, data:todayIt(), stati:S.status, profilo:S.profile, criticita:S.crit,
-    documenti:S.docs.map(d=>({id:d.id, percorso:d.path, pagine:d.pages, cartella:d.folderCode, stato:d.status, segmenti:d.segs, citazioni:d.cites||[], elementi:d.elems}))};
+  const data = {immobile:{codice:$("#imCod").value, indirizzo:$("#imInd").value, uso:$("#imUso").value}, catalogo:CAT_NAME, data:todayIt(), stati:S.status, profilo:S.profile, criticita:S.crit, guida:S.guide||null,
+    documenti:S.docs.map(d=>({id:d.id, percorso:d.path, pagine:d.pages, cartella:d.folderCode, stato:d.status, segmenti:d.segs, citazioni:d.cites||[], elementi:d.elems, letti:[...(d.read||[])], scansione:!!d.scan}))};
   saveBlob(`Dati verifica catalogo - ${baseName()}.json`, new Blob([JSON.stringify(data,null,1)],{type:"application/json"}));
 }
 
@@ -696,6 +1006,7 @@ function withProtData(name, prot, data, extra){
 function protOf(sg){ const p = sg? protocollo(sg) : ""; return p && p!=="senza-prot"? p : ""; }
 async function exportPackage(){
   if (!window.JSZip) throw new Error("libreria ZIP non caricata");
+  if (S.docs.some(d=>d.imported)) throw new Error("il pacchetto richiede i file originali: ricarica i documenti ed esegui la verifica");
   const vvf = $("#pkTipo").value==="vvf";
   const zip = new JSZip(), root = `${baseName()} - pacchetto catalogato`, used = new Set(), idx = [];
   const put = (folder, name, data)=>{ let base=`${root}/${folder}/${name}`, k=1, path=base;
@@ -797,11 +1108,17 @@ $("#apiKey").addEventListener("input", renderMode);
 $("#xlsx").onclick=()=>{ try{ exportXlsx(); }catch(e){ msg("Export non riuscito: "+(e.message||e),"bad"); } };
 $("#docx").onclick=()=>exportDocx().catch(e=>msg("Export non riuscito: "+(e.message||e),"bad"));
 $("#json").onclick=exportJson;
+const gExp = ()=>exportGuideDocx().catch(e=>{ $("#guideMsg").textContent="Export non riuscito: "+(e.message||e); msg("Export non riuscito: "+(e.message||e),"bad"); });
+$("#guideDocx").onclick=gExp; $("#guideDocx2").onclick=gExp; $("#guideRun").onclick=runGuide;
+const rExp = ()=>exportRelazioneDocx().catch(e=>{ $("#guideMsg").textContent="Export non riuscito: "+(e.message||e); msg("Export non riuscito: "+(e.message||e),"bad"); });
+$("#relDocx").onclick=rExp; $("#relDocx2").onclick=rExp;
+$("#loadJson").onclick=()=>$("#jsonIn").click();
+$("#jsonIn").onchange=async e=>{ const f=e.target.files[0]; e.target.value=""; if (!f) return; try{ await importJson(f); $("#guideMsg").textContent=`Caricata la verifica di ${S.docs.length} documenti: ${S.guide? "guida inclusa." : "ora puoi generare la guida."}`; }catch(err){ $("#guideMsg").textContent="Caricamento non riuscito: "+(err.message||err); } };
 function fillVvfCodes(){ const sel=$("#vvfCode"); const cur=sel.value; sel.innerHTML = `<option value="">Automatica (dai documenti)</option>` + CAT.filter(r=>r[0].startsWith("PI.")).map(r=>`<option value="${r[0]}">${r[0]} – ${esc(r[3].slice(0,60))}</option>`).join(""); sel.value=cur; }
 $("#pkTipo").onchange=()=>{ const on=$("#pkTipo").value==="vvf"; document.querySelectorAll(".vvfOnly").forEach(e=>e.hidden=!on); };
 fillVvfCodes();
 $("#pack").onclick=()=>exportPackage().catch(e=>msg("Pacchetto non riuscito: "+(e?.message||e),"bad"));
-fillCatFilter(); renderMatrix(); renderDocs();
+fillCatFilter(); renderMatrix(); renderDocs(); renderGuide();
 /* chiave API: facoltativamente ricordata nel browser (mai nel codice) */
 const API_LS = "efm.anthropicKey";
 (function(){
