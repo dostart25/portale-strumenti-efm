@@ -104,6 +104,8 @@ footer{font-size:12px;color:var(--ink-2);display:grid;gap:6px}
     </div>
     <div class="mode" id="mode"><span class="dot" id="modeDot"></span><span id="modeTxt">Verifica collegamento a Claude…</span></div>
   </header>
+  <div class="notice" id="altLink" hidden style="margin:0 0 14px">Hai un account Claude? Usa la <a href="" class="claudeLink" target="_blank" rel="noopener">versione in Claude</a>: nessuna chiave API e nessun credito API consumato.</div>
+  <div class="notice warn" id="fuoriBox" hidden style="margin:0 0 14px"><strong>Questa versione dello strumento usa il tuo account Claude e va aperta dentro Claude.</strong> Aprila da qui: <a href="" class="claudeLink" target="_blank" rel="noopener"><strong>Apri lo strumento in Claude</strong></a>. Se non hai un account Claude, usa la versione con chiave API del portale.</div>
 
   <section class="step">
     <div class="step-h"><span class="num">1</span><h2>Immobile e pacchetto</h2></div>
@@ -147,6 +149,12 @@ footer{font-size:12px;color:var(--ink-2);display:grid;gap:6px}
           <option value="deep">Massima: fino a 30 pagine per documento, per fascicoli voluminosi</option>
           <option value="quick">Ricognizione: prime 2 pagine per documento</option>
         </select></label>
+      <label class="f">Consumo
+        <select id="consumo">
+          <option value="std">Standard: Sonnet per la lettura, Opus per valutazione e guida</option>
+          <option value="eco">Economico: Haiku per i documenti con testo, Sonnet per scansioni, valutazione e guida</option>
+        </select></label>
+      <label class="f row" style="gap:8px;align-items:center"><input type="checkbox" id="reuse" checked> Non rileggere i file già letti su questo computer <button class="ghost" id="memClear" type="button" style="padding:2px 8px">Svuota memoria</button> <span class="muted small" id="memInfo"></span></label>
       <label class="f">Catalogo di riferimento
         <span class="row"><span id="catName" class="small">Catalogo T.O. integrato (209 voci)</span><button class="ghost" id="pickCat" style="padding:4px 10px;font-size:13px">Carica altro Excel</button></span>
         <input type="file" id="inCat" accept=".xlsx,.xls" hidden></label>
@@ -165,6 +173,7 @@ footer{font-size:12px;color:var(--ink-2);display:grid;gap:6px}
     <div class="progress"><div id="bar"></div></div>
     <div class="log" id="log"></div>
       <div id="beat" class="muted small" aria-live="polite"></div>
+      <div id="usage" class="muted small"></div>
     <div class="tablebox" style="max-height:440px">
       <table><thead><tr><th>Documento</th><th>Pag.</th><th>Cartella attuale</th><th>Collegamento al catalogo · data del documento</th><th>Archiviazione</th></tr></thead>
       <tbody id="docRows"><tr><td colspan="5" class="muted">I documenti caricati compariranno qui con i codici di catalogo attribuiti.</td></tr></tbody></table>
@@ -254,12 +263,16 @@ function dateKey(v){ const p=String(v||"").split("/"); if (p.length===3) return 
 function normCode(c){ const m = String(c||"").toUpperCase().match(CODE_RE); return m? `${m[1]}.${m[2]}.${m[3]}` : ""; }
 
 /* ============ CLAUDE ============ */
+/* VERSIONE: "api" = nel browser con chiave API Anthropic; "claude" = dentro Claude con l'account dell'utente */
+const VERSIONE = "api";
+const CLAUDE_URL = "https://claude.ai/artifact/QFNVzWQbYX2rkpoX8Tzyo1";
 const AI = {
   mode:"pending", sample:null, maxImages:0,
   models:{quick:"claude-haiku-5-5", default:"claude-sonnet-5-5", complex:"claude-opus-5-5"},
   async init(){
     try{ if (window.claude?.use) this.sample = await window.claude.use("sample"); }catch{ this.sample=null; }
-    if (this.sample){ this.mode="claude"; const lim = await this.sample.limits().catch(()=>null); this.maxImages = lim?.images?.maxCount || 0; }
+    if (this.sample){ this.mode="claude"; const lim = await this.sample.limits().catch(()=>null); this.maxImages = lim?.images?.maxCount || 0; this.maxBytes = lim?.maxPromptBytes || 262144; }
+    else if (VERSIONE==="claude"){ this.mode="fuori"; this.maxImages=0; }
     else { this.mode="api"; this.maxImages=20; }
     renderMode();
   },
@@ -286,15 +299,20 @@ const AI = {
   },
   async _json(prompt, images, tier, signal){
     images = images || [];
-    if (this.mode==="claude"){ const o={modelTier:tier||"default", signal}; if (images.length) o.images=images; return await this.sample.json(prompt, o); }
+    const PR = typeof prompt==="string"? {sys:"", text:prompt} : prompt;
+    if (this.mode==="claude"){ const o={modelTier:tier||"default", signal}; if (images.length) o.images=images; let full = (PR.sys? PR.sys+"\n\n" : "")+PR.text; const enc=new TextEncoder(); const lim=(this.maxBytes||262144)-4096;
+      if (enc.encode(full).length > lim){ const tail="\n\n[testo ridotto per limite di lunghezza]"; let t=PR.text; while (t.length>1000 && enc.encode((PR.sys? PR.sys+"\n\n":"")+t).length > lim) t = t.slice(0, Math.floor(t.length*0.85)); full=(PR.sys? PR.sys+"\n\n":"")+t+tail; }
+      return await this.sample.json(full, o); }
     const key = $("#apiKey").value.trim(); if (!key) throw {code:"no_key"};
     const content=[]; for (const b of images) content.push({type:"image", source:{type:"base64", media_type:"image/jpeg", data: await blobToB64(b)}});
-    content.push({type:"text", text: prompt + "\n\nRispondi solo con il JSON richiesto."});
-    let r; try{ r = await fetch("https://api.anthropic.com/v1/messages",{method:"POST", signal, headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"}, body:JSON.stringify({model:this.models[tier||"default"], max_tokens:16000, messages:[{role:"user", content}]})}); }
+    content.push({type:"text", text: PR.text + "\n\nRispondi solo con il JSON richiesto."});
+    const model = this.models[tier||"default"];
+    let r; try{ r = await fetch("https://api.anthropic.com/v1/messages",{method:"POST", signal, headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"}, body:JSON.stringify({model, max_tokens:16000, ...(PR.sys? {system:[{type:"text", text:PR.sys, cache_control:{type:"ephemeral"}}]} : {}), messages:[{role:"user", content}]})}); }
     catch(e){ if (signal?.aborted) throw {code:"cancelled"}; throw {code:"network", message:"Connessione non riuscita"}; }
     if (!r.ok){ const t=await r.text().catch(()=>""); throw {code: r.status===429?"rate_limited": (r.status===529||r.status===503)?"overloaded": r.status===401?"bad_key":"upstream_error", status:r.status, message:t.slice(0,300)}; }
     const j = await r.json().catch(()=>null);
     if (!j || j.type==="error") throw {code:"upstream_error", status:500, message: j?.error?.message || "Risposta vuota"};
+    trackUsage(model, j.usage);
     const txt = (Array.isArray(j.content)? j.content : []).filter(c=>c.type==="text").map(c=>c.text).join("\n");
     try{ return parseJSONLoose(txt); }catch(e){ if (j.stop_reason==="max_tokens") throw {code:"truncated", message:"Risposta troppo lunga"}; throw e; }
   }
@@ -310,11 +328,27 @@ function renderMode(){
   const dot=$("#modeDot"), t=$("#modeTxt");
   if (AI.mode==="claude"){ dot.className="dot "+(AI.maxImages?"ok":"warn"); t.textContent = AI.maxImages? "Claude collegato · lettura scansioni attiva" : "Claude collegato · scansioni non leggibili in questa vista"; $("#apiBox").hidden=true; }
   else if (AI.mode==="api"){ $("#mode").classList.add("clickable"); $("#mode").onclick = ()=>{ $("#apiBox").scrollIntoView({behavior:"smooth", block:"center"}); $("#apiKey").focus(); }; $("#mode").title = "Vai al campo della chiave API"; $("#apiBox").hidden=false; const ok=!!$("#apiKey").value.trim(); dot.className="dot "+(ok?"ok":"warn"); t.textContent = ok? "Collegato con chiave API" : "Claude non collegato · inserisci la chiave API (clicca qui)"; $("#apiWarn").hidden = ok; }
+  else if (AI.mode==="fuori"){ $("#apiBox").hidden=true; dot.className="dot warn"; t.textContent="Questa versione funziona dentro Claude"; $("#fuoriBox").hidden=false; }
+  if ($("#altLink")) $("#altLink").hidden = !(VERSIONE==="api");
   updateRunBtn();
 }
 
 /* ============ STATO ============ */
-const S = { docs:[], running:false, ctl:null, failed:[], status:{}, profile:[], crit:[], summary:"", analyzed:false };
+const S = { docs:[], running:false, ctl:null, failed:[], status:{}, profile:[], crit:[], summary:"", analyzed:false, usage:{} };
+/* consumo: token per modello, con la quota letta dalla cache dei prompt */
+function trackUsage(model, u){ if (!u) return; const U=(S.usage[model]=S.usage[model]||{in:0,cr:0,cw:0,out:0,n:0}); U.in+=u.input_tokens||0; U.cr+=u.cache_read_input_tokens||0; U.cw+=u.cache_creation_input_tokens||0; U.out+=u.output_tokens||0; U.n++; }
+function usageText(){ const e=Object.entries(S.usage); if (!e.length && !S.reused) return ""; const k=n=>n>=1e6? (n/1e6).toFixed(2)+" M" : n>=1e3? Math.round(n/1e3)+" k" : String(n);
+  return "Consumo: " + e.map(([m,U])=>{ const tot=U.in+U.cr+U.cw; return `${m.replace(/^claude-/,"")} ${U.n} richieste, ${k(tot)} token in ingresso (${tot? Math.round(U.cr/tot*100):0}% da cache), ${k(U.out)} in uscita`; }).join(" · ") + (S.reused? ` · ${S.reused} documenti ripresi dalla memoria senza consumo` : ""); }
+/* memoria delle letture su questo computer (IndexedDB): un file già letto non si rilegge */
+const READ_VER="r3";
+const MEM = { db:null,
+  async open(){ if (this.db!==null) return this.db; try{ this.db = await new Promise((res,rej)=>{ const r=indexedDB.open("catalogo-edb",1); r.onupgradeneeded=()=>r.result.createObjectStore("letture"); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }catch{ this.db=false; } return this.db; },
+  async tx(mode, fn){ const db=await this.open(); if (!db) return null; return new Promise(res=>{ try{ const q=fn(db.transaction("letture",mode).objectStore("letture")); q.onsuccess=()=>res(q.result??null); q.onerror=()=>res(null); }catch{ res(null); } }); },
+  get(k){ return k? this.tx("readonly", st=>st.get(k)) : null; }, put(k,v){ return k? this.tx("readwrite", st=>st.put(v,k)) : null; },
+  clear(){ return this.tx("readwrite", st=>st.clear()); }, count(){ return this.tx("readonly", st=>st.count()); } };
+function memKey(d){ return d.hash? `${READ_VER}|${d.hash}|${$("#depth").value}|${$("#pkTipo").value}|${$("#consumo").value}` : null; }
+function tierRead(isText){ return $("#consumo").value==="eco" && isText? "quick" : "default"; }
+function tierFinal(){ return $("#consumo").value==="eco"? "default" : "complex"; }
 let docSeq = 0;
 
 /* ============ CARICAMENTO ============ */
@@ -347,6 +381,7 @@ async function dedupe(){
     if (!d.file || d.dupOf || d.kind==="skip") continue;
     let h = d.size+":";
     try{ const dig = await crypto.subtle.digest("SHA-1", await d.file.slice(0,262144).arrayBuffer()); h += [...new Uint8Array(dig)].map(x=>x.toString(16).padStart(2,"0")).join(""); }catch{ h += d.name; }
+    d.hash = h;
     if (seen.has(h)){ d.dupOf = seen.get(h); d.kind="skip"; d.status="duplicato di "+d.dupOf; } else seen.set(h, d.id);
   }
 }
@@ -403,11 +438,12 @@ const RULES = `Regole di classificazione (applicale con giudizio):
 const SEG_SCHEMA = `{"id":"D001","documenti":[{"pagine":"1-4","codice":"PI.01.02 oppure FUORI_CATALOGO","codici_secondari":["..."],"tipo":"descrizione breve del documento","data":"data del documento (firma, rilascio o protocollo) in GG/MM/AAAA; MM/AAAA o AAAA se incompleta; vuoto se assente","estremi":"numeri di protocollo, pratica, matricola","emittente":"ente o soggetto","oggetto":"una riga, riferita all'impianto o alla parte di immobile","ruolo":"atto|allegato|ricevuta|copia_incompleta|bozza","firmato":true,"completezza":"note sintetiche su allegati o firme mancanti","confidenza":"alta|media|bassa"}],"citazioni":[{"codice":"","descrizione":"documento citato","estremi":"","data":""}],"elementi_rilevati":["..."]}`;
 function segPrompt(d, pages, isText, range){
   const ctx = $("#context").value.trim();
-  const head = `${ROLE}\nImmobile: ${$("#imCod").value||"n.d."} – ${$("#imInd").value||""} – uso ${$("#imUso").value}.${ctx?` Note dell'utente: ${ctx}.`:""}\n\nCATALOGO (codice | tipologia | documento):\n${catalogText()}\n\n${RULES}\n\nDocumento ${d.id}: file "${d.path}"${d.folderCode?` (archiviato nella cartella ${d.folderCode})`:""}, ${d.pages} pagine totali.`;
+  const sys = `${ROLE}\nImmobile: ${$("#imCod").value||"n.d."} – ${$("#imInd").value||""} – uso ${$("#imUso").value}.${ctx?` Note dell'utente: ${ctx}.`:""}\n\nCATALOGO (codice | tipologia | documento):\n${catalogText()}\n\n${RULES}`;
+  const head = `Documento ${d.id}: file "${d.path}"${d.folderCode?` (archiviato nella cartella ${d.folderCode})`:""}, ${d.pages} pagine totali.`;
   const r0 = range? range[0] : 1, txt = range? (d.text||[]).slice(range[0]-1, range[1]) : (d.text||[]);
-  const vvf = $("#pkTipo")?.value==="vvf"? `\nIl pacchetto proviene da un ACCESSO AGLI ATTI presso il Comando dei Vigili del Fuoco (pratica di prevenzione incendi). Distingui gli atti della pratica (istanza di valutazione progetto, SCIA, parere, ricevute, relazione tecnica e tavole antincendio, asseverazioni della pratica: codice PI.01 pertinente) dagli allegati che rispondono ad altre voci del catalogo (DICO/DIRI degli impianti, certificazioni di resistenza al fuoco, dichiarazioni di corretta posa, omologazioni, collaudi, verifiche): a questi ultimi attribuisci il codice proprio e indica in "codici_secondari" il codice PI.01 della pratica.` : "";
-  const body = vvf + (isText? `\nTesto estratto${range?` delle pagine ${range[0]}-${range[1]}`:""} (pagine separate da "--- pagina N ---"):\n${txt.map((t,i)=>`--- pagina ${i+r0} ---\n${t}`).join("\n").slice(0,70000)}` : `\nTi mostro le pagine ${pages.join(", ")} in quest'ordine${pages.length<d.pages?` (le altre pagine non sono mostrate: indica nel campo "pagine" solo intervalli coerenti con quelle viste, es. "6-?" se un documento prosegue oltre)`:""}.`);
-  return `${head}${body}\n\nRispondi solo con JSON in questa forma:\n${SEG_SCHEMA}`;
+  const vvf0 = $("#pkTipo")?.value==="vvf"? `\nIl pacchetto proviene da un ACCESSO AGLI ATTI presso il Comando dei Vigili del Fuoco (pratica di prevenzione incendi). Distingui gli atti della pratica (istanza di valutazione progetto, SCIA, parere, ricevute, relazione tecnica e tavole antincendio, asseverazioni della pratica: codice PI.01 pertinente) dagli allegati che rispondono ad altre voci del catalogo (DICO/DIRI degli impianti, certificazioni di resistenza al fuoco, dichiarazioni di corretta posa, omologazioni, collaudi, verifiche): a questi ultimi attribuisci il codice proprio e indica in "codici_secondari" il codice PI.01 della pratica.` : "";
+  const body = (isText? `\nTesto estratto${range?` delle pagine ${range[0]}-${range[1]}`:""} (pagine separate da "--- pagina N ---"):\n${txt.map((t,i)=>`--- pagina ${i+r0} ---\n${t}`).join("\n").slice(0,70000)}` : `\nTi mostro le pagine ${pages.join(", ")} in quest'ordine${pages.length<d.pages?` (le altre pagine non sono mostrate: indica nel campo "pagine" solo intervalli coerenti con quelle viste, es. "6-?" se un documento prosegue oltre)`:""}.`);
+  return {sys: `${sys}${vvf0}\n\nRispondi solo con JSON in questa forma:\n${SEG_SCHEMA}`, text: `${head}${body}`};
 }
 function synthPrompt(area, evidence, profile){
   const rows = CAT.filter(r=>r[1]===area).map(r=>{ const ev = evidence[r[0]]; return `${r[0]} | ${r[2]} | ${r[3]} | importanza ${r[4]}${ev? " | EVIDENZE: "+ev : " | nessuna evidenza"}`; }).join("\n");
@@ -422,9 +458,9 @@ function errText(e){ const c=e?.code; return c==="not_granted"?"Uso di Claude no
 function guardFatal(res){ for (const r of res) if (r?.__err && FATAL.includes(r.__err.code)) throw r.__err; }
 
 async function runAnalysis(){
-  if (S.running) return; S.running=true; S.ctl=new AbortController(); S.failed=[]; S.lastBeat=Date.now(); S.t0=Date.now();
+  if (S.running) return; S.running=true; S.ctl=new AbortController(); S.failed=[]; S.lastBeat=Date.now(); S.t0=Date.now(); S.usage={}; S.reused=0;
   const hb = setInterval(()=>{ const el=$("#beat"); if (!el) return; const tot=Math.round((Date.now()-S.t0)/1000), idle=Math.round((Date.now()-S.lastBeat)/1000);
-    el.textContent = `In corso da ${Math.floor(tot/60)}:${String(tot%60).padStart(2,"0")}` + (S.inflight? ` · ${S.inflight} richieste a Claude in attesa${idle>20?` (ultima risposta ${idle}s fa – i documenti lunghi possono richiedere qualche minuto)`:""}` : ""); }, 1000);
+    el.textContent = `In corso da ${Math.floor(tot/60)}:${String(tot%60).padStart(2,"0")}` + (S.inflight? ` · ${S.inflight} richieste a Claude in attesa${idle>20?` (ultima risposta ${idle}s fa – i documenti lunghi possono richiedere qualche minuto)`:""}` : ""); if ($("#usage")) $("#usage").textContent=usageText(); }, 1000);
   $("#run").disabled=true; $("#stop").hidden=false; $("#retry").hidden=true;
   const depth=$("#depth").value; const todo=S.docs.filter(d=>d.kind!=="skip" && !d.imported);
   try{
@@ -436,8 +472,10 @@ async function runAnalysis(){
     const want = live.filter(d=>d.scan).reduce((a,d)=>a+choosePages(d.pages, depth, 99).length, 0);
     const cap = want>budget? Math.max(2, Math.floor(budget / Math.max(1, live.filter(d=>d.scan).length))) : 99;
     setPhase("Lettura e classificazione sul catalogo");
-    const tasks=[];
-    for (const d of live){
+    const tasks=[]; S.reused=0;
+    if ($("#reuse").checked) for (const d of live){ const m = await MEM.get(memKey(d)); if (m && Array.isArray(m.segs)){ d.segs=m.segs; d.cites=m.cites||[]; d.elems=m.elems||[]; d.read=new Set(m.read||[]); d.fromMem=true; d.status="da memoria (già letto)"; S.reused++; } }
+    if (S.reused) setLog(`${S.reused} documenti già letti in precedenza su questo computer: non vengono riletti`);
+    for (const d of live){ if (d.fromMem) continue;
       if (!d.scan){ tasks.push(mkSeg(d, null, true)); continue; }
       if (!AI.maxImages){ d.status="scansione non leggibile qui"; continue; }
       const pages = choosePages(d.pages, depth, cap); const ch = Math.max(1, Math.min(AI.maxImages, 20));
@@ -447,6 +485,7 @@ async function runAnalysis(){
     const res = await pool(tasks, 2, (dn,tot)=>{ setBar(10+dn/tot*70); setLog(`Lettura: ${dn} di ${tot} lotti`); renderDocs(); });
     guardFatal(res);
     live.forEach(d=>{ if (!S.failed.some(f=>f.d===d)) { d.done=true; if (d.status==="in lettura"||d.status==="scansione"||d.status==="testo") d.status="classificato"; } });
+    for (const d of live) if (d.done && !d.fromMem && d.segs.length) await MEM.put(memKey(d), {segs:d.segs, cites:d.cites||[], elems:d.elems||[], read:[...(d.read||[])], path:d.path, at:Date.now()});
     renderDocs();
     setPhase("Valutazione esperta del catalogo");
     try{ await synthesize(); }
@@ -460,7 +499,7 @@ async function runAnalysis(){
       catch(e){ if (FATAL.includes(e?.code)||e?.code==="cancelled") throw e; S.guide = {...(S.guide||{}), err:[...(S.guide?.err||[]), "Guida non preparata: "+errText(e)]}; } }
     setPhase(S.failed.length? `Completata con ${S.failed.length} lotti non riusciti` : "Completata"); setBar(100); setLog("");
   }catch(e){ setPhase(e?.code==="cancelled"?"Interrotta":"Fermata"); setLog(errText(e)); }
-  finally{ clearInterval(hb); if ($("#beat")) $("#beat").textContent=""; S.running=false; $("#stop").hidden=true; $("#retry").hidden=!S.failed.length; updateRunBtn(); renderDocs(); renderMatrix(); renderGuide(); }
+  finally{ clearInterval(hb); if ($("#beat")) $("#beat").textContent=""; if ($("#usage")) $("#usage").textContent=usageText(); S.running=false; $("#stop").hidden=true; $("#retry").hidden=!S.failed.length; updateRunBtn(); renderDocs(); renderMatrix(); renderGuide(); }
 }
 function mkSeg(d, pages, isText){ return async ()=>{
   d.status="in lettura";
@@ -473,20 +512,20 @@ function mkSeg(d, pages, isText){ return async ()=>{
   };
   try{
     if (isText){
-      try{ take(await AI.json(segPrompt(d, [], true), [], "default", S.ctl.signal)); }
+      try{ take(await AI.json(segPrompt(d, [], true), [], tierRead(true), S.ctl.signal)); }
       catch(e){
         // documento lungo: risposta troncata o non leggibile → si divide in blocchi di pagine e si prosegue
         if (!["truncated","invalid_json"].includes(e?.code) || (d.text||[]).length<2) throw e;
         const n=(d.text||[]).length, step=Math.max(1, Math.ceil(n/Math.ceil(n/8))); let ok=0;
         for (let a=1;a<=n;a+=step){ setLog(`${d.id}: documento lungo, lettura a blocchi (pagine ${a}-${Math.min(n,a+step-1)})`);
-          try{ take(await AI.json(segPrompt(d, [], true, [a, Math.min(n,a+step-1)]), [], "default", S.ctl.signal)); ok++; }
+          try{ take(await AI.json(segPrompt(d, [], true, [a, Math.min(n,a+step-1)]), [], tierRead(true), S.ctl.signal)); ok++; }
           catch(e2){ if (FATAL.includes(e2?.code)||e2?.code==="cancelled") throw e2; }
         }
         if (!ok) throw e;
       }
       for (let i=1;i<=Math.max(1,(d.text||[]).length);i++) d.read.add(i);
     } else {
-      const imgs = await pageImages(d, pages, 1600);
+      const imgs = await pageImages(d, pages, 1568);
       take(await AI.json(segPrompt(d, pages||[], false), imgs, "default", S.ctl.signal));
       (pages||[]).forEach(p=>d.read.add(p));
     }
@@ -523,7 +562,7 @@ async function synthesize(){
   const areas = [...new Set(CAT.map(r=>r[1]))]; S.crit=[];
   const res = await pool(areas.map(a=>async ()=>{
     setLog(`Valutazione area ${a}`);
-    const out = await AI.json(synthPrompt(a, ev, S.profile), [], "complex", S.ctl.signal);
+    const out = await AI.json(synthPrompt(a, ev, S.profile), [], tierFinal(), S.ctl.signal);
     const voci = Array.isArray(out)? out : Array.isArray(out?.voci)? out.voci : [];
     for (const v of voci){ if (!v) continue; const c=normCode(v.codice); if (!c || !catByCode(c) || S.status[c]?.manual) continue; S.status[c] = {stato: STATI[v.stato]? v.stato : (S.status[c]?.stato||"da_verificare"), motivazione: v.motivazione||"", azione: v.azione||""}; }
     (Array.isArray(out?.criticita)? out.criticita:[]).forEach(x=>S.crit.push({area:a, testo:String(x)}));
@@ -581,16 +620,16 @@ const ELEMENTI = ["Impianto elettrico","Illuminazione di sicurezza","Impianto di
 const CAMPI = ["Indirizzo","Comune e provincia","Dati catastali","Proprietà","Conduttore / utilizzatore","Destinazione d'uso","Anno di costruzione","Interventi successivi","Superficie","Piani e corpi di fabbrica","Struttura e copertura","Titoli edilizi","Agibilità","Attività soggette VVF (DPR 151/2011)","Pratica VVF e ultimo atto","Fornitura elettrica","Fornitura gas","Alimentazione idrica antincendio"];
 const PERCORSO = "esterno e piazzale; involucro e copertura; consegna energia e quadri elettrici; centrale termica e impianti meccanici; antincendio (alimentazione idrica e idranti, estintori, porte e compartimentazioni, uscite e maniglioni, illuminazione di sicurezza, rivelazione); aree operative (ribalte, pedane, portoni, cancelli, lavaggio); uffici e locali tecnici";
 function promptLettura(dg, q){
-  return `${guideHead()}\n\nUno strumento automatico ha letto il pacchetto documentale e ha attribuito ogni documento a una voce del catalogo. Prima di mandare il tecnico in campo devi CONTROLLARE CHE LA LETTURA SIA STATA FATTA BENE.\n\nIndicatori di qualità della lettura:\n${qcText(q)}\n\n${ctxBlock(dg)}\n\nCerca, citando sempre gli id dei documenti:\n- numeri letti in modo diverso tra documenti (pratiche, protocolli, matricole, POD/PDR), date impossibili o incoerenti (future, anteriori alla costruzione, rinnovi prima del rilascio);\n- documenti attribuiti a una voce non pertinente, o voci valutate mancanti/parziali per le quali gli estratti mostrano un documento idoneo (e il contrario);\n- dati di impianto discordanti tra documenti (numero e potenza di generatori, quantità di porte, idranti, apparecchi);\n- documenti superati da documenti più recenti, scadenze già trascorse alla data di oggi;\n- lacune di lettura che possono cambiare l'esito (documenti non letti o letti in parte su voci di importanza alta).\nNon inventare: se un punto non è dimostrabile dagli estratti, non scriverlo.\nRispondi solo con JSON: {"giudizio":"affidabile|affidabile con riserve|da integrare prima del sopralluogo","sintesi":"max 60 parole: quanto ci si può fidare della lettura e perché","punti":[{"tipo":"lettura|classificazione|valutazione|lacuna","tema":"max 6 parole","problema":"max 30 parole con i valori trovati","rif":"es. D012 p.3; D045","azione":"max 20 parole (es. rileggere a mano D012 p.3; correggere TI.03.02 in parziale)"}],"incoerenze":[{"tema":"max 6 parole","dettaglio":"max 35 parole con i valori discordanti","rif":"id documenti","come":"in campo|richiesta documentale|accesso agli atti","verifica":"max 20 parole: cosa fare per scioglierla"}]}\nMassimo 15 punti e 10 incoerenze, i più rilevanti per il giudizio sull'immobile.`;
+  return {sys: guideHead()+"\n\n"+ctxBlock(dg), text: `Uno strumento automatico ha letto il pacchetto documentale e ha attribuito ogni documento a una voce del catalogo. Prima di mandare il tecnico in campo devi CONTROLLARE CHE LA LETTURA SIA STATA FATTA BENE.\n\nIndicatori di qualità della lettura:\n${qcText(q)}\n\nCerca, citando sempre gli id dei documenti:\n- numeri letti in modo diverso tra documenti (pratiche, protocolli, matricole, POD/PDR), date impossibili o incoerenti (future, anteriori alla costruzione, rinnovi prima del rilascio);\n- documenti attribuiti a una voce non pertinente, o voci valutate mancanti/parziali per le quali gli estratti mostrano un documento idoneo (e il contrario);\n- dati di impianto discordanti tra documenti (numero e potenza di generatori, quantità di porte, idranti, apparecchi);\n- documenti superati da documenti più recenti, scadenze già trascorse alla data di oggi;\n- lacune di lettura che possono cambiare l'esito (documenti non letti o letti in parte su voci di importanza alta).\nNon inventare: se un punto non è dimostrabile dagli estratti, non scriverlo.\nRispondi solo con JSON: {"giudizio":"affidabile|affidabile con riserve|da integrare prima del sopralluogo","sintesi":"max 60 parole: quanto ci si può fidare della lettura e perché","punti":[{"tipo":"lettura|classificazione|valutazione|lacuna","tema":"max 6 parole","problema":"max 30 parole con i valori trovati","rif":"es. D012 p.3; D045","azione":"max 20 parole (es. rileggere a mano D012 p.3; correggere TI.03.02 in parziale)"}],"incoerenze":[{"tema":"max 6 parole","dettaglio":"max 35 parole con i valori discordanti","rif":"id documenti","come":"in campo|richiesta documentale|accesso agli atti","verifica":"max 20 parole: cosa fare per scioglierla"}]}\nMassimo 15 punti e 10 incoerenze, i più rilevanti per il giudizio sull'immobile.`};
 }
 function promptSito(dg){
-  return `${guideHead()}\n\nDall'analisi documentale ricava la PRIMA IMPOSTAZIONE DEL SITO e i DATI GENERALI che compileranno la relazione tecnica da consegnare (modello Technical Due Diligence). Usa solo dati presenti negli estratti, citando gli id; se un dato non c'è lascia "valore" vuoto (sarà rilevato in campo). "certezza": documento = letto in un documento; dedotto = ricavato da più documenti o per esclusione.\n\n${ctxBlock(dg)}\n\nCampi dei dati generali, in quest'ordine: ${CAMPI.join("; ")}.\nElementi della relazione (usa esattamente questi nomi in "elemento"): ${ELEMENTI.join("; ")}.\n- "sistemi": un elemento per ogni sistema di cui i documenti provano l'esistenza o che è tipico e obbligatorio per questo uso; "componenti" con quantità, potenze, marche, matricole e anni letti; "dm37": ante = realizzato prima del 27/03/2008, post = dopo, misto = parti ante e post; "dico": presente/parziale/assente per la documentazione DM 37/08 o L.46/90; "caso" = caso preliminare di regolarizzazione (A documentato; B DICO senza allegati; C ante 2008 senza DICO → DIRI; D post 2008 senza DICO → relazione di adeguamento e nuova DICO; E non applicabile) da confermare in campo; "documenti" = paragrafo per la relazione su cosa risulta dai documenti; "da_rilevare" = cosa il tecnico deve censire in campo per completare la scheda.\n- "verifiche": verifiche periodiche obbligatorie (DPR 462/01, rinnovo periodico VVF, presidi antincendio DM 01/09/2021, centrali termiche DPR 74/2013, F-gas, ascensori DPR 162/99, porte e cancelli motorizzati) con ultima evidenza e scadenza calcolata ad oggi.\n- "zone": corpi di fabbrica, aree e locali tecnici da percorrere, come risultano dalle tavole e dai documenti.\nRispondi solo con JSON: {"immobile":[{"campo":"","valore":"max 30 parole","rif":"","certezza":"documento|dedotto|"}],"descrizione":"80-130 parole: descrizione dell'immobile per la relazione, solo da documenti","zone":["..."],"sistemi":[{"elemento":"","componenti":"max 35 parole","anno":"","dm37":"ante|post|misto|n.d.","dico":"presente|parziale|assente","caso":"A|B|C|D|E|n.d.","voci":["codici catalogo"],"documenti":"max 60 parole con id","rif":"","da_rilevare":"max 25 parole"}],"verifiche":[{"impianto":"","norma":"","ultima":"data o vuoto","scadenza":"","stato":"in corso|scaduta|non documentata","rif":""}]}`;
+  return {sys: guideHead()+"\n\n"+ctxBlock(dg), text: `Dall'analisi documentale ricava la PRIMA IMPOSTAZIONE DEL SITO e i DATI GENERALI che compileranno la relazione tecnica da consegnare (modello Technical Due Diligence). Usa solo dati presenti negli estratti, citando gli id; se un dato non c'è lascia "valore" vuoto (sarà rilevato in campo). "certezza": documento = letto in un documento; dedotto = ricavato da più documenti o per esclusione.\n\nCampi dei dati generali, in quest'ordine: ${CAMPI.join("; ")}.\nElementi della relazione (usa esattamente questi nomi in "elemento"): ${ELEMENTI.join("; ")}.\n- "sistemi": un elemento per ogni sistema di cui i documenti provano l'esistenza o che è tipico e obbligatorio per questo uso; "componenti" con quantità, potenze, marche, matricole e anni letti; "dm37": ante = realizzato prima del 27/03/2008, post = dopo, misto = parti ante e post; "dico": presente/parziale/assente per la documentazione DM 37/08 o L.46/90; "caso" = caso preliminare di regolarizzazione (A documentato; B DICO senza allegati; C ante 2008 senza DICO → DIRI; D post 2008 senza DICO → relazione di adeguamento e nuova DICO; E non applicabile) da confermare in campo; "documenti" = paragrafo per la relazione su cosa risulta dai documenti; "da_rilevare" = cosa il tecnico deve censire in campo per completare la scheda.\n- "verifiche": verifiche periodiche obbligatorie (DPR 462/01, rinnovo periodico VVF, presidi antincendio DM 01/09/2021, centrali termiche DPR 74/2013, F-gas, ascensori DPR 162/99, porte e cancelli motorizzati) con ultima evidenza e scadenza calcolata ad oggi.\n- "zone": corpi di fabbrica, aree e locali tecnici da percorrere, come risultano dalle tavole e dai documenti.\nRispondi solo con JSON: {"immobile":[{"campo":"","valore":"max 30 parole","rif":"","certezza":"documento|dedotto|"}],"descrizione":"80-130 parole: descrizione dell'immobile per la relazione, solo da documenti","zone":["..."],"sistemi":[{"elemento":"","componenti":"max 35 parole","anno":"","dm37":"ante|post|misto|n.d.","dico":"presente|parziale|assente","caso":"A|B|C|D|E|n.d.","voci":["codici catalogo"],"documenti":"max 60 parole con id","rif":"","da_rilevare":"max 25 parole"}],"verifiche":[{"impianto":"","norma":"","ultima":"data o vuoto","scadenza":"","stato":"in corso|scaduta|non documentata","rif":""}]}`};
 }
 function promptSchedule(dg){
-  return `${guideHead()}\n\nPrepara la SCHEDULE PRELIMINARE e la sintesi provvisoria per la bozza della relazione tecnica (modello RICS Technical Due Diligence), basate SOLO sull'analisi documentale. Ogni riga è una carenza documentale, una scadenza o un rischio che i documenti dimostrano.\n- Semaforo provvisorio: ROSSO = obbligo scaduto o violato, o rischio per la sicurezza dimostrato dai documenti (es. rinnovo VVF scaduto, verifiche DPR 462 scadute); GIALLO = carenza documentale regolarizzabile; non usare VERDE nella schedule.\n- Orizzonte: IMMEDIATO | BREVE (entro 1 anno) | MEDIO (2-5 anni) | LUNGO (6-10 anni) | ENQUIRY (approfondimento).\n- Resp: P = proprietà, C = conduttore, P/C = da ripartire secondo contratto.\n- Le azioni sono reperimento documenti, accessi agli atti, verifiche, DIRI, relazioni di adeguamento: non proporre sostituzioni o lavori che i documenti non dimostrano necessari.\n- "conferma": cosa deve vedere il tecnico in campo per confermare, ridimensionare o chiudere la riga.\n\n${ctxBlock(dg)}\n\nRispondi solo con JSON: {"ambiti":[{"ambito":"Impianti elettrici e speciali|Prevenzione incendi|Impianti meccanici e gas|Involucro e strutture|Titoli edilizi e catasto|Ambiente e materiali pericolosi","semaforo":"ROSSO|GIALLO|VERDE|N.V.","commento":"max 25 parole"}],"rischi":["max 6 frasi: principali rischi per la Proprietà emersi dai documenti"],"schedule":[{"elemento":"nome elemento","rilievo":"max 25 parole con id","conseguenza":"max 20 parole","azione":"max 20 parole","orizzonte":"","semaforo":"ROSSO|GIALLO","resp":"P|C|P/C","voce":"codice catalogo","conferma":"max 20 parole"}],"indagini":["max 8 richieste o indagini da completare, con destinatario"]}\nMassimo 25 righe di schedule, ordinate per gravità; tutti e sei gli ambiti.`;
+  return {sys: guideHead()+"\n\n"+ctxBlock(dg), text: `Prepara la SCHEDULE PRELIMINARE e la sintesi provvisoria per la bozza della relazione tecnica (modello RICS Technical Due Diligence), basate SOLO sull'analisi documentale. Ogni riga è una carenza documentale, una scadenza o un rischio che i documenti dimostrano.\n- Semaforo provvisorio: ROSSO = obbligo scaduto o violato, o rischio per la sicurezza dimostrato dai documenti (es. rinnovo VVF scaduto, verifiche DPR 462 scadute); GIALLO = carenza documentale regolarizzabile; non usare VERDE nella schedule.\n- Orizzonte: IMMEDIATO | BREVE (entro 1 anno) | MEDIO (2-5 anni) | LUNGO (6-10 anni) | ENQUIRY (approfondimento).\n- Resp: P = proprietà, C = conduttore, P/C = da ripartire secondo contratto.\n- Le azioni sono reperimento documenti, accessi agli atti, verifiche, DIRI, relazioni di adeguamento: non proporre sostituzioni o lavori che i documenti non dimostrano necessari.\n- "conferma": cosa deve vedere il tecnico in campo per confermare, ridimensionare o chiudere la riga.\n\nRispondi solo con JSON: {"ambiti":[{"ambito":"Impianti elettrici e speciali|Prevenzione incendi|Impianti meccanici e gas|Involucro e strutture|Titoli edilizi e catasto|Ambiente e materiali pericolosi","semaforo":"ROSSO|GIALLO|VERDE|N.V.","commento":"max 25 parole"}],"rischi":["max 6 frasi: principali rischi per la Proprietà emersi dai documenti"],"schedule":[{"elemento":"nome elemento","rilievo":"max 25 parole con id","conseguenza":"max 20 parole","azione":"max 20 parole","orizzonte":"","semaforo":"ROSSO|GIALLO","resp":"P|C|P/C","voce":"codice catalogo","conferma":"max 20 parole"}],"indagini":["max 8 richieste o indagini da completare, con destinatario"]}\nMassimo 25 righe di schedule, ordinate per gravità; tutti e sei gli ambiti.`};
 }
 function promptCampo(dg){
-  return `${guideHead()}\n\nPrepara la GUIDA OPERATIVA DI CAMPO per il verificatore, PARTENDO DALLE MANCANZE e dalle carenze rilevate nell'analisi documentale (voci mancanti, parziali, da verificare, criticità, scadenze). Per ogni mancanza che il campo può chiarire, ridimensionare o quantificare definisci uno o più controlli; aggiungi i controlli che servono a confermare i dati chiave dei documenti (quantità, potenze, matricole) e a scoprire modifiche non documentate. Non creare controlli per voci puramente amministrative (catasto, titoli) salvo che il campo ne possa verificare il presupposto (es. opere visibili non documentate: tettoie, tunnel, ampliamenti).\n\n${ctxBlock(dg)}\n\nRegole:\n- "zona": usa l'ordine di percorso ${PERCORSO}.\n- "mancanza": la lacuna documentale o l'incoerenza da cui nasce il controllo.\n- "atteso": cosa risulta dai documenti, con dati concreti e id; "non documentato" se nulla.\n- "rilievo": cosa portare a casa (foto di targhe, conteggi, misure, dichiarazione del referente).\n- "se_difforme": come cambia la relazione (es. caso DM 37 da C a D → relazione di adeguamento; riga a ROSSO; servizio di verifica da attivare).\n- Ogni controllo verificabile a vista o con domanda in sito; prove strumentali solo "se previsto dall'incarico".\n- "focus": le 5-7 cose su cui il verificatore deve concentrarsi, perché decidono il giudizio della Proprietà.\n- Massimo 45 controlli; priorità alta solo se l'esito cambia rischio o costi.\nRispondi solo con JSON: {"focus":[{"tema":"max 6 parole","perche":"max 30 parole","portare_a_casa":"max 25 parole"}],"controlli":[{"zona":"","mancanza":"max 15 parole","voce":"codice catalogo","verifica":"max 20 parole","atteso":"max 35 parole","rif":"","rilievo":"max 20 parole","se_difforme":"max 25 parole","priorita":"alta|media|bassa"}],"da_cercare":[{"elemento":"","motivo":"max 25 parole","rif":""}],"richieste":[{"a_chi":"conduttore|proprietà|manutentore|referente in sito","richiesta":"max 25 parole","voce":"codice catalogo"}]}`;
+  return {sys: guideHead()+"\n\n"+ctxBlock(dg), text: `Prepara la GUIDA OPERATIVA DI CAMPO per il verificatore, PARTENDO DALLE MANCANZE e dalle carenze rilevate nell'analisi documentale (voci mancanti, parziali, da verificare, criticità, scadenze). Per ogni mancanza che il campo può chiarire, ridimensionare o quantificare definisci uno o più controlli; aggiungi i controlli che servono a confermare i dati chiave dei documenti (quantità, potenze, matricole) e a scoprire modifiche non documentate. Non creare controlli per voci puramente amministrative (catasto, titoli) salvo che il campo ne possa verificare il presupposto (es. opere visibili non documentate: tettoie, tunnel, ampliamenti).\n\nRegole:\n- "zona": usa l'ordine di percorso ${PERCORSO}.\n- "mancanza": la lacuna documentale o l'incoerenza da cui nasce il controllo.\n- "atteso": cosa risulta dai documenti, con dati concreti e id; "non documentato" se nulla.\n- "rilievo": cosa portare a casa (foto di targhe, conteggi, misure, dichiarazione del referente).\n- "se_difforme": come cambia la relazione (es. caso DM 37 da C a D → relazione di adeguamento; riga a ROSSO; servizio di verifica da attivare).\n- Ogni controllo verificabile a vista o con domanda in sito; prove strumentali solo "se previsto dall'incarico".\n- "focus": le 5-7 cose su cui il verificatore deve concentrarsi, perché decidono il giudizio della Proprietà.\n- Massimo 45 controlli; priorità alta solo se l'esito cambia rischio o costi.\nRispondi solo con JSON: {"focus":[{"tema":"max 6 parole","perche":"max 30 parole","portare_a_casa":"max 25 parole"}],"controlli":[{"zona":"","mancanza":"max 15 parole","voce":"codice catalogo","verifica":"max 20 parole","atteso":"max 35 parole","rif":"","rilievo":"max 20 parole","se_difforme":"max 25 parole","priorita":"alta|media|bassa"}],"da_cercare":[{"elemento":"","motivo":"max 25 parole","rif":""}],"richieste":[{"a_chi":"conduttore|proprietà|manutentore|referente in sito","richiesta":"max 25 parole","voce":"codice catalogo"}]}`};
 }
 const arrObj = v=>Array.isArray(v)? v.filter(x=>x && typeof x==="object") : [];
 const arrStr = v=>Array.isArray(v)? v.map(x=>typeof x==="string"? x : x?.testo||x?.text||"").filter(Boolean) : [];
@@ -606,12 +645,16 @@ function normGuide(g){
   g.err = g.err||[]; return g;
 }
 async function buildGuide(signal){
-  const q = readQC(); const dg = factsDigest(100000);
+  const q = readQC(); const dg = factsDigest(AI.mode==="claude"? 70000 : 100000);
   S.guide = {data:todayIt(), qc:{tot:q.tot, letti:q.letti, nonLetti:q.nonLetti.map(d=>`${d.id} ${d.path} – ${d.status||""}`), campione:q.campione.map(d=>`${d.id} ${d.path} – ${readCount(d)} di ${d.pages} pagine`), bassa:q.bassa.map(x=>`${x.d.id} p.${x.s.pagine||"?"} – ${x.s.codice} – ${x.s.tipo||""}`), senzaData:q.senzaData.map(r=>`${r[0]} ${r[3]}`), fuori:q.fuori.length, esclusi:q.esclusi.length, estratti:`${dg.n} di ${dg.tot}`}, lettura:null, sito:null, relazione:null, campo:null, err:[]};
   renderGuide();
   const jobs = [["lettura", "Controllo della lettura", promptLettura(dg,q)], ["sito", "Impostazione del sito", promptSito(dg)], ["relazione", "Schedule preliminare", promptSchedule(dg)], ["campo", "Guida operativa", promptCampo(dg)]];
-  const res = await Promise.allSettled(jobs.map(([k,,p])=>AI.json(p, [], "complex", signal).then(o=>{ store(k,o); renderGuide(); return o; })));
-  res.forEach((r,i)=>{ if (r.status==="rejected"){ if (FATAL.includes(r.reason?.code)||r.reason?.code==="cancelled") throw r.reason; S.guide.err.push(`${jobs[i][1]}: ${errText(r.reason)}`); } });
+  // la prima richiesta scrive in cache il contesto comune, le altre tre lo rileggono a costo ridotto
+  const call = ([k,,p])=>AI.json(p, [], tierFinal(), signal).then(o=>{ store(k,o); renderGuide(); return o; });
+  const first = await Promise.allSettled([call(jobs[3])]);
+  const rest = await Promise.allSettled(jobs.slice(0,3).map(call));
+  const res = [...rest, ...first];
+  res.forEach((r,i)=>{ if (r.status==="rejected"){ if (FATAL.includes(r.reason?.code)||r.reason?.code==="cancelled") throw r.reason; S.guide.err.push(`${jobs[i][1]}: ${errText(r.reason)}`); } });  // res è nell'ordine di jobs
   renderGuide();
   function store(k, o){
     if (!o || typeof o!=="object") throw {code:"invalid_json"};
@@ -624,7 +667,7 @@ async function buildGuide(signal){
 async function runGuide(){
   if (S.running || !S.analyzed) return; S.running=true; S.ctl=new AbortController(); $("#guideRun").disabled=true; $("#stop").hidden=false;
   $("#guideMsg").textContent="Preparazione in corso (2-4 minuti): controllo della lettura, impostazione del sito, schedule preliminare, guida di campo…";
-  try{ await buildGuide(S.ctl.signal); $("#guideMsg").textContent = S.guide.err.length? "Completata in parte: "+S.guide.err.join(" · ") : "Pronta: scarica la guida operativa e la bozza della relazione."; }
+  S.usage={}; try{ await buildGuide(S.ctl.signal); $("#usage").textContent=usageText(); $("#guideMsg").textContent = S.guide.err.length? "Completata in parte: "+S.guide.err.join(" · ") : "Pronta: scarica la guida operativa e la bozza della relazione."; }
   catch(e){ $("#guideMsg").textContent = errText(e); }
   finally{ S.running=false; $("#stop").hidden=true; updateRunBtn(); renderGuide(); }
 }
@@ -1110,6 +1153,8 @@ $("#docx").onclick=()=>exportDocx().catch(e=>msg("Export non riuscito: "+(e.mess
 $("#json").onclick=exportJson;
 const gExp = ()=>exportGuideDocx().catch(e=>{ $("#guideMsg").textContent="Export non riuscito: "+(e.message||e); msg("Export non riuscito: "+(e.message||e),"bad"); });
 $("#guideDocx").onclick=gExp; $("#guideDocx2").onclick=gExp; $("#guideRun").onclick=runGuide;
+const memInfo = async()=>{ const n=await MEM.count(); $("#memInfo").textContent = n==null? "memoria non disponibile in questo browser" : `${n} letture in memoria`; };
+$("#memClear").onclick=async()=>{ await MEM.clear(); memInfo(); }; memInfo();
 const rExp = ()=>exportRelazioneDocx().catch(e=>{ $("#guideMsg").textContent="Export non riuscito: "+(e.message||e); msg("Export non riuscito: "+(e.message||e),"bad"); });
 $("#relDocx").onclick=rExp; $("#relDocx2").onclick=rExp;
 $("#loadJson").onclick=()=>$("#jsonIn").click();
@@ -1134,6 +1179,7 @@ const API_LS = "efm.anthropicKey";
   $("#apiForget").onclick = ()=>{ $("#apiKey").value = ""; $("#apiRemember").checked = false; sync(); renderMode(); };
   sync();
 })();
+document.querySelectorAll(".claudeLink").forEach(a=>a.href=CLAUDE_URL);
 AI.init();
 </script>
 

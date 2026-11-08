@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verifica Catalogo Documentale EDB – Claude</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<style>
+/* Layout: registro d'archivio. Catalogo come matrice a righe raggruppate per categoria/tipologia; stato come timbro; riepilogo in testa */
+:root{
+  --paper:#f5f7f8; --sheet:#ffffff; --ink:#18222b; --ink-2:#4d5b67; --rule:#d6dde2; --rule-2:#e9eef1;
+  --acc:#0f6d74; --acc-soft:#e1f1f1;
+  --ok:#1f7a4d; --ok-soft:#e2f3e9; --part:#8a6a00; --part-soft:#fbf1d6; --miss:#a3261f; --miss-soft:#f9e4e2;
+  --na:#5d6873; --na-soft:#eceff2; --tbd:#5b3fa0; --tbd-soft:#eee9fa; --focus:#0f8a93;
+  --f-display:"IBM Plex Sans Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#11161a; --sheet:#182026; --ink:#e6ebef; --ink-2:#a3b0ba; --rule:#2c3740; --rule-2:#222b32;
+  --acc:#5fc7cd; --acc-soft:#173235; --ok:#6fd3a0; --ok-soft:#163327; --part:#f0c75a; --part-soft:#3a3013;
+  --miss:#f08b83; --miss-soft:#3d1c1a; --na:#a3b0ba; --na-soft:#262f36; --tbd:#b8a6f5; --tbd-soft:#2a2547; --focus:#5fc7cd; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#11161a; --sheet:#182026; --ink:#e6ebef; --ink-2:#a3b0ba; --rule:#2c3740; --rule-2:#222b32;
+  --acc:#5fc7cd; --acc-soft:#173235; --ok:#6fd3a0; --ok-soft:#163327; --part:#f0c75a; --part-soft:#3a3013;
+  --miss:#f08b83; --miss-soft:#3d1c1a; --na:#a3b0ba; --na-soft:#262f36; --tbd:#b8a6f5; --tbd-soft:#2a2547; --focus:#5fc7cd; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+.apibox-on{border:2px solid var(--focus);border-radius:6px;padding:14px;background:var(--paper)}
+.apiwarn{color:var(--ink)}
+#mode.clickable{cursor:pointer}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:22px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:34px;font-weight:700;letter-spacing:-.01em} h2{font-size:22px;font-weight:600} h3{font-size:17px;font-weight:600}
+p{margin:0} .muted{color:var(--ink-2)} .small{font-size:13px}
+.mono{font-family:var(--f-mono);font-size:12.5px}
+header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;border-bottom:2px solid var(--ink);padding-bottom:14px}
+header.top .lead{max-width:68ch;margin-top:6px;color:var(--ink-2)}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--acc)}
+.mode{display:inline-flex;align-items:center;gap:8px;font-size:13px;border:1px solid var(--rule);background:var(--sheet);border-radius:999px;padding:5px 12px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ink-2)} .dot.ok{background:var(--ok)} .dot.warn{background:var(--part)}
+section.step{background:var(--sheet);border:1px solid var(--rule);border-radius:6px;padding:22px;display:grid;gap:16px;min-width:0}
+.step-h{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap}
+.num{font-family:var(--f-mono);font-size:13px;color:var(--acc);border:1.5px solid var(--acc);border-radius:4px;padding:1px 7px}
+.drop{border:2px dashed var(--rule);border-radius:6px;padding:24px 18px;text-align:center;display:grid;gap:10px;justify-items:center}
+.drop.over{border-color:var(--acc);background:var(--acc-soft)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px 16px}
+label.f{display:grid;gap:4px;font-size:13px;color:var(--ink-2);min-width:0}
+input[type=text],input[type=password],input[type=search],select,textarea{font:inherit;font-size:14px;color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:8px 10px;width:100%;min-width:0}
+input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+button{font:inherit;font-size:14px;font-weight:500;border-radius:4px;border:1px solid var(--ink);background:var(--sheet);color:var(--ink);padding:8px 14px;cursor:pointer}
+button.primary{background:var(--ink);color:var(--sheet)} button.ghost{border-color:var(--rule)} button:disabled{opacity:.45;cursor:not-allowed}
+a{color:var(--acc)}
+.progress{height:8px;background:var(--rule-2);border-radius:999px;overflow:hidden}
+.progress>div{height:100%;width:0;background:var(--acc);transition:width .3s}
+.log{font-family:var(--f-mono);font-size:12px;color:var(--ink-2);min-height:1.5em}
+.tablebox{overflow:auto;border:1px solid var(--rule);border-radius:4px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--rule-2);vertical-align:top}
+th{font-family:var(--f-display);font-weight:600;background:var(--sheet);position:sticky;top:0;z-index:1;border-bottom:1px solid var(--rule)}
+tr.grp td{background:var(--rule-2);font-family:var(--f-display);font-weight:600;font-size:13px;position:sticky;top:33px}
+tr.cat td{background:var(--ink);color:var(--sheet);font-family:var(--f-display);font-weight:600;letter-spacing:.02em}
+.chip{display:inline-block;font-size:12px;border-radius:999px;padding:1px 9px;border:1px solid var(--rule);white-space:nowrap}
+.st{font-family:var(--f-mono);font-size:11.5px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;border-radius:3px;padding:1px 6px;border:1.5px solid currentColor;white-space:nowrap}
+.st-presente{color:var(--ok);background:var(--ok-soft)} .st-parziale{color:var(--part);background:var(--part-soft)}
+.st-mancante{color:var(--miss);background:var(--miss-soft)} .st-non_applicabile{color:var(--na);background:var(--na-soft)}
+.st-da_verificare{color:var(--tbd);background:var(--tbd-soft)} .st-vuoto{color:var(--ink-2);border-style:dashed}
+.imp{font-family:var(--f-mono);font-size:11.5px} .imp-ALTO{color:var(--miss);font-weight:600} .imp-MEDIO{color:var(--part)} .imp-BASSO{color:var(--ink-2)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.tile{border:1px solid var(--rule);border-radius:6px;padding:12px 14px;display:grid;gap:2px;background:var(--sheet)}
+.tile b{font-family:var(--f-display);font-size:28px;font-variant-numeric:tabular-nums;line-height:1}
+.tile span{font-size:12.5px;color:var(--ink-2)}
+.tile.miss{border-left:4px solid var(--miss)} .tile.ok{border-left:4px solid var(--ok)} .tile.part{border-left:4px solid var(--part)} .tile.tbd{border-left:4px solid var(--tbd)} .tile.na{border-left:4px solid var(--na)}
+.docref{font-family:var(--f-mono);font-size:12px;color:var(--acc);white-space:nowrap}
+.note{font-size:12.5px;color:var(--ink-2)}
+td select{font-size:12px;padding:3px 6px;width:auto}
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.filters label{min-width:160px}
+.notice{font-size:13px;padding:10px 12px;border-radius:4px;background:var(--rule-2)}
+.notice.warn{background:var(--part-soft);color:var(--part)} .notice.bad{background:var(--miss-soft);color:var(--miss)}
+.crit{border-left:3px solid var(--miss);background:var(--miss-soft);padding:10px 14px;border-radius:0 4px 4px 0}
+.crit ul{margin:6px 0 0;padding-left:18px;display:grid;gap:3px;font-size:13.5px}
+.prof{display:flex;flex-wrap:wrap;gap:6px}
+footer{font-size:12px;color:var(--ink-2);display:grid;gap:6px}
+.back-link{font-size:13px;color:var(--ink-2);text-decoration:none;justify-self:start}
+.back-link:hover{color:var(--acc)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+@media (max-width:520px){h1{font-size:27px} section.step{padding:16px}}
+</style>
+
+<div class="wrap">
+  <a href="index.html" class="back-link">&larr; Torna al portale</a>
+  <header class="top">
+    <div>
+      <div class="eyebrow">EDB · Catalogo documentale T.O.</div>
+      <h1>Verifica Catalogo Documentale</h1>
+      <p class="lead">Carica il pacchetto documentale di un immobile. Ogni documento viene letto, anche se scansionato, e ricondotto ai codici del catalogo, pagina per pagina. Ottieni la matrice di cosa è presente, parziale, mancante o non applicabile, e quali file sono archiviati nella cartella sbagliata.</p>
+    </div>
+    <div class="mode" id="mode"><span class="dot" id="modeDot"></span><span id="modeTxt">Verifica collegamento a Claude…</span></div>
+  </header>
+  <div class="notice" id="altLink" hidden style="margin:0 0 14px">Hai un account Claude? Usa la <a href="" class="claudeLink" target="_blank" rel="noopener">versione in Claude</a>: nessuna chiave API e nessun credito API consumato.</div>
+  <div class="notice warn" id="fuoriBox" hidden style="margin:0 0 14px"><strong>Questa versione dello strumento usa il tuo account Claude e va aperta dentro Claude.</strong> Aprila da qui: <a href="" class="claudeLink" target="_blank" rel="noopener"><strong>Apri lo strumento in Claude</strong></a>. Se non hai un account Claude, usa la versione con chiave API del portale.</div>
+
+  <section class="step">
+    <div class="step-h"><span class="num">1</span><h2>Immobile e pacchetto</h2></div>
+    <div id="apiBox" hidden class="apibox-on" style="display:grid;gap:8px">
+      <div class="apiwarn small" id="apiWarn"><strong>Claude non è collegato in questa vista.</strong> Sul portale serve una chiave API Anthropic: incollala qui (chiedila al referente del portale). Senza chiave puoi usare lo strumento dentro Claude, dal link indicato nel portale.</div>
+      
+      <label class="f">Chiave API Anthropic (serve solo fuori da Claude)<input type="password" id="apiKey" autocomplete="off" placeholder="sk-ant-…"></label>
+      <div class="row small"><label class="row" style="gap:6px;color:var(--ink)"><input type="checkbox" id="apiRemember"> Ricorda su questo computer</label><button class="ghost" id="apiForget" type="button" style="padding:4px 10px;font-size:13px" hidden>Dimentica la chiave</button><span class="muted" id="apiNote"></span></div>
+    </div>
+    <div class="grid3">
+      <label class="f">Codice o nome immobile<input type="text" id="imCod" placeholder="es. 214 – Padova"></label>
+      <label class="f">Indirizzo<input type="text" id="imInd" placeholder="es. Via Nuova Zelanda 6, Padova"></label>
+      <label class="f">Destinazione d'uso
+        <select id="imUso"><option>Logistica / magazzino</option><option>Produttivo</option><option>Uffici</option><option>Commerciale / retail</option><option>Misto</option><option>Altro</option></select></label>
+    </div>
+    <div class="grid3">
+      <label class="f">Tipo di pacchetto
+        <select id="pkTipo"><option value="archivio">Archivio dell'immobile</option><option value="vvf">Accesso agli atti VVF (fascicolo da conservare)</option></select></label>
+      <label class="f vvfOnly" hidden>Voce del fascicolo VVF
+        <select id="vvfCode"><option value="">Automatica (dai documenti)</option></select></label>
+      <div class="vvfOnly row" hidden style="gap:10px;align-items:flex-end">
+        <label class="f" style="flex:1">Protocollo pratica VVF<input type="text" id="vvfProt" placeholder="facoltativo, es. 12345"></label>
+        <label class="f" style="flex:1">Data pratica<input type="text" id="vvfData" placeholder="GG/MM/AAAA"></label>
+      </div>
+    </div>
+    <p class="vvfOnly muted small" hidden>Il fascicolo VVF viene esportato integro (tutti i file, con cartelle e nomi originali più protocollo e data) nella voce di catalogo della pratica; i documenti allegati che rispondono ad altre voci (DICO, certificazioni REI, dichiarazioni di posa, omologazioni, collaudi…) vengono copiati anche nella loro voce di catalogo.</p>
+    <div class="drop" id="drop">
+      <strong>Trascina qui il pacchetto: ZIP, cartelle o PDF</strong>
+      <div class="row" style="justify-content:center">
+        <button class="ghost" id="pickFiles">Scegli file o ZIP</button>
+        <button class="ghost" id="pickDir">Scegli una cartella</button>
+      </div>
+      <input type="file" id="inFiles" multiple accept=".zip,.pdf,.p7m,.jpg,.jpeg,.png,.docx,.xlsx,.txt" hidden>
+      <input type="file" id="inDir" webkitdirectory multiple hidden>
+      <span class="muted small" id="fileCount">Nessun file caricato</span>
+    </div>
+    <div class="grid3">
+      <label class="f">Accuratezza
+        <select id="depth">
+          <option value="std">Esperta: fino a 10 pagine per documento, campionamento sulle successive</option>
+          <option value="deep">Massima: fino a 30 pagine per documento, per fascicoli voluminosi</option>
+          <option value="quick">Ricognizione: prime 2 pagine per documento</option>
+        </select></label>
+      <label class="f">Consumo
+        <select id="consumo">
+          <option value="std">Standard: Sonnet per la lettura, Opus per valutazione e guida</option>
+          <option value="eco">Economico: Haiku per i documenti con testo, Sonnet per scansioni, valutazione e guida</option>
+        </select></label>
+      <label class="f row" style="gap:8px;align-items:center"><input type="checkbox" id="reuse" checked> Non rileggere i file già letti su questo computer <button class="ghost" id="memClear" type="button" style="padding:2px 8px">Svuota memoria</button> <span class="muted small" id="memInfo"></span></label>
+      <label class="f">Catalogo di riferimento
+        <span class="row"><span id="catName" class="small">Catalogo T.O. integrato (209 voci)</span><button class="ghost" id="pickCat" style="padding:4px 10px;font-size:13px">Carica altro Excel</button></span>
+        <input type="file" id="inCat" accept=".xlsx,.xls" hidden></label>
+      <label class="f">Note per l'analisi (facoltativo)<input type="text" id="context" placeholder="es. tenant con attività produttiva; verificare soprattutto antincendio"></label>
+    </div>
+    <div class="row">
+      <button class="primary" id="run" disabled>Avvia verifica</button>
+      <button class="ghost" id="stop" hidden>Interrompi</button>
+      <button class="ghost" id="retry" hidden>Riprova i lotti non riusciti</button>
+      <span class="muted small">Le pagine vengono lette da Claude con il tuo account; i file restano nel browser.</span>
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="step-h"><span class="num">2</span><h2>Lettura e classificazione</h2><span class="muted small" id="phase">In attesa</span></div>
+    <div class="progress"><div id="bar"></div></div>
+    <div class="log" id="log"></div>
+      <div id="beat" class="muted small" aria-live="polite"></div>
+      <div id="usage" class="muted small"></div>
+    <div class="tablebox" style="max-height:440px">
+      <table><thead><tr><th>Documento</th><th>Pag.</th><th>Cartella attuale</th><th>Collegamento al catalogo · data del documento</th><th>Archiviazione</th></tr></thead>
+      <tbody id="docRows"><tr><td colspan="5" class="muted">I documenti caricati compariranno qui con i codici di catalogo attribuiti.</td></tr></tbody></table>
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="step-h"><span class="num">3</span><h2>Matrice del catalogo</h2><span class="muted small" id="matSub">Catalogo pronto: avvia la verifica per compilare gli stati</span></div>
+    <div class="tiles" id="tiles"></div>
+    <div id="critBox"></div>
+    <div id="profBox"></div>
+    <div class="filters">
+      <label class="f">Stato<select id="fStato"><option value="">Tutti</option><option value="mancante">Mancanti</option><option value="parziale">Parziali</option><option value="presente">Presenti</option><option value="da_verificare">Da verificare</option><option value="non_applicabile">Non applicabili</option></select></label>
+      <label class="f">Importanza<select id="fImp"><option value="">Tutte</option><option>ALTO</option><option>MEDIO</option><option>BASSO</option></select></label>
+      <label class="f">Area<select id="fCat"><option value="">Tutte</option></select></label>
+      <label class="f" style="flex:1;min-width:200px">Cerca<input type="search" id="fTxt" placeholder="codice, descrizione o file"></label>
+    </div>
+    <div class="tablebox" style="max-height:640px">
+      <table><thead><tr><th>Codice</th><th>Documento a catalogo</th><th>Imp.</th><th>Stato</th><th>Documenti nel pacchetto</th><th>Valutazione dell'esperto</th></tr></thead>
+      <tbody id="matRows"></tbody></table>
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="step-h"><span class="num">4</span><h2>Dal documentale al campo</h2></div>
+    <p class="muted small">Al termine della verifica lo strumento: controlla se la lettura dei documenti è affidabile; imposta il sito (dati generali dell'immobile, zone, sistemi da censire con caso DM 37 preliminare, verifiche periodiche e scadenze); prepara la guida operativa di campo partendo dalle mancanze (su cosa concentrarsi, controlli per zona, cosa portare a casa, come cambia la relazione se l'esito è difforme); precompila la bozza della relazione tecnica con i dati generali e la schedule preliminare.</p>
+    <div class="row" style="margin:8px 0">
+      <button class="primary" id="guideRun" disabled>Genera guida e bozza</button>
+      <button class="ghost" id="guideDocx" disabled>Guida operativa di campo (.docx)</button>
+      <button class="ghost" id="relDocx" disabled>Bozza relazione tecnica (.docx)</button>
+      <button class="ghost" id="loadJson">Carica una verifica precedente (.json)</button>
+      <input type="file" id="jsonIn" accept=".json,application/json" hidden>
+      <span class="muted small" id="guideMsg" aria-live="polite"></span>
+    </div>
+    <div id="guideBox"></div>
+  </section>
+
+  <section class="step">
+    <div class="step-h"><span class="num">5</span><h2>Esporta</h2></div>
+    <div class="row">
+      <button class="primary" id="xlsx">Matrice Excel (.xlsx)</button>
+      <button class="ghost" id="docx">Relazione di verifica (.docx)</button>
+      <button class="primary" id="pack">Pacchetto catalogato (.zip)</button>
+      <button class="ghost" id="json">Dati analisi (.json)</button>
+      <button class="ghost" id="guideDocx2">Guida operativa di campo (.docx)</button>
+      <button class="ghost" id="relDocx2">Bozza relazione tecnica (.docx)</button>
+    </div>
+    <div id="expMsg"></div>
+    <p class="muted small">L'Excel contiene la matrice completa con documenti, pagine e motivazioni, l'elenco dei file con la cartella corretta e la sintesi. Gli stati corretti a mano nella matrice vengono esportati come modificati.</p>
+  </section>
+
+  <footer>
+    <span>Stati: presente = documento pertinente e utilizzabile; parziale = presente ma incompleto, non firmato, solo citato o riferito a una parte dell'immobile; mancante = atteso per questo immobile e non trovato; non applicabile = l'elemento non esiste o non riguarda l'immobile; da verificare = applicabilità non deducibile dai documenti.</span>
+    <span>I risultati vanno validati da un tecnico. Dove un dato non è leggibile lo strumento lo segnala invece di dedurlo.</span>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+"use strict";
+/* ============ CATALOGO ============ [codice, categoria, tipologia, descrizione, importanza, scadenza, codifica cartella] */
+let CAT = [["EU.01.01", "EDILE-URBANISTICO", "01-ALTRI VINCOLI LOCALI", "CONSORZIO DI BONIFICA", "BASSO", "No", "EU.01.01_CONSORZIO DI BONIFICA"], ["EU.01.02", "EDILE-URBANISTICO", "01-ALTRI VINCOLI LOCALI", "NULLA OSTA CONSORZIO DI BONIFICA", "MEDIO", "No", "EU.01.02_NULLA OSTA CONSORZIO"], ["EU.01.03", "EDILE-URBANISTICO", "01-ALTRI VINCOLI LOCALI", "CONVENZIONI CON CONSORZI INDUSTRIALI TERRITORIALI", "ALTO", "No", "EU.01.03_CONVENZIONI CON CONSO"], ["EU.01.04", "EDILE-URBANISTICO", "01-ALTRI VINCOLI LOCALI", "CONVENZIONE URBANISTICA qualora l’immobile sia inserito in un piano attuativo convenzionato", "BASSO", "Si", "EU.01.04_CONVENZIONE URBANISTI"], ["EU.02.01", "EDILE-URBANISTICO", "02-AUTORIZZAZIONE EDILIZIA", "LICENZA EDILIZIA", "BASSO", "No", "EU.02.01_LICENZA EDILIZIA"], ["EU.02.02", "EDILE-URBANISTICO", "02-AUTORIZZAZIONE EDILIZIA", "CONCESSIONE EDILIZIA", "ALTO", "No", "EU.02.02_CONCESSIONE EDILIZIA"], ["EU.02.03", "EDILE-URBANISTICO", "02-AUTORIZZAZIONE EDILIZIA", "PERMESSO DI COSTRUIRE", "ALTO", "No", "EU.02.03_PERMESSO DI COSTRUIRE"], ["EU.02.04", "EDILE-URBANISTICO", "02-AUTORIZZAZIONE EDILIZIA", "D.I.A. IN ALTERNATIVA AL PERMESSO DI COSTRUIRE", "ALTO", "No", "EU.02.04_D.I.A. IN ALTERNATIVA"], ["EU.02.05", "EDILE-URBANISTICO", "02-AUTORIZZAZIONE EDILIZIA", "DENUNCIA INIZIO ATTIVITA (DIA)", "ALTO", "No", "EU.02.05_DENUNCIA INIZIO ATTIV"], ["EU.02.06", "EDILE-URBANISTICO", "02-AUTORIZZAZIONE EDILIZIA", "S.C.I.A. IN ALTERNATIVA AL PERMESSO DI COSTRUIRE", "ALTO", "No", "EU.02.06_S.C.I.A. IN ALTERNATI"], ["EU.02.07", "EDILE-URBANISTICO", "02-AUTORIZZAZIONE EDILIZIA", "S.C.I.A. SEGNALAZIONE CERTIFICATA INIZIO ATTIVITA", "ALTO", "No", "EU.02.07_S.C.I.A. SEGNALAZIONE"], ["EU.02.08", "EDILE-URBANISTICO", "02-AUTORIZZAZIONE EDILIZIA", "C.I.L.A. COMUNICAZIONE INIZIO LAVORI ASSEVERATA", "ALTO", "No", "EU.02.08_C.I.L.A. COMUNICAZION"], ["EU.02.09", "EDILE-URBANISTICO", "02-AUTORIZZAZIONE EDILIZIA", "ACCERTAMENTO DI CONFORMITA (ART. 36) DPR 380 -01", "ALTO", "No", "EU.02.09_ACCERTAMENTO DI CONFO"], ["EU.02.10", "EDILE-URBANISTICO", "02-AUTORIZZAZIONE EDILIZIA", "ACCERTAMENTO DI CONFORMITA (ART. 37) DPR 380 -01", "ALTO", "No", "EU.02.10_ACCERTAMENTO DI CONFO"], ["EU.02.11", "EDILE-URBANISTICO", "02-AUTORIZZAZIONE EDILIZIA", "C.I.L.A. IN SANATORIA", "ALTO", "No", "EU.02.11_C.I.L.A. IN SANATORIA"], ["EU.02.12", "EDILE-URBANISTICO", "02-AUTORIZZAZIONE EDILIZIA", "CONCESSIONE EDILIZIA IN SANATORIA (L .47 -85)", "ALTO", "No", "EU.02.12_CONCESSIONE EDILIZIA"], ["EU.02.13", "EDILE-URBANISTICO", "02-AUTORIZZAZIONE EDILIZIA", "CONCESSIONE EDILIZIA IN SANATORIA (L. 724 -94)", "ALTO", "No", "EU.02.13_CONCESSIONE EDILIZIA"], ["EU.02.14", "EDILE-URBANISTICO", "02-AUTORIZZAZIONE EDILIZIA", "CONCESSIONE EDILIZIA IN SANATORIA (L. 326 -03)", "ALTO", "No", "EU.02.14_CONCESSIONE EDILIZIA"], ["EU.02.15", "EDILE-URBANISTICO", "02-AUTORIZZAZIONE EDILIZIA", "CERTIFICATO AGIBILITA - ABITABILITA", "ALTO", "No", "EU.02.15_CERTIFICATO AGIBILITA"], ["EU.02.16", "EDILE-URBANISTICO", "02-AUTORIZZAZIONE EDILIZIA", "SEGNALAZIONE CERTIFICATA DI AGIBILITA (SCAG)", "ALTO", "No", "EU.02.16_SEGNALAZIONE CERTIFIC"], ["EU.02.17", "EDILE-URBANISTICO", "02-AUTORIZZAZIONE EDILIZIA", "CERTIFICAZIONE DI CONFORMTA EDILIZIA", "ALTO", "No", "EU.02.17_CERTIFICAZIONE DI CON"], ["EU.02.18", "EDILE-URBANISTICO", "02-AUTORIZZAZIONE EDILIZIA", "RELAZIONE CPC", "BASSO", "No", "EU.02.18_RELAZIONE CPC"], ["EU.02.19", "EDILE-URBANISTICO", "02-AUTORIZZAZIONE EDILIZIA", "FASCICOLO DEL FABBRICATO", "BASSO", "No", "EU.02.19_FASCICOLO DEL FABBRIC"], ["EU.03.01", "EDILE-URBANISTICO", "03-CATASTO FABBRICATI", "DO.C.FA", "ALTO", "No", "EU.03.01_DO.C.FA"], ["EU.03.02", "EDILE-URBANISTICO", "03-CATASTO FABBRICATI", "VOLTURA", "MEDIO", "No", "EU.03.02_VOLTURA"], ["EU.03.03", "EDILE-URBANISTICO", "03-CATASTO FABBRICATI", "ELABORATO PLANIMETRICO", "BASSO", "No", "EU.03.03_ELABORATO PLANIMETRIC"], ["EU.03.04", "EDILE-URBANISTICO", "03-CATASTO FABBRICATI", "ELENCO SUBALTERNI", "BASSO", "No", "EU.03.04_ELENCO SUBALTERNI"], ["EU.03.05", "EDILE-URBANISTICO", "03-CATASTO FABBRICATI", "VISURA CATASTALE FABBRICATO", "BASSO", "No", "EU.03.05_VISURA CATASTALE FABB"], ["EU.03.06", "EDILE-URBANISTICO", "03-CATASTO FABBRICATI", "PLANIMETRIA CATASTALE", "ALTO", "No", "EU.03.06_PLANIMETRIA CATASTALE"], ["EU.03.07", "EDILE-URBANISTICO", "03-CATASTO FABBRICATI", "CERTIFICAZIONE DI CONFORMITA CATASTALE", "MEDIO", "No", "EU.03.07_CERTIFICAZIONE DI CON"], ["EU.03.08", "EDILE-URBANISTICO", "03-CATASTO FABBRICATI", "PLANIMETRIE CATASTALI D IMPIANTO 1939 - 1940", "BASSO", "No", "EU.03.08_PLANIMETRIE CATASTALI"], ["EU.03.09", "EDILE-URBANISTICO", "03-CATASTO FABBRICATI", "ELENCO IMMOBILI", "BASSO", "No", "EU.03.09_ELENCO IMMOBILI"], ["EU.04.01", "EDILE-URBANISTICO", "04-CATASTO TERRENI", "TIPO MAPPALE", "MEDIO", "No", "EU.04.01_TIPO MAPPALE"], ["EU.04.02", "EDILE-URBANISTICO", "04-CATASTO TERRENI", "TIPO DI FRAZIONAMENTO", "MEDIO", "No", "EU.04.02_TIPO DI FRAZIONAMENTO"], ["EU.04.03", "EDILE-URBANISTICO", "04-CATASTO TERRENI", "DO.C.TE", "MEDIO", "No", "EU.04.03_DO.C.TE"], ["EU.04.04", "EDILE-URBANISTICO", "04-CATASTO TERRENI", "VOLTURA", "MEDIO", "No", "EU.04.04_VOLTURA"], ["EU.04.05", "EDILE-URBANISTICO", "04-CATASTO TERRENI", "ESTRATTO DI MAPPA", "BASSO", "No", "EU.04.05_ESTRATTO DI MAPPA"], ["EU.04.06", "EDILE-URBANISTICO", "04-CATASTO TERRENI", "VISURA CATASTALE TERRENO", "BASSO", "No", "EU.04.06_VISURA CATASTALE TERR"], ["EU.04.07", "EDILE-URBANISTICO", "04-CATASTO TERRENI", "GEOSIT", "BASSO", "No", "EU.04.07_GEOSIT"], ["EU.05.01", "EDILE-URBANISTICO", "05-COMUNE-PROVINCIA-REGIONE", "VINCOLO CIMITERIALE", "ALTO", "No", "EU.05.01_VINCOLO CIMITERIALE"], ["EU.05.02", "EDILE-URBANISTICO", "05-COMUNE-PROVINCIA-REGIONE", "VINCOLO IDROGEOLOGICO", "ALTO", "No", "EU.05.02_VINCOLO IDROGEOLOGICO"], ["EU.05.03", "EDILE-URBANISTICO", "05-COMUNE-PROVINCIA-REGIONE", "NULLA OSTA VINCOLO IDROGEOLOGICO", "ALTO", "No", "EU.05.03_NULLA OSTA VINCOLO ID"], ["EU.05.04", "EDILE-URBANISTICO", "05-COMUNE-PROVINCIA-REGIONE", "CONCESSIONE DI AREA PUBBLICA", "ALTO", "No", "EU.05.04_CONCESSIONE DI AREA P"], ["EU.05.05", "EDILE-URBANISTICO", "05-COMUNE-PROVINCIA-REGIONE", "CONCESSIONE DI DERIVAZIONE ACQUA PUBBLICA", "ALTO", "No", "EU.05.05_CONCESSIONE DI DERIVA"], ["EU.06.01", "EDILE-URBANISTICO", "06-ENAC", "VINCOLO AEROPORTUALE", "ALTO", "No", "EU.06.01_VINCOLO AEROPORTUALE"], ["EU.06.02", "EDILE-URBANISTICO", "06-ENAC", "NULLA OSTA VINCOLO AEROPORTUALE", "ALTO", "No", "EU.06.02_NULLA OSTA VINCOLO AE"], ["EU.07.01", "EDILE-URBANISTICO", "07-ENERGY", "DIAGNOSI ENERGETICA", "MEDIO", "No", "EU.07.01_DIAGNOSI ENERGETICA"], ["EU.07.02", "EDILE-URBANISTICO", "07-ENERGY", "ATTESTATO DI QUALIFICAZIONE ENERGETICA (LEGGE 10)", "ALTO", "No", "EU.07.02_ATTESTATO DI QUALIFIC"], ["EU.07.03", "EDILE-URBANISTICO", "07-ENERGY", "ATTESTATO DI PRESTAZIONE ENERGETICA - APE", "MEDIO", "Si", "EU.07.03_ATTESTATO DI PRESTAZI"], ["EU.08.01", "EDILE-URBANISTICO", "08-GENIO CIVILE", "DENUNCIA LAVORI 1086", "ALTO", "No", "EU.08.01_DENUNCIA LAVORI 1086"], ["EU.08.02", "EDILE-URBANISTICO", "08-GENIO CIVILE", "AUTORIZZAZIONE - DEPOSITO SISMICA", "ALTO", "No", "EU.08.02_AUTORIZZAZIONE  - DEP"], ["EU.08.03", "EDILE-URBANISTICO", "08-GENIO CIVILE", "COLLAUDO - PROGETTO STRUTTURALE", "ALTO", "No", "EU.08.03_COLLAUDO  - PROGETTO"], ["EU.08.04", "EDILE-URBANISTICO", "08-GENIO CIVILE", "IDONEITA STATICA", "ALTO", "No", "EU.08.04_IDONEITA  STATICA"], ["EU.08.05", "EDILE-URBANISTICO", "08-GENIO CIVILE", "VULNERABILITA SISMICA", "ALTO", "No", "EU.08.05_VULNERABILITA  SISMIC"], ["EU.08.06", "EDILE-URBANISTICO", "08-GENIO CIVILE", "IDONEITÀ SISMICA", "ALTO", "No", "EU.08.06_IDONEITÀ SISMICA"], ["EU.09.01", "EDILE-URBANISTICO", "09-SALUTE E SICUREZZA", "DVR - DOCUMENTO VALUTAZIONE DEI RISCHI", "MEDIO", "No", "EU.09.01_DVR - DOCUMENTO VALUT"], ["EU.09.02", "EDILE-URBANISTICO", "09-SALUTE E SICUREZZA", "DICHIARAZIONE DI CONFORMITA APPARECCHIATURE IN ZONA ATEX", "MEDIO", "No", "EU.09.02_DICHIARAZIONE DI CONF"], ["EU.09.03", "EDILE-URBANISTICO", "09-SALUTE E SICUREZZA", "PIANO DI EMERGENZA", "ALTO", "No", "EU.09.03_PIANO DI EMERGENZA"], ["EU.09.04", "EDILE-URBANISTICO", "09-SALUTE E SICUREZZA", "PSC (DLGS 81 -08)", "ALTO", "No", "EU.09.04_PSC (DLGS 81 -08)"], ["EU.09.05", "EDILE-URBANISTICO", "09-SALUTE E SICUREZZA", "VALUTAZIONE DEL RISCHIO AMIANTO", "ALTO", "No", "EU.09.05_VALUTAZIONE DEL RISCH"], ["EU.09.06", "EDILE-URBANISTICO", "09-SALUTE E SICUREZZA", "FASCICOLO DELL OPERA", "BASSO", "No", "EU.09.06_FASCICOLO DELL OPERA"], ["EU.09.07", "EDILE-URBANISTICO", "09-SALUTE E SICUREZZA", "ETC - elaborato tecnico della copertura", "MEDIO", "No", "EU.09.07_ETC - elaborato tecni"], ["EU.09.08", "EDILE-URBANISTICO", "09-SALUTE E SICUREZZA", "IAC- istruzioni di accesso in sicurezza alla copertura", "BASSO", "No", "EU.09.08_IAC- istruzioni di ac"], ["EU.09.09", "EDILE-URBANISTICO", "09-SALUTE E SICUREZZA", "Evidenza documentale dello stato dei suoli, sottosuoli, falde sotterranee ed eventuali procedimenti ambientali in corso. Informazioni relative alla presenza di SERBATOI interrati o fuori terra", "BASSO", "No", "EU.09.09_Evidenza documentale"], ["EU.10.01", "EDILE-URBANISTICO", "10-SOPRINTENDENZA BELLE ARTI", "DECRETO DI VINCOLO STORICO ARTISTICO", "ALTO", "No", "EU.10.01_DECRETO DI VINCOLO ST"], ["EU.10.02", "EDILE-URBANISTICO", "10-SOPRINTENDENZA BELLE ARTI", "DECRETO DI VINCOLO PAESAGGISTICO", "ALTO", "No", "EU.10.02_DECRETO DI VINCOLO PA"], ["EU.10.03", "EDILE-URBANISTICO", "10-SOPRINTENDENZA BELLE ARTI", "DECRETO DI VINCOLO ARCHEOLOGICO", "ALTO", "No", "EU.10.03_DECRETO DI VINCOLO AR"], ["EU.10.04", "EDILE-URBANISTICO", "10-SOPRINTENDENZA BELLE ARTI", "DICHIARAZIONE DI SUSSISTENZA DI VINCOLO", "ALTO", "No", "EU.10.04_DICHIARAZIONE DI SUSS"], ["EU.10.05", "EDILE-URBANISTICO", "10-SOPRINTENDENZA BELLE ARTI", "VERIFICA DI INTERESSE CULTURALE", "ALTO", "No", "EU.10.05_VERIFICA DI INTERESSE"], ["EU.10.06", "EDILE-URBANISTICO", "10-SOPRINTENDENZA BELLE ARTI", "NULLA OSTA VINCOLO STORICO ARTISTICO", "ALTO", "No", "EU.10.06_NULLA OSTA VINCOLO ST"], ["EU.10.07", "EDILE-URBANISTICO", "10-SOPRINTENDENZA BELLE ARTI", "AUTORIZZAZIONE PAESAGGISTICA", "ALTO", "No", "EU.10.07_AUTORIZZAZIONE PAESAG"], ["EU.10.08", "EDILE-URBANISTICO", "10-SOPRINTENDENZA BELLE ARTI", "NULLA OSTA VINCOLO ARCHEOLOGICO", "ALTO", "No", "EU.10.08_NULLA OSTA VINCOLO AR"], ["EU.11.01", "EDILE-URBANISTICO", "11-TITOLARITA", "ATTO DI ACQUISTO", "ALTO", "No", "EU.11.01_ATTO DI ACQUISTO"], ["EU.11.02", "EDILE-URBANISTICO", "11-TITOLARITA", "NOTA DI TRASCRIZIONE", "MEDIO", "No", "EU.11.02_NOTA DI TRASCRIZIONE"], ["EU.11.03", "EDILE-URBANISTICO", "11-TITOLARITA", "NOTA DI ISCRIZIONE", "MEDIO", "No", "EU.11.03_NOTA DI ISCRIZIONE"], ["EU.11.04", "EDILE-URBANISTICO", "11-TITOLARITA", "NOTA DI ANNOTAZIONE", "MEDIO", "No", "EU.11.04_NOTA DI ANNOTAZIONE"], ["EU.11.05", "EDILE-URBANISTICO", "11-TITOLARITA", "SCRITTURA PRIVATA", "MEDIO", "No", "EU.11.05_SCRITTURA PRIVATA"], ["EU.11.06", "EDILE-URBANISTICO", "11-TITOLARITA", "TESTAMENTO", "MEDIO", "No", "EU.11.06_TESTAMENTO"], ["EU.11.07", "EDILE-URBANISTICO", "11-TITOLARITA", "LEASING", "MEDIO", "Si", "EU.11.07_LEASING"], ["EU.11.08", "EDILE-URBANISTICO", "11-TITOLARITA", "CONTRATTO DI AFFITTO - SUBLOCAZIONE", "ALTO", "Si", "EU.11.08_CONTRATTO DI AFFITTO"], ["EU.11.09", "EDILE-URBANISTICO", "11-TITOLARITA", "RTI Relazione Tecnica Integrata", "BASSO", "No", "EU.11.09_RTI Relazione Tecnica"], ["EU.11.10", "EDILE-URBANISTICO", "11-TITOLARITA", "CDU Certificato di Destinazione Urbanistica", "BASSO", "Si", "EU.11.10_CDU Certificato di De"], ["EU.11.11", "EDILE-URBANISTICO", "11-TITOLARITA", "ATTO SERVITU", "MEDIO", "No", "EU.11.11_ATTO SERVITU"], ["EU.12.01", "EDILE-URBANISTICO", "12-TUTELA AMBIENTE", "AUA AUTORIZAZIONE UNICA AMBIENTALE - AUTORIZZAZIONE ALLO SCARICO", "ALTO", "Si", "EU.12.01_AUA AUTORIZAZIONE UNI"], ["EU.12.02", "EDILE-URBANISTICO", "12-TUTELA AMBIENTE", "FORMULARIO IDENTIFICAZIONE RIFIUTI (FIR)", "ALTO", "No", "EU.12.02_FORMULARIO IDENTIFICA"], ["PI.01.01", "PREVENZIONE INCENDI", "01-CPI-SCIA", "RICHIESTA DI ISTANZA DI VALUTAZIONE DEL PROGETTO DA PARTE DEL COMANDO DEI VVFF E RELATIVA APPROVAZIONE", "MEDIO", "No", "PI.01.01_RICHIESTA DI ISTANZA"], ["PI.01.02", "PREVENZIONE INCENDI", "01-CPI-SCIA", "SEGNALAZIONE CERTIFICATA DI INIZIO ATTIVITA (SCIA ANTINCENDIO)", "ALTO", "Si", "PI.01.02_SEGNALAZIONE CERTIFIC"], ["PI.02.01", "PREVENZIONE INCENDI", "02-CENTRALE POMPAGGIO ANTINCENDI", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "MEDIO", "No", "PI.02.01_DI.CO o DI.RI IMPIANT"], ["PI.02.02", "PREVENZIONE INCENDI", "02-CENTRALE POMPAGGIO ANTINCENDI", "COLLAUDO o CERTIFICATO DI REGOLARE ESECUZIONE", "MEDIO", "No", "PI.02.02_COLLAUDO o CERTIFICAT"], ["PI.02.03", "PREVENZIONE INCENDI", "02-CENTRALE POMPAGGIO ANTINCENDI", "PROGETTO TECNICO DELL'IMPIANTO O PARTI SPECIFICHE", "MEDIO", "No", "PI.02.03_PROGETTO TECNICO DELL"], ["PI.03.01", "PREVENZIONE INCENDI", "03-IMPIANTO NASPI E IDRANTI", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "MEDIO", "No", "PI.03.01_DI.CO o DI.RI IMPIANT"], ["PI.03.02", "PREVENZIONE INCENDI", "03-IMPIANTO NASPI E IDRANTI", "PROGETTO TECNICO DELL'IMPIANTO O PARTI SPECIFICHE", "MEDIO", "No", "PI.03.02_PROGETTO TECNICO DELL"], ["PI.03.03", "PREVENZIONE INCENDI", "03-IMPIANTO NASPI E IDRANTI", "COLLAUDO", "MEDIO", "No", "PI.03.03_COLLAUDO"], ["PI.04.01", "PREVENZIONE INCENDI", "04-IMPIANTO SPRINKLER", "DI.CO IMPIANTO o PARTI SPECIFICHE", "MEDIO", "No", "PI.04.01_DI.CO IMPIANTO o PART"], ["PI.04.02", "PREVENZIONE INCENDI", "04-IMPIANTO SPRINKLER", "COLLAUDO", "MEDIO", "No", "PI.04.02_COLLAUDO"], ["PI.04.03", "PREVENZIONE INCENDI", "04-IMPIANTO SPRINKLER", "DICHIARAZIONE CE DI CONFORMITA E MARCATURA CE", "MEDIO", "No", "PI.04.03_DICHIARAZIONE CE DI C"], ["PI.04.04", "PREVENZIONE INCENDI", "04-IMPIANTO SPRINKLER", "PROGETTO TECNICO DELL'IMPIANTO O PARTI SPECIFICHE", "MEDIO", "No", "PI.04.04_PROGETTO TECNICO DELL"], ["PI.05.01", "PREVENZIONE INCENDI", "05-LAMA ACQUA-ESTINZIONE A UMIDO", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "MEDIO", "No", "PI.05.01_DI.CO o DI.RI IMPIANT"], ["PI.05.02", "PREVENZIONE INCENDI", "05-LAMA ACQUA-ESTINZIONE A UMIDO", "COLLAUDO", "MEDIO", "No", "PI.05.02_COLLAUDO"], ["PI.05.03", "PREVENZIONE INCENDI", "05-LAMA ACQUA-ESTINZIONE A UMIDO", "PROGETTO TECNICO DELL'IMPIANTO O PARTI SPECIFICHE", "MEDIO", "No", "PI.05.03_PROGETTO TECNICO DELL"], ["PI.06.01", "PREVENZIONE INCENDI", "06-ALTRI IMPIANTI ESTINZIONE", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "MEDIO", "No", "PI.06.01_DI.CO o DI.RI IMPIANT"], ["PI.06.02", "PREVENZIONE INCENDI", "06-ALTRI IMPIANTI ESTINZIONE", "COLLAUDO", "MEDIO", "No", "PI.06.02_COLLAUDO"], ["PI.06.03", "PREVENZIONE INCENDI", "06-ALTRI IMPIANTI ESTINZIONE", "PROGETTO TECNICO DELL'IMPIANTO O PARTI SPECIFICHE", "MEDIO", "No", "PI.06.03_PROGETTO TECNICO DELL"], ["PI.07.01", "PREVENZIONE INCENDI", "07-IMPIANTO RILEVAMENTO-ALLARME", "COLLAUDO TECNICO AMMINISTRATIVO", "BASSO", "No", "PI.07.01_COLLAUDO TECNICO AMMI"], ["PI.07.02", "PREVENZIONE INCENDI", "07-IMPIANTO RILEVAMENTO-ALLARME", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "MEDIO", "No", "PI.07.02_DI.CO o DI.RI IMPIANT"], ["PI.07.03", "PREVENZIONE INCENDI", "07-IMPIANTO RILEVAMENTO-ALLARME", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "MEDIO", "No", "PI.07.03_PROGETTO TECNICO DELL"], ["PI.08.01", "PREVENZIONE INCENDI", "08-SIST EVACUAZIONE FUMI-CALORE", "DI.CO, DICH.IMP, CERT.IMP IMPIANTO o PARTI SPECIFICHE", "MEDIO", "No", "PI.08.01_DI.CO, DICH.IMP, CERT"], ["PI.08.02", "PREVENZIONE INCENDI", "08-SIST EVACUAZIONE FUMI-CALORE", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "MEDIO", "No", "PI.08.02_PROGETTO TECNICO DELL"], ["PI.08.03", "PREVENZIONE INCENDI", "08-SIST EVACUAZIONE FUMI-CALORE", "COLLAUDO", "MEDIO", "No", "PI.08.03_COLLAUDO"], ["PI.09.01", "PREVENZIONE INCENDI", "09-ALTRI DOCUMENTI TRASMESSI VVF", "ELETTRICI, PV, GE ECC, DI CUI NEI FASCICOLI VVF SI RISCONTRANO SOLO LE DICHIARAZIONI DI CONFORMITà DI.CO.", "BASSO", "No", "PI.09.01_ELETTRICI, PV, GE  EC"], ["PI.10.01", "PREVENZIONE INCENDI", "10-PORTA TAGLIAFUOCO", "ATTO DI OMOLOGAZIONE DELLA PORTA", "BASSO", "No", "PI.10.01_ATTO DI OMOLOGAZIONE"], ["PI.10.02", "PREVENZIONE INCENDI", "10-PORTA TAGLIAFUOCO", "DICHIARAZIONE DI CONFORMITÀ ALLA PORTA OMOLOGATA", "BASSO", "No", "PI.10.02_DICHIARAZIONE DI CONF"], ["PI.10.03", "PREVENZIONE INCENDI", "10-PORTA TAGLIAFUOCO", "LIBRETTO DI USO E MANUTENZIONE DELLA PORTA", "BASSO", "No", "PI.10.03_LIBRETTO DI USO E MAN"], ["PI.10.04", "PREVENZIONE INCENDI", "10-PORTA TAGLIAFUOCO", "MODELLI DICH. PRODUTTORE", "BASSO", "No", "PI.10.04_MODELLI DICH. PRODUTT"], ["PI.11.01", "PREVENZIONE INCENDI", "11-SERRANDA TAGLIAFUOCO", "DICHIARAZIONE CE DI CONFORMITA E MARCATURA CE", "MEDIO", "No", "PI.11.01_DICHIARAZIONE CE DI C"], ["PI.11.02", "PREVENZIONE INCENDI", "11-SERRANDA TAGLIAFUOCO", "MODELLI DICH. PRODUTTORE", "BASSO", "No", "PI.11.02_MODELLI DICH. PRODUTT"], ["PI.12.01", "PREVENZIONE INCENDI", "12-USCITE DI SICUREZZA", "DICHIARAZIONE DI CORRETTA INSTALLAZIONE DEGLI ACCESSORI PER PORTE POSIZIONATE SULLE VIE DI ESODO", "BASSO", "No", "PI.12.01_DICHIARAZIONE DI CORR"], ["PI.12.02", "PREVENZIONE INCENDI", "12-USCITE DI SICUREZZA", "MODELLI DICH. PRODUTTORE", "BASSO", "No", "PI.12.02_MODELLI DICH. PRODUTT"], ["PI.13.01", "PREVENZIONE INCENDI", "13-COMPARTIMENTAZIONI REI", "PARETI", "BASSO", "No", "PI.13.01_PARETI"], ["PI.13.02", "PREVENZIONE INCENDI", "13-COMPARTIMENTAZIONI REI", "TENDA TAGLIAFUOCO", "BASSO", "No", "PI.13.02_TENDA TAGLIAFUOCO"], ["PI.13.03", "PREVENZIONE INCENDI", "13-COMPARTIMENTAZIONI REI", "ATTRAVERSAMENTI", "MEDIO", "No", "PI.13.03_ATTRAVERSAMENTI"], ["PI.13.04", "PREVENZIONE INCENDI", "13-COMPARTIMENTAZIONI REI", "STRUTTURE ( SOLAIO, COPERTURA, TRAVI, PILASTRI)", "MEDIO", "No", "PI.13.04_STRUTTURE ( SOLAIO, C"], ["TI.01.01", "TECNICO IMPIANTISTICO", "01-ELEVATORE-MONTACARICHI", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE - ASCENSORE", "ALTO", "No", "TI.01.01_DI.CO o DI.RI IMPIANT"], ["TI.01.02", "TECNICO IMPIANTISTICO", "01-ELEVATORE-MONTACARICHI", "DI.CO e MARCATURA CE IMPIANTO E DEI COMPONENTI SICUREZZA - ASCENSORI", "ALTO", "No", "TI.01.02_DI.CO e MARCATURA CE"], ["TI.01.03", "TECNICO IMPIANTISTICO", "01-ELEVATORE-MONTACARICHI", "COSTITUZIONE E MANTENIMENTO LIBRETTO DI IMPIANTO - ASCENSORE", "ALTO", "No", "TI.01.03_COSTITUZIONE E MANTEN"], ["TI.01.04", "TECNICO IMPIANTISTICO", "01-ELEVATORE-MONTACARICHI", "VERIFICHE STRAORDINARIE D IMPIANTO - ASCENSORE", "MEDIO", "No", "TI.01.04_VERIFICHE STRAORDINAR"], ["TI.01.05", "TECNICO IMPIANTISTICO", "01-ELEVATORE-MONTACARICHI", "NOMINA DEL DIRETTORE - RESPONSABILE DELL ESERCIZIO", "MEDIO", "No", "TI.01.05_NOMINA DEL DIRETTORE"], ["TI.01.06", "TECNICO IMPIANTISTICO", "01-ELEVATORE-MONTACARICHI", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "ALTO", "No", "TI.01.06_PROGETTO TECNICO DELL"], ["TI.01.07", "TECNICO IMPIANTISTICO", "01-ELEVATORE-MONTACARICHI", "COMUNICAZIONE PER LA MESSA IN ESERCIZIO DELL IMPIANTO", "ALTO", "No", "TI.01.07_COMUNICAZIONE PER LA"], ["TI.02.01", "TECNICO IMPIANTISTICO", "02-IMPIANTO DI TERRA", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "ALTO", "No", "TI.02.01_PROGETTO TECNICO DELL"], ["TI.02.02", "TECNICO IMPIANTISTICO", "02-IMPIANTO DI TERRA", "DENUNCIA DI PRIMA INSTALLAZIONE INAIL CIVA - IMPIANTO DI TERRA", "ALTO", "No", "TI.02.02_DENUNCIA DI PRIMA INS"], ["TI.02.03", "TECNICO IMPIANTISTICO", "02-IMPIANTO DI TERRA", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE - IMPIANTO DI TERRA", "ALTO", "No", "TI.02.03_DI.CO o DI.RI IMPIANT"], ["TI.03.01", "TECNICO IMPIANTISTICO", "03-IMPIANTO ELETTRICO", "COLLAUDO TECNICO IMPIANTO ELETTRICO", "ALTO", "No", "TI.03.01_COLLAUDO TECNICO IMPI"], ["TI.03.02", "TECNICO IMPIANTISTICO", "03-IMPIANTO ELETTRICO", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE - IMPIANTO ELETTRICO", "ALTO", "No", "TI.03.02_DI.CO o DI.RI IMPIANT"], ["TI.03.03", "TECNICO IMPIANTISTICO", "03-IMPIANTO ELETTRICO", "PARAMETRI DI ILLUMINAZIONE DEI LUOGHI DI LAVORO", "MEDIO", "No", "TI.03.03_PARAMETRI DI ILLUMINA"], ["TI.03.04", "TECNICO IMPIANTISTICO", "03-IMPIANTO ELETTRICO", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE - ILLUMINAZIONE EMERGENZA", "ALTO", "No", "TI.03.04_DI.CO o DI.RI IMPIANT"], ["TI.03.05", "TECNICO IMPIANTISTICO", "03-IMPIANTO ELETTRICO", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE - IMPIANTO ELETTRICO", "ALTO", "No", "TI.03.05_PROGETTO TECNICO DELL"], ["TI.03.06", "TECNICO IMPIANTISTICO", "03-IMPIANTO ELETTRICO", "RILIEVO SOTTOSERVIZI (RETE ELETTRICA...)", "BASSO", "No", "TI.03.06_RILIEVO SOTTOSERVIZI"], ["TI.04.01", "TECNICO IMPIANTISTICO", "04-IMPIANTO ELETTRICO SICUREZZA", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "ALTO", "No", "TI.04.01_PROGETTO TECNICO DELL"], ["TI.04.06", "TECNICO IMPIANTISTICO", "04-IMPIANTO ELETTRICO SICUREZZA", "DENUNCIA DI PRIMA INSTALLAZIONE INAIL CIVA - PROTEZIONE DAI FULMINI", "MEDIO", "No", "TI.04.06_DENUNCIA DI PRIMA INS"], ["TI.04.07", "TECNICO IMPIANTISTICO", "04-IMPIANTO ELETTRICO SICUREZZA", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE - PROTEZIONE FULMINI", "ALTO", "No", "TI.04.07_DI.CO o DI.RI IMPIANT"], ["TI.04.09", "TECNICO IMPIANTISTICO", "04-IMPIANTO ELETTRICO SICUREZZA", "VALUTAZIONE DEL RISCHIO DI FULMINAZIONE", "ALTO", "No", "TI.04.09_VALUTAZIONE DEL RISCH"], ["TI.05.01", "TECNICO IMPIANTISTICO", "05-FOTOVOLTAICO", "COLLAUDO TECNICO AMMINISTRATIVO", "MEDIO", "No", "TI.05.01_COLLAUDO TECNICO AMMI"], ["TI.05.02", "TECNICO IMPIANTISTICO", "05-FOTOVOLTAICO", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "ALTO", "No", "TI.05.02_DI.CO o DI.RI IMPIANT"], ["TI.05.03", "TECNICO IMPIANTISTICO", "05-FOTOVOLTAICO", "PRATICA ALLACCIO ALLA RETE PUBBLICA", "BASSO", "No", "TI.05.03_PRATICA ALLACCIO ALLA"], ["TI.05.04", "TECNICO IMPIANTISTICO", "05-FOTOVOLTAICO", "AUTORIZZAZIONE INSTALLAZIONE (AUTORIZZAZIONE UNICA)", "BASSO", "No", "TI.05.04_AUTORIZZAZIONE INSTAL"], ["TI.05.05", "TECNICO IMPIANTISTICO", "05-FOTOVOLTAICO", "LICENZA DI ESERCIZIO DI OFFICINA ELETTRICA solo x impianti oltre 20Kw", "BASSO", "No", "TI.05.05_LICENZA DI ESERCIZIO"], ["TI.05.07", "TECNICO IMPIANTISTICO", "05-FOTOVOLTAICO", "VIDIMAZIONE ANNUALE DEL REGISTRO DI PRODUZIONE DI ENERGIA ELETTRICA solo per impianti >20Kw", "BASSO", "Si", "TI.05.07_VIDIMAZIONE ANNUALE D"], ["TI.05.08", "TECNICO IMPIANTISTICO", "05-FOTOVOLTAICO", "PRATICA GSE (incentivi)", "BASSO", "No", "TI.05.08_PRATICA GSE (incentiv"], ["TI.05.10", "TECNICO IMPIANTISTICO", "05-FOTOVOLTAICO", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "ALTO", "No", "TI.05.10_PROGETTO TECNICO DELL"], ["TI.05.11", "TECNICO IMPIANTISTICO", "05-FOTOVOLTAICO", "VALUTAZIONE E AUTORIZZAZIONE AI FINI ANTINCENDIO", "ALTO", "No", "TI.05.11_VALUTAZIONE E AUTORIZ"], ["TI.06.01", "TECNICO IMPIANTISTICO", "06-GRUPPO DI CONTINUITA (UPS)", "DICHIARAZIONE CE DI CONFORMITA E MARCATURA CE - UPS", "MEDIO", "No", "TI.06.01_DICHIARAZIONE CE DI C"], ["TI.07.01", "TECNICO IMPIANTISTICO", "07-GRUPPO ELETTROGENO", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "ALTO", "No", "TI.07.01_DI.CO o DI.RI IMPIANT"], ["TI.07.02", "TECNICO IMPIANTISTICO", "07-GRUPPO ELETTROGENO", "CERTIFICATO OMOLOGAZIONE", "MEDIO", "No", "TI.07.02_CERTIFICATO OMOLOGAZI"], ["TI.07.03", "TECNICO IMPIANTISTICO", "07-GRUPPO ELETTROGENO", "PAGAMENTO UTF - ACCISE AGENZIA DELLE DOGANE", "BASSO", "Si", "TI.07.03_PAGAMENTO UTF - ACCIS"], ["TI.07.05", "TECNICO IMPIANTISTICO", "07-GRUPPO ELETTROGENO", "LICENZA DI ESERCIZIO DI OFFICINA ELETTRICA solo x impianti oltre 25Kw", "BASSO", "No", "TI.07.05_LICENZA DI ESERCIZIO"], ["TI.07.06", "TECNICO IMPIANTISTICO", "07-GRUPPO ELETTROGENO", "VALUTAZIONE E AUTORIZZAZIONE AI FINI ANTINCENDIO", "ALTO", "No", "TI.07.06_VALUTAZIONE E AUTORIZ"], ["TI.08.01", "TECNICO IMPIANTISTICO", "08-IDRICO SANITARIO", "COLLAUDO TECNICO IMPIANTO", "MEDIO", "No", "TI.08.01_COLLAUDO TECNICO IMPI"], ["TI.08.02", "TECNICO IMPIANTISTICO", "08-IDRICO SANITARIO", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "ALTO", "No", "TI.08.02_DI.CO o DI.RI IMPIANT"], ["TI.08.03", "TECNICO IMPIANTISTICO", "08-IDRICO SANITARIO", "CONCESSIONE DI DERIVAZIONE ACQUA PUBBLICA", "MEDIO", "No", "TI.08.03_CONCESSIONE DI DERIVA"], ["TI.08.04", "TECNICO IMPIANTISTICO", "08-IDRICO SANITARIO", "ATTESTAZIONE DI AVVENUTA ESECUZIONE DEI CONTROLLI SULLE ACQUE DESTINATE AL CONSUMO UMANO", "MEDIO", "No", "TI.08.04_ATTESTAZIONE DI AVVEN"], ["TI.08.05", "TECNICO IMPIANTISTICO", "08-IDRICO SANITARIO", "DENUNCIA DI MESSA IN SERVIZIO E IMMATRICOLAZIONE INAIL CIVA - IMPIANTO AUTOCLAVE", "ALTO", "No", "TI.08.05_DENUNCIA DI MESSA IN"], ["TI.08.06", "TECNICO IMPIANTISTICO", "08-IDRICO SANITARIO", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE - IMPIANTO AUTOCLAVE", "ALTO", "No", "TI.08.06_DI.CO o DI.RI IMPIANT"], ["TI.08.07", "TECNICO IMPIANTISTICO", "08-IDRICO SANITARIO", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "MEDIO", "No", "TI.08.07_PROGETTO TECNICO DELL"], ["TI.08.08", "TECNICO IMPIANTISTICO", "08-IDRICO SANITARIO", "RILIEVO SOTTOSERVIZI (RETE FOGNARIA...)", "ALTO", "No", "TI.08.08_RILIEVO SOTTOSERVIZI"], ["TI.09.01", "TECNICO IMPIANTISTICO", "09-CONTROLLO ACCESSI", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "ALTO", "No", "TI.09.01_DI.CO o DI.RI IMPIANT"], ["TI.09.02", "TECNICO IMPIANTISTICO", "09-CONTROLLO ACCESSI", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "ALTO", "No", "TI.09.02_PROGETTO TECNICO DELL"], ["TI.10.01", "TECNICO IMPIANTISTICO", "10-CANCELLO MOTORIZZATO", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "ALTO", "No", "TI.10.01_PROGETTO TECNICO DELL"], ["TI.10.02", "TECNICO IMPIANTISTICO", "10-CANCELLO MOTORIZZATO", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "ALTO", "No", "TI.10.02_DI.CO o DI.RI IMPIANT"], ["TI.10.03", "TECNICO IMPIANTISTICO", "10-CANCELLO MOTORIZZATO", "FASCICOLO TECNICO DI PORTE E CANCELLI MOTORIZZATI AI SENSI DELLA DIRETTIVA MACCHINE (89/392/CEE)", "ALTO", "No", "TI.10.03_FASCICOLO TECNICO DI"], ["TI.11.01", "TECNICO IMPIANTISTICO", "11-PEDANA IDRAULICA", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "MEDIO", "No", "TI.11.01_DI.CO o DI.RI IMPIANT"], ["TI.11.02", "TECNICO IMPIANTISTICO", "11-PEDANA IDRAULICA", "IMPIANTO SOLLEVAMENTO SPECIALI - VERIFICA INIZIALE (PORTATA IMPIANTI > 200 KG)", "MEDIO", "No", "TI.11.02_IMPIANTO SOLLEVAMENTO"], ["TI.11.03", "TECNICO IMPIANTISTICO", "11-PEDANA IDRAULICA", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "MEDIO", "No", "TI.11.03_PROGETTO TECNICO DELL"], ["TI.12.01", "TECNICO IMPIANTISTICO", "12-ADDOLCITORE", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "BASSO", "No", "TI.12.01_PROGETTO TECNICO DELL"], ["TI.12.02", "TECNICO IMPIANTISTICO", "12-ADDOLCITORE", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "BASSO", "No", "TI.12.02_DI.CO o DI.RI IMPIANT"], ["TI.13.01", "TECNICO IMPIANTISTICO", "13-RISCALDA-RAFFRESCA-VENTILA", "COLLAUDO TECNICO IMPIANTO", "ALTO", "No", "TI.13.01_COLLAUDO TECNICO IMPI"], ["TI.13.02", "TECNICO IMPIANTISTICO", "13-RISCALDA-RAFFRESCA-VENTILA", "LIBRETTO D USO E MANUTENZIONE D IMPIANTO", "BASSO", "No", "TI.13.02_LIBRETTO D USO E MANU"], ["TI.13.03", "TECNICO IMPIANTISTICO", "13-RISCALDA-RAFFRESCA-VENTILA", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "ALTO", "No", "TI.13.03_DI.CO o DI.RI IMPIANT"], ["TI.13.04", "TECNICO IMPIANTISTICO", "13-RISCALDA-RAFFRESCA-VENTILA", "DENUNCIA INSTALLAZIONE INAIL - CENTRALE TERMICA", "ALTO", "No", "TI.13.04_DENUNCIA INSTALLAZION"], ["TI.13.05", "TECNICO IMPIANTISTICO", "13-RISCALDA-RAFFRESCA-VENTILA", "DENUNCIA INAIL CIVA - CENTRALE TERMICA", "ALTO", "No", "TI.13.05_DENUNCIA INAIL CIVA -"], ["TI.13.06", "TECNICO IMPIANTISTICO", "13-RISCALDA-RAFFRESCA-VENTILA", "LIBRETTO D IMPIANTO PER LA CLIMATIZZAZIONE DPR. 74 -2013", "MEDIO", "No", "TI.13.06_LIBRETTO D IMPIANTO P"], ["TI.13.07", "TECNICO IMPIANTISTICO", "13-RISCALDA-RAFFRESCA-VENTILA", "DICHIARAZIONE F-GAS", "ALTO", "No", "TI.13.07_DICHIARAZIONE F-GAS"], ["TI.13.08", "TECNICO IMPIANTISTICO", "13-RISCALDA-RAFFRESCA-VENTILA", "OMOLOGAZIONE ELETTROVALVOLE INTERCETTAZIONE FLUSSO COMBUSTIBILE", "MEDIO", "Si", "TI.13.08_OMOLOGAZIONE ELETTROV"], ["TI.13.09", "TECNICO IMPIANTISTICO", "13-RISCALDA-RAFFRESCA-VENTILA", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "MEDIO", "No", "TI.13.09_PROGETTO TECNICO DELL"], ["TI.14.01", "TECNICO IMPIANTISTICO", "14-DOMOTICA", "COLLAUDO TECNICO", "MEDIO", "No", "TI.14.01_COLLAUDO TECNICO"], ["TI.14.02", "TECNICO IMPIANTISTICO", "14-DOMOTICA", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "ALTO", "No", "TI.14.02_DI.CO o DI.RI IMPIANT"], ["TI.14.03", "TECNICO IMPIANTISTICO", "14-DOMOTICA", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "ALTO", "No", "TI.14.03_PROGETTO TECNICO DELL"], ["TI.15.01", "TECNICO IMPIANTISTICO", "15-VIDEO SORVEGLIANZA TVCC", "COLLAUDO TECNICO", "MEDIO", "No", "TI.15.01_COLLAUDO TECNICO"], ["TI.15.02", "TECNICO IMPIANTISTICO", "15-VIDEO SORVEGLIANZA TVCC", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "ALTO", "No", "TI.15.02_DI.CO o DI.RI IMPIANT"], ["TI.15.03", "TECNICO IMPIANTISTICO", "15-VIDEO SORVEGLIANZA TVCC", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "ALTO", "No", "TI.15.03_PROGETTO TECNICO DELL"], ["TI.16.01", "TECNICO IMPIANTISTICO", "16-PORTE-SERRANDE MOTORIZZATE", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "BASSO", "No", "TI.16.01_PROGETTO TECNICO DELL"], ["TI.16.02", "TECNICO IMPIANTISTICO", "16-PORTE-SERRANDE MOTORIZZATE", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "BASSO", "No", "TI.16.02_DI.CO o DI.RI IMPIANT"], ["TI.17.01", "TECNICO IMPIANTISTICO", "17-STAZIONE DI POMPAGGIO IDRICO", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "BASSO", "No", "TI.17.01_PROGETTO TECNICO DELL"], ["TI.17.02", "TECNICO IMPIANTISTICO", "17-STAZIONE DI POMPAGGIO IDRICO", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "BASSO", "No", "TI.17.02_DI.CO o DI.RI IMPIANT"], ["TI.18.01", "TECNICO IMPIANTISTICO", "18-WALL-BOX", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "ALTO", "No", "TI.18.01_PROGETTO TECNICO DELL"], ["TI.18.02", "TECNICO IMPIANTISTICO", "18-WALL-BOX", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "ALTO", "No", "TI.18.02_DI.CO o DI.RI IMPIANT"], ["TI.18.03", "TECNICO IMPIANTISTICO", "18-WALL-BOX", "VALUTAZIONE E AUTORIZZAZIONE AI FINI ANTINCENDIO", "ALTO", "No", "TI.18.03_VALUTAZIONE E AUTORIZ"], ["TI.19.01", "TECNICO IMPIANTISTICO", "19-PORTE AUTOMATICHE", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "ALTO", "No", "TI.19.01_PROGETTO TECNICO DELL"], ["TI.19.02", "TECNICO IMPIANTISTICO", "19-PORTE AUTOMATICHE", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "ALTO", "No", "TI.19.02_DI.CO o DI.RI IMPIANT"], ["TI.19.03", "TECNICO IMPIANTISTICO", "19-PORTE AUTOMATICHE", "FASCICOLO TECNICO DI PORTE E CANCELLI MOTORIZZATI AI SENSI DELLA DIRETTIVA MACCHINE (89/392/CEE)", "ALTO", "No", "TI.19.03_FASCICOLO TECNICO DI"], ["TI.20.01", "TECNICO IMPIANTISTICO", "20-SOLARE TERMICO", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "BASSO", "No", "TI.20.01_PROGETTO TECNICO DELL"], ["TI.20.02", "TECNICO IMPIANTISTICO", "20-SOLARE TERMICO", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "BASSO", "No", "TI.20.02_DI.CO o DI.RI IMPIANT"], ["TI.21.01", "TECNICO IMPIANTISTICO", "21-PUBBLICITARI (INSEGNA, TOTEM)", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE - PUBBLICITARI", "MEDIO", "No", "TI.21.01_DI.CO o DI.RI IMPIANT"], ["TI.21.02", "TECNICO IMPIANTISTICO", "21-PUBBLICITARI (INSEGNA, TOTEM)", "PROGETTO TECNICO DELL IMPIANTO O PARTI SPECIFICHE", "MEDIO", "No", "TI.21.02_PROGETTO TECNICO DELL"], ["TI.22.01", "TECNICO IMPIANTISTICO", "22-ANTINTRUSIONE", "COLLAUDO TECNICO", "MEDIO", "No", "TI.22.01_COLLAUDO TECNICO"], ["TI.22.02", "TECNICO IMPIANTISTICO", "22-ANTINTRUSIONE", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "ALTO", "No", "TI.22.02_DI.CO o DI.RI IMPIANT"], ["TI.22.03", "TECNICO IMPIANTISTICO", "22-ANTINTRUSIONE", "PROGETTO TECNICO DELL'IMPIANTO O PARTI SPECIFICHE", "ALTO", "No", "TI.22.03_PROGETTO TECNICO DELL"], ["TI.23.01", "TECNICO IMPIANTISTICO", "23-ADDUZIONE GAS", "DI.CO o DI.RI IMPIANTO o PARTI SPECIFICHE", "ALTO", "No", "TI.23.01_DI.CO o DI.RI IMPIANT"], ["TI.23.02", "TECNICO IMPIANTISTICO", "23-ADDUZIONE GAS", "PROGETTO TECNICO DELL'IMPIANTO O PARTI SPECIFICHE", "ALTO", "No", "TI.23.02_PROGETTO TECNICO DELL"]];
+let CAT_NAME = "Catalogo T.O. integrato";
+const CODE_RE = /(?<![A-Za-z])(EU|PI|TI)\.(\d{2})\.(\d{2})(?!\d)/i;
+
+/* ============ UTILITÀ ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const STATI = {presente:"Presente", parziale:"Parziale", mancante:"Mancante", non_applicabile:"Non applicabile", da_verificare:"Da verificare"};
+function todayIt(){ return new Date().toLocaleDateString("it-IT",{day:"2-digit",month:"2-digit",year:"numeric"}); }
+function safeName(s){ return String(s||"").replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim().slice(0,120); }
+function blobToB64(b){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(",")[1]); r.onerror=rej; r.readAsDataURL(b); }); }
+function catByCode(c){ return CAT.find(r=>r[0]===c); }
+function normDate(v){
+  const t = String(v||"").trim(); if (!t) return "";
+  let m = t.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/); if (m) return `${m[3].padStart(2,"0")}/${m[2].padStart(2,"0")}/${m[1]}`;
+  m = t.match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/); if (m){ let y=m[3]; if (y.length===2) y=(+y>40?"19":"20")+y; return `${m[1].padStart(2,"0")}/${m[2].padStart(2,"0")}/${y}`; }
+  m = t.match(/^(\d{1,2})[\/.\-](\d{4})$/); if (m) return `${m[1].padStart(2,"0")}/${m[2]}`;
+  m = t.match(/(19|20)\d{2}/); return m? m[0] : t.slice(0,20);
+}
+function dateKey(v){ const p=String(v||"").split("/"); if (p.length===3) return p[2]+p[1]+p[0]; if (p.length===2) return p[1]+p[0]+"00"; return /^\d{4}$/.test(v||"")? v+"0000" : "99999999"; }
+function normCode(c){ const m = String(c||"").toUpperCase().match(CODE_RE); return m? `${m[1]}.${m[2]}.${m[3]}` : ""; }
+
+/* ============ CLAUDE ============ */
+/* VERSIONE: "api" = nel browser con chiave API Anthropic; "claude" = dentro Claude con l'account dell'utente */
+const VERSIONE = "claude";
+const CLAUDE_URL = "https://claude.ai/artifact/QFNVzWQbYX2rkpoX8Tzyo1";
+const AI = {
+  mode:"pending", sample:null, maxImages:0,
+  models:{quick:"claude-haiku-5-5", default:"claude-sonnet-5-5", complex:"claude-opus-5-5"},
+  async init(){
+    try{ if (window.claude?.use) this.sample = await window.claude.use("sample"); }catch{ this.sample=null; }
+    if (this.sample){ this.mode="claude"; const lim = await this.sample.limits().catch(()=>null); this.maxImages = lim?.images?.maxCount || 0; this.maxBytes = lim?.maxPromptBytes || 262144; }
+    else if (VERSIONE==="claude"){ this.mode="fuori"; this.maxImages=0; }
+    else { this.mode="api"; this.maxImages=20; }
+    renderMode();
+  },
+  ready(){ return this.mode==="claude" || (this.mode==="api" && !!$("#apiKey").value.trim()); },
+  async json(prompt, images, tier, signal){
+    // riprova automaticamente sugli errori temporanei (limite, sovraccarico, rete) invece di fermare il lavoro
+    const waits = [4000, 12000, 30000, 60000];
+    const limit = tier==="complex"? 360000 : 240000;   // nessuna chiamata può restare appesa: 4 min lettura, 6 min valutazione
+    for (let a=0;;a++){
+      const ctl = new AbortController(); let timedOut=false;
+      const onAbort = ()=>ctl.abort(); signal?.addEventListener("abort", onAbort, {once:true});
+      const timer = setTimeout(()=>{ timedOut=true; ctl.abort(); }, limit);
+      S.lastBeat = Date.now(); S.inflight = (S.inflight||0)+1;
+      try{ return await this._json(prompt, images, tier, ctl.signal); }
+      catch(e){
+        if (timedOut && !signal?.aborted) e = {code:"timeout", message:`Nessuna risposta in ${limit/60000} minuti`};
+        const temp = ["rate_limited","overloaded","upstream_error","network","timeout"].includes(e?.code) && !(e?.status>=400 && e?.status<500 && e?.status!==429 && e?.status!==408);
+        if (!temp || a>=(e?.code==="timeout"?1:waits.length) || signal?.aborted) throw e;
+        setLog(`Servizio occupato (${e.code}${e.status?" "+e.status:""}): nuovo tentativo tra ${waits[a]/1000}s…`);
+        await new Promise((res,rej)=>{ const t=setTimeout(res, waits[a]); signal?.addEventListener("abort",()=>{ clearTimeout(t); rej({code:"cancelled"}); }, {once:true}); });
+      }
+      finally{ clearTimeout(timer); signal?.removeEventListener("abort", onAbort); S.inflight--; S.lastBeat = Date.now(); }
+    }
+  },
+  async _json(prompt, images, tier, signal){
+    images = images || [];
+    const PR = typeof prompt==="string"? {sys:"", text:prompt} : prompt;
+    if (this.mode==="claude"){ const o={modelTier:tier||"default", signal}; if (images.length) o.images=images; let full = (PR.sys? PR.sys+"\n\n" : "")+PR.text; const enc=new TextEncoder(); const lim=(this.maxBytes||262144)-4096;
+      if (enc.encode(full).length > lim){ const tail="\n\n[testo ridotto per limite di lunghezza]"; let t=PR.text; while (t.length>1000 && enc.encode((PR.sys? PR.sys+"\n\n":"")+t).length > lim) t = t.slice(0, Math.floor(t.length*0.85)); full=(PR.sys? PR.sys+"\n\n":"")+t+tail; }
+      return await this.sample.json(full, o); }
+    const key = $("#apiKey").value.trim(); if (!key) throw {code:"no_key"};
+    const content=[]; for (const b of images) content.push({type:"image", source:{type:"base64", media_type:"image/jpeg", data: await blobToB64(b)}});
+    content.push({type:"text", text: PR.text + "\n\nRispondi solo con il JSON richiesto."});
+    const model = this.models[tier||"default"];
+    let r; try{ r = await fetch("https://api.anthropic.com/v1/messages",{method:"POST", signal, headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"}, body:JSON.stringify({model, max_tokens:16000, ...(PR.sys? {system:[{type:"text", text:PR.sys, cache_control:{type:"ephemeral"}}]} : {}), messages:[{role:"user", content}]})}); }
+    catch(e){ if (signal?.aborted) throw {code:"cancelled"}; throw {code:"network", message:"Connessione non riuscita"}; }
+    if (!r.ok){ const t=await r.text().catch(()=>""); throw {code: r.status===429?"rate_limited": (r.status===529||r.status===503)?"overloaded": r.status===401?"bad_key":"upstream_error", status:r.status, message:t.slice(0,300)}; }
+    const j = await r.json().catch(()=>null);
+    if (!j || j.type==="error") throw {code:"upstream_error", status:500, message: j?.error?.message || "Risposta vuota"};
+    trackUsage(model, j.usage);
+    const txt = (Array.isArray(j.content)? j.content : []).filter(c=>c.type==="text").map(c=>c.text).join("\n");
+    try{ return parseJSONLoose(txt); }catch(e){ if (j.stop_reason==="max_tokens") throw {code:"truncated", message:"Risposta troppo lunga"}; throw e; }
+  }
+};
+function parseJSONLoose(text){
+  try{ return JSON.parse(text); }catch{}
+  const f = text.match(/```(?:json)?\s*([\s\S]*?)```/); if (f){ try{ return JSON.parse(f[1]); }catch{} }
+  const a = Math.min(...["{","["].map(c=>{const i=text.indexOf(c); return i<0?Infinity:i;})), b = Math.max(text.lastIndexOf("}"), text.lastIndexOf("]"));
+  if (a<Infinity && b>a){ try{ return JSON.parse(text.slice(a,b+1)); }catch{} }
+  throw {code:"invalid_json", text};
+}
+function renderMode(){
+  const dot=$("#modeDot"), t=$("#modeTxt");
+  if (AI.mode==="claude"){ dot.className="dot "+(AI.maxImages?"ok":"warn"); t.textContent = AI.maxImages? "Claude collegato · lettura scansioni attiva" : "Claude collegato · scansioni non leggibili in questa vista"; $("#apiBox").hidden=true; }
+  else if (AI.mode==="api"){ $("#mode").classList.add("clickable"); $("#mode").onclick = ()=>{ $("#apiBox").scrollIntoView({behavior:"smooth", block:"center"}); $("#apiKey").focus(); }; $("#mode").title = "Vai al campo della chiave API"; $("#apiBox").hidden=false; const ok=!!$("#apiKey").value.trim(); dot.className="dot "+(ok?"ok":"warn"); t.textContent = ok? "Collegato con chiave API" : "Claude non collegato · inserisci la chiave API (clicca qui)"; $("#apiWarn").hidden = ok; }
+  else if (AI.mode==="fuori"){ $("#apiBox").hidden=true; dot.className="dot warn"; t.textContent="Questa versione funziona dentro Claude"; $("#fuoriBox").hidden=false; }
+  if ($("#altLink")) $("#altLink").hidden = !(VERSIONE==="api");
+  updateRunBtn();
+}
+
+/* ============ STATO ============ */
+const S = { docs:[], running:false, ctl:null, failed:[], status:{}, profile:[], crit:[], summary:"", analyzed:false, usage:{} };
+/* consumo: token per modello, con la quota letta dalla cache dei prompt */
+function trackUsage(model, u){ if (!u) return; const U=(S.usage[model]=S.usage[model]||{in:0,cr:0,cw:0,out:0,n:0}); U.in+=u.input_tokens||0; U.cr+=u.cache_read_input_tokens||0; U.cw+=u.cache_creation_input_tokens||0; U.out+=u.output_tokens||0; U.n++; }
+function usageText(){ const e=Object.entries(S.usage); if (!e.length && !S.reused) return ""; const k=n=>n>=1e6? (n/1e6).toFixed(2)+" M" : n>=1e3? Math.round(n/1e3)+" k" : String(n);
+  return "Consumo: " + e.map(([m,U])=>{ const tot=U.in+U.cr+U.cw; return `${m.replace(/^claude-/,"")} ${U.n} richieste, ${k(tot)} token in ingresso (${tot? Math.round(U.cr/tot*100):0}% da cache), ${k(U.out)} in uscita`; }).join(" · ") + (S.reused? ` · ${S.reused} documenti ripresi dalla memoria senza consumo` : ""); }
+/* memoria delle letture su questo computer (IndexedDB): un file già letto non si rilegge */
+const READ_VER="r3";
+const MEM = { db:null,
+  async open(){ if (this.db!==null) return this.db; try{ this.db = await new Promise((res,rej)=>{ const r=indexedDB.open("catalogo-edb",1); r.onupgradeneeded=()=>r.result.createObjectStore("letture"); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }catch{ this.db=false; } return this.db; },
+  async tx(mode, fn){ const db=await this.open(); if (!db) return null; return new Promise(res=>{ try{ const q=fn(db.transaction("letture",mode).objectStore("letture")); q.onsuccess=()=>res(q.result??null); q.onerror=()=>res(null); }catch{ res(null); } }); },
+  get(k){ return k? this.tx("readonly", st=>st.get(k)) : null; }, put(k,v){ return k? this.tx("readwrite", st=>st.put(v,k)) : null; },
+  clear(){ return this.tx("readwrite", st=>st.clear()); }, count(){ return this.tx("readonly", st=>st.count()); } };
+function memKey(d){ return d.hash? `${READ_VER}|${d.hash}|${$("#depth").value}|${$("#pkTipo").value}|${$("#consumo").value}` : null; }
+function tierRead(isText){ return $("#consumo").value==="eco" && isText? "quick" : "default"; }
+function tierFinal(){ return $("#consumo").value==="eco"? "default" : "complex"; }
+let docSeq = 0;
+
+/* ============ CARICAMENTO ============ */
+const SUPPORTED = /\.(pdf|p7m|jpe?g|png|docx|xlsx|txt|csv|xml)$/i;
+function registerFile(file, path){
+  const id = "D"+String(++docSeq).padStart(3,"0");
+  const parts = path.split("/"); let folderCode = ""; for (let i=parts.length-2;i>=0 && !folderCode;i--) folderCode = normCode(parts[i]); if (!folderCode) folderCode = normCode(parts[parts.length-1]);
+  if (!SUPPORTED.test(path)) { S.docs.push({id, path, name:path.split("/").pop(), file: file instanceof Blob? file : null, size:file.size||0, kind:"skip", status:"formato non supportato", folderCode, segs:[], elems:[], cites:[], text:[], read:new Set()}); return; }
+  const ext = path.toLowerCase().split(".").pop();
+  const kind = ext==="pdf"?"pdf": ext==="p7m"?"p7m": /jpe?g|png/.test(ext)?"image": ext==="docx"?"docx": ext==="xlsx"?"xlsx":"text";
+  S.docs.push({id, path, name:path.split("/").pop(), file, size:file.size, kind, status:"in coda", pages:0, text:[], scan:false, folderCode, segs:[], elems:[], read:new Set(), done:false});
+}
+async function addZip(blob, base, depth){
+  let zip; try{ zip = await JSZip.loadAsync(blob); }catch{ S.docs.push({id:"D"+String(++docSeq).padStart(3,"0"), path:base, name:base, kind:"skip", status:"ZIP non leggibile", segs:[], elems:[], cites:[], text:[], read:new Set()}); return; }
+  for (const e of Object.values(zip.files).filter(f=>!f.dir && !/(^|\/)(__MACOSX|\.DS_Store|Thumbs\.db)/i.test(f.name))){
+    const p = base + "/" + e.name;
+    if (/\.zip$/i.test(e.name) && depth<5){ await addZip(await e.async("blob"), p.replace(/\.zip$/i,""), depth+1); continue; }
+    if (!SUPPORTED.test(e.name)){ registerFile(new File([await e.async("blob")], e.name.split("/").pop()), p); continue; }
+    registerFile(new File([await e.async("blob")], e.name.split("/").pop()), p);
+  }
+}
+async function addFiles(items){
+  $("#fileCount").textContent = "Caricamento…";
+  for (const {file, path} of items){ if (/\.zip$/i.test(path)) await addZip(file, path.replace(/\.zip$/i,""), 0); else registerFile(file, path); }
+  await dedupe(); renderDocs(); updateCount(); updateRunBtn();
+}
+async function dedupe(){
+  const seen = new Map();
+  for (const d of S.docs){
+    if (!d.file || d.dupOf || d.kind==="skip") continue;
+    let h = d.size+":";
+    try{ const dig = await crypto.subtle.digest("SHA-1", await d.file.slice(0,262144).arrayBuffer()); h += [...new Uint8Array(dig)].map(x=>x.toString(16).padStart(2,"0")).join(""); }catch{ h += d.name; }
+    d.hash = h;
+    if (seen.has(h)){ d.dupOf = seen.get(h); d.kind="skip"; d.status="duplicato di "+d.dupOf; } else seen.set(h, d.id);
+  }
+}
+function updateCount(){ const im=S.docs.filter(d=>d.imported && d.kind!=="skip").length; if (im){ $("#fileCount").textContent = `${im} documenti da una verifica precedente (file originali non caricati)`; return; } const n=S.docs.filter(d=>d.kind!=="skip").length, sk=S.docs.length-n; $("#fileCount").textContent = S.docs.length? `${n} documenti da leggere${sk?` · ${sk} esclusi (duplicati o formati non supportati)`:""}` : "Nessun file caricato"; }
+async function walkEntry(entry, path, out){
+  if (entry.isFile){ await new Promise(res=>entry.file(f=>{ out.push({file:f, path:path+f.name}); res(); }, ()=>res())); }
+  else if (entry.isDirectory){ const rd=entry.createReader(); let b; do{ b = await new Promise(res=>rd.readEntries(res,()=>res([]))); for (const e of b) await walkEntry(e, path+entry.name+"/", out); } while(b.length); }
+}
+
+/* ============ ESTRAZIONE E RENDERING ============ */
+function p7mToPdf(u8){ const s=new TextDecoder("latin1").decode(u8); const a=s.indexOf("%PDF-"), b=s.lastIndexOf("%%EOF"); return (a<0||b<a)? null : u8.slice(a,b+5); }
+async function pdfData(d){ if (d.kind==="p7m"){ if (!d._pdf) d._pdf = p7mToPdf(new Uint8Array(await d.file.arrayBuffer())); return d._pdf? d._pdf.slice():null; } return new Uint8Array(await d.file.arrayBuffer()); }
+async function openPdf(d){ const data = await pdfData(d); if (!data) throw new Error("p7m"); return await pdfjsLib.getDocument({data, isEvalSupported:false, useSystemFonts:true, verbosity:0}).promise; }
+function xmlText(x){ return x.replace(/<\/w:p>|<row[^>]*>/g,"\n").replace(/<[^>]+>/g," ").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/[ \t]+/g," ").trim(); }
+async function extractLocal(d){
+  try{
+    if (d.kind==="pdf"||d.kind==="p7m"){
+      const pdf = await openPdf(d); d.pages = pdf.numPages; let chars=0; const lim=Math.min(d.pages,60);
+      for (let i=1;i<=lim;i++){ const pg=await pdf.getPage(i); const tc=await pg.getTextContent(); let t=""; for (const it of tc.items) t += it.str + (it.hasEOL?"\n":" "); t=t.replace(/[ \t]+/g," ").trim(); d.text.push(t); chars+=t.replace(/\s/g,"").length; pg.cleanup(); }
+      await pdf.destroy(); d.scan = chars/lim < 120; d.status = d.scan? "scansione":"testo";
+    } else if (d.kind==="image"){ d.pages=1; d.scan=true; d.status="immagine"; }
+    else if (d.kind==="docx"||d.kind==="xlsx"){ const z=await JSZip.loadAsync(d.file); const f=z.file(d.kind==="docx"?"word/document.xml":"xl/sharedStrings.xml"); d.text=[f? xmlText(await f.async("string")):""]; d.pages=1; d.status="testo"; }
+    else { d.text=[(await d.file.text()).slice(0,60000)]; d.pages=1; d.status="testo"; }
+  }catch{ d.kind="skip"; d.status="non leggibile"; }
+}
+async function renderPage(pdf, n, target){
+  const pg=await pdf.getPage(n); const v1=pg.getViewport({scale:1}); const vp=pg.getViewport({scale:Math.max(.5,Math.min(5,target/Math.max(v1.width,v1.height)))});
+  const c=document.createElement("canvas"); c.width=Math.round(vp.width); c.height=Math.round(vp.height); const ctx=c.getContext("2d"); ctx.fillStyle="#fff"; ctx.fillRect(0,0,c.width,c.height);
+  await pg.render({canvasContext:ctx, viewport:vp}).promise; pg.cleanup(); const b=await new Promise(r=>c.toBlob(r,"image/jpeg",.85)); c.width=c.height=0; return b;
+}
+async function pageImages(d, pages, target=1600){
+  if (d.kind==="image"){ const bmp=await createImageBitmap(d.file); const s=Math.min(1,2200/Math.max(bmp.width,bmp.height)); const c=document.createElement("canvas"); c.width=bmp.width*s; c.height=bmp.height*s; c.getContext("2d").drawImage(bmp,0,0,c.width,c.height); return [await new Promise(r=>c.toBlob(r,"image/jpeg",.85))]; }
+  const pdf=await openPdf(d); const out=[]; for (const n of pages) if (n<=pdf.numPages) out.push(await renderPage(pdf,n,target)); await pdf.destroy(); return out;
+}
+function choosePages(n, depth, cap){
+  const target = Math.min(cap, depth==="deep"? 30 : depth==="quick"? 2 : 10);
+  if (n<=target) return Array.from({length:n},(_,i)=>i+1);
+  const head = Math.max(2, Math.ceil(target*0.5)); const pages = Array.from({length:head},(_,i)=>i+1);
+  const rest = target-head; for (let k=1;k<=rest;k++){ const p = head + Math.round(k*(n-head)/(rest+1)); if (!pages.includes(p)) pages.push(p); }
+  return pages.sort((a,b)=>a-b);
+}
+
+/* ============ PROMPT ============ */
+function catalogText(){ return CAT.map(r=>`${r[0]} | ${r[2]} | ${r[3]}`).join("\n"); }
+const ROLE = "Sei un tecnico esperto di due diligence tecnico-documentale di immobili in Italia (edilizia e urbanistica, catasto, strutture, energia, sicurezza, ambiente, prevenzione incendi, impianti ai sensi del DM 37/2008). Classifichi documenti d'archivio rispetto a un catalogo documentale codificato con la precisione di un archivista tecnico.";
+const RULES = `Regole di classificazione (applicale con giudizio):
+- Un PDF può contenere più documenti: individua ogni documento distinto e le sue pagine. Le pagine non mostrate non vanno inventate.
+- Attribuisci il codice del documento per quello che È, non per il nome del file o della cartella (spesso sbagliati).
+- Esempi: SCIA antincendio (mod. PIN 2) e sue ricevute -> PI.01.02; valutazione progetto VVF / parere di conformità -> PI.01.01; dichiarazione di corretta posa porte tagliafuoco -> PI.10.02; omologazione porta -> PI.10.01; certificazione resistenza al fuoco (CERT.REI) o dichiarazione di corrispondenza in opera di elementi separanti -> PI.13.01 (pareti) o PI.13.04 (strutture); DICH.IMP di impianti antincendio -> codice PI dell'impianto; permesso di costruire o provvedimento unico SUAP -> EU.02.03; DIA -> EU.02.05 (EU.02.04 se esplicitamente alternativa al PdC); domanda/ricevuta/certificato di agibilità -> EU.02.15; SCAGI -> EU.02.16; DOCFA -> EU.03.01; tipo mappale Pregeo -> EU.04.01; rogito notarile di compravendita -> EU.11.01 (non EU.11.05, che è la scrittura privata non notarile); contratto di leasing -> EU.11.07; contratto di locazione -> EU.11.08; relazione ex Legge 10/1991 e attestato di qualificazione -> EU.07.02; APE -> EU.07.03; denuncia opere in c.a. L.1086 e relazione a strutture ultimate -> EU.08.01; certificato di collaudo statico e prove di carico -> EU.08.03; PSC -> EU.09.04; fascicolo dell'opera -> EU.09.06; DI.CO/DI.RI ai sensi del DM 37/08 -> codice TI dell'impianto (elettrico TI.03.02, illuminazione di emergenza TI.03.04, terra TI.02.03, fulmini TI.04.07, idrico TI.08.02, gas TI.23.01, climatizzazione TI.13.03, antintrusione TI.22.02 ...); progetto impianto -> codice "progetto tecnico" dell'impianto; denuncia INAIL DPR 462 impianto di terra -> TI.02.02 (e TI.04.06 se riguarda anche le scariche atmosferiche); valutazione rischio fulminazione CEI EN 62305 -> TI.04.09; fascicolo tecnico cancelli/porte motorizzate direttiva macchine -> TI.10.03 / TI.19.03.
+- Documenti non previsti dal catalogo (fatture, contratti d'appalto, polizze, DURC, POS, SAL, computi, offerte, corrispondenza) -> codice "FUORI_CATALOGO" con tipo descrittivo; se la corrispondenza CITA un documento a catalogo, riportalo in "citazioni".
+- "ruolo": atto = il documento stesso firmato/completo; allegato = allegato o elaborato di un atto; ricevuta = ricevuta di deposito/protocollo; copia_incompleta = mancano pagine, firme o allegati obbligatori; bozza = non firmato/non protocollato.
+- "elementi_rilevati": impianti, sistemi ed elementi dell'immobile di cui il documento prova l'esistenza (es. "impianto sprinkler", "rete idranti", "gruppo elettrogeno", "fotovoltaico", "ascensore", "centrale termica gas", "pedane idrauliche", "porte tagliafuoco", "attività VVF 70.2.C", "copertura con lucernari", "serbatoio interrato", "vincolo paesaggistico"): servono a decidere quali voci del catalogo sono applicabili.
+- Leggi con cura timbri, protocolli, date, firme, numeri; riporta i dati come scritti, lascia vuoto ciò che non è leggibile.`;
+const SEG_SCHEMA = `{"id":"D001","documenti":[{"pagine":"1-4","codice":"PI.01.02 oppure FUORI_CATALOGO","codici_secondari":["..."],"tipo":"descrizione breve del documento","data":"data del documento (firma, rilascio o protocollo) in GG/MM/AAAA; MM/AAAA o AAAA se incompleta; vuoto se assente","estremi":"numeri di protocollo, pratica, matricola","emittente":"ente o soggetto","oggetto":"una riga, riferita all'impianto o alla parte di immobile","ruolo":"atto|allegato|ricevuta|copia_incompleta|bozza","firmato":true,"completezza":"note sintetiche su allegati o firme mancanti","confidenza":"alta|media|bassa"}],"citazioni":[{"codice":"","descrizione":"documento citato","estremi":"","data":""}],"elementi_rilevati":["..."]}`;
+function segPrompt(d, pages, isText, range){
+  const ctx = $("#context").value.trim();
+  const sys = `${ROLE}\nImmobile: ${$("#imCod").value||"n.d."} – ${$("#imInd").value||""} – uso ${$("#imUso").value}.${ctx?` Note dell'utente: ${ctx}.`:""}\n\nCATALOGO (codice | tipologia | documento):\n${catalogText()}\n\n${RULES}`;
+  const head = `Documento ${d.id}: file "${d.path}"${d.folderCode?` (archiviato nella cartella ${d.folderCode})`:""}, ${d.pages} pagine totali.`;
+  const r0 = range? range[0] : 1, txt = range? (d.text||[]).slice(range[0]-1, range[1]) : (d.text||[]);
+  const vvf0 = $("#pkTipo")?.value==="vvf"? `\nIl pacchetto proviene da un ACCESSO AGLI ATTI presso il Comando dei Vigili del Fuoco (pratica di prevenzione incendi). Distingui gli atti della pratica (istanza di valutazione progetto, SCIA, parere, ricevute, relazione tecnica e tavole antincendio, asseverazioni della pratica: codice PI.01 pertinente) dagli allegati che rispondono ad altre voci del catalogo (DICO/DIRI degli impianti, certificazioni di resistenza al fuoco, dichiarazioni di corretta posa, omologazioni, collaudi, verifiche): a questi ultimi attribuisci il codice proprio e indica in "codici_secondari" il codice PI.01 della pratica.` : "";
+  const body = (isText? `\nTesto estratto${range?` delle pagine ${range[0]}-${range[1]}`:""} (pagine separate da "--- pagina N ---"):\n${txt.map((t,i)=>`--- pagina ${i+r0} ---\n${t}`).join("\n").slice(0,70000)}` : `\nTi mostro le pagine ${pages.join(", ")} in quest'ordine${pages.length<d.pages?` (le altre pagine non sono mostrate: indica nel campo "pagine" solo intervalli coerenti con quelle viste, es. "6-?" se un documento prosegue oltre)`:""}.`);
+  return {sys: `${sys}${vvf0}\n\nRispondi solo con JSON in questa forma:\n${SEG_SCHEMA}`, text: `${head}${body}`};
+}
+function synthPrompt(area, evidence, profile){
+  const rows = CAT.filter(r=>r[1]===area).map(r=>{ const ev = evidence[r[0]]; return `${r[0]} | ${r[2]} | ${r[3]} | importanza ${r[4]}${ev? " | EVIDENZE: "+ev : " | nessuna evidenza"}`; }).join("\n");
+  return `${ROLE}\nOggi è il ${todayIt()}. Immobile: ${$("#imCod").value||"n.d."} – ${$("#imInd").value||""} – uso ${$("#imUso").value}.${$("#context").value.trim()?` Note: ${$("#context").value.trim()}.`:""}\n\nProfilo dell'immobile ricavato dai documenti (elementi di cui esiste prova, con numero di documenti):\n${profile.map(p=>`- ${p[0]} (${p[1]})`).join("\n")||"- nessun elemento rilevato"}\n\nVoci del catalogo per l'area ${area}, con le evidenze trovate nel pacchetto (id documento, pagine, ruolo, data, note):\n${rows}\n\nValuta OGNI voce come farebbe un esperto di due diligence e assegna uno stato:\n- presente: documento pertinente, firmato o protocollato, utilizzabile;\n- parziale: presente ma incompleto, non firmato, solo citato in altri documenti, riferito solo a una parte dell'immobile o superato da eventi successivi (es. rinnovo VVF scaduto, varianti successive non documentate);\n- mancante: l'elemento è atteso per questo immobile (per obbligo normativo, per la destinazione d'uso o perché il profilo ne prova l'esistenza) e il documento non c'è;\n- non_applicabile: l'elemento non esiste o non riguarda l'immobile (es. sanatorie se non ci sono abusi noti, ENAC senza vincolo aeroportuale, voci alternative tra loro quando ne è presente un'altra);\n- da_verificare: l'applicabilità non è deducibile dai documenti (es. vincoli da verificare presso gli enti).\nTieni conto delle voci alternative (es. licenza/concessione/PdC/DIA/SCIA: basta il titolo pertinente; certificato di agibilità o SCAGI) e delle scadenze (es. rinnovo periodico VVF ogni 5 anni, verifiche periodiche DPR 462, ascensori, centrali termiche). Per mancanti e parziali indica l'azione concreta per reperire il documento (es. accesso agli atti presso Comune/VVF/Genio Civile, richiesta al manutentore, all'installatore, al tenant, visura).\nRispondi solo con JSON: {"voci":[{"codice":"EU.02.03","stato":"presente|parziale|mancante|non_applicabile|da_verificare","motivazione":"max 25 parole, con riferimento ai documenti (es. D004 p.1-3)","azione":"max 15 parole, vuoto se presente"}],"criticita":["max 6 criticità principali dell'area, una frase ciascuna"]}`;
+}
+
+/* ============ PIPELINE ============ */
+function setPhase(t){ $("#phase").textContent=t; } function setLog(t){ $("#log").textContent=t; } function setBar(p){ $("#bar").style.width=Math.max(0,Math.min(100,p))+"%"; }
+async function pool(tasks, n, onDone){ let i=0, done=0; const res=[]; async function w(){ while(i<tasks.length){ if (S.ctl?.signal.aborted) return; const k=i++; try{ res[k]=await tasks[k](); }catch(e){ res[k]={__err:e}; } done++; onDone&&onDone(done,tasks.length); } } await Promise.all(Array.from({length:Math.min(n,tasks.length)},w)); return res; }
+const FATAL = ["not_granted","sampling_disabled","no_key","session_expired","bad_key"];
+function errText(e){ const c=e?.code; return c==="not_granted"?"Uso di Claude non consentito per questa pagina: consentilo per proseguire.":c==="rate_limited"?"Limite di utilizzo raggiunto: riprova più tardi.":c==="no_key"?"Inserisci la chiave API.":c==="cancelled"?"Interrotto.":c==="images_unavailable"?"Questa vista non può inviare immagini: le scansioni non sono leggibili.":c==="truncated"?"Risposta troppo lunga (documento molto esteso).":c==="timeout"?"Nessuna risposta entro il tempo massimo.":c==="overloaded"?"Servizio temporaneamente sovraccarico.":c==="network"?"Connessione non riuscita.":c==="bad_key"?"Chiave API non valida.":c==="invalid_json"?"Risposta non interpretabile.":(e?.message? String(e.message).slice(0,160):"Errore imprevisto."); }
+function guardFatal(res){ for (const r of res) if (r?.__err && FATAL.includes(r.__err.code)) throw r.__err; }
+
+async function runAnalysis(){
+  if (S.running) return; S.running=true; S.ctl=new AbortController(); S.failed=[]; S.lastBeat=Date.now(); S.t0=Date.now(); S.usage={}; S.reused=0;
+  const hb = setInterval(()=>{ const el=$("#beat"); if (!el) return; const tot=Math.round((Date.now()-S.t0)/1000), idle=Math.round((Date.now()-S.lastBeat)/1000);
+    el.textContent = `In corso da ${Math.floor(tot/60)}:${String(tot%60).padStart(2,"0")}` + (S.inflight? ` · ${S.inflight} richieste a Claude in attesa${idle>20?` (ultima risposta ${idle}s fa – i documenti lunghi possono richiedere qualche minuto)`:""}` : ""); if ($("#usage")) $("#usage").textContent=usageText(); }, 1000);
+  $("#run").disabled=true; $("#stop").hidden=false; $("#retry").hidden=true;
+  const depth=$("#depth").value; const todo=S.docs.filter(d=>d.kind!=="skip" && !d.imported);
+  try{
+    setPhase("Estrazione del testo"); let k=0;
+    for (const d of todo){ if (S.ctl.signal.aborted) throw {code:"cancelled"}; if (!d.pages) await extractLocal(d); k++; setBar(k/todo.length*10); setLog(`${k}/${todo.length} · ${d.path}`); if (k%8===0) renderDocs(); }
+    const live = todo.filter(d=>d.kind!=="skip" && !d.done);
+    // budget pagine
+    const budget = depth==="deep"? 2500 : depth==="quick"? 99999 : 1100;
+    const want = live.filter(d=>d.scan).reduce((a,d)=>a+choosePages(d.pages, depth, 99).length, 0);
+    const cap = want>budget? Math.max(2, Math.floor(budget / Math.max(1, live.filter(d=>d.scan).length))) : 99;
+    setPhase("Lettura e classificazione sul catalogo");
+    const tasks=[]; S.reused=0;
+    if ($("#reuse").checked) for (const d of live){ const m = await MEM.get(memKey(d)); if (m && Array.isArray(m.segs)){ d.segs=m.segs; d.cites=m.cites||[]; d.elems=m.elems||[]; d.read=new Set(m.read||[]); d.fromMem=true; d.status="da memoria (già letto)"; S.reused++; } }
+    if (S.reused) setLog(`${S.reused} documenti già letti in precedenza su questo computer: non vengono riletti`);
+    for (const d of live){ if (d.fromMem) continue;
+      if (!d.scan){ tasks.push(mkSeg(d, null, true)); continue; }
+      if (!AI.maxImages){ d.status="scansione non leggibile qui"; continue; }
+      const pages = choosePages(d.pages, depth, cap); const ch = Math.max(1, Math.min(AI.maxImages, 20));
+      for (let i=0;i<pages.length;i+=ch) tasks.push(mkSeg(d, pages.slice(i,i+ch), false));
+    }
+    if (todo.some(d=>d.scan) && !AI.maxImages) setLog(errText({code:"images_unavailable"}));
+    const res = await pool(tasks, 2, (dn,tot)=>{ setBar(10+dn/tot*70); setLog(`Lettura: ${dn} di ${tot} lotti`); renderDocs(); });
+    guardFatal(res);
+    live.forEach(d=>{ if (!S.failed.some(f=>f.d===d)) { d.done=true; if (d.status==="in lettura"||d.status==="scansione"||d.status==="testo") d.status="classificato"; } });
+    for (const d of live) if (d.done && !d.fromMem && d.segs.length) await MEM.put(memKey(d), {segs:d.segs, cites:d.cites||[], elems:d.elems||[], read:[...(d.read||[])], path:d.path, at:Date.now()});
+    renderDocs();
+    setPhase("Valutazione esperta del catalogo");
+    try{ await synthesize(); }
+    catch(e){ if (FATAL.includes(e?.code)||e?.code==="cancelled") throw e;
+      // la valutazione non si ferma: le voci non valutate restano "da verificare" e si possono riprovare
+      for (const r of CAT) if (!S.status[r[0]]?.stato) S.status[r[0]] = {stato:"da_verificare", motivazione:"Valutazione non completata: "+errText(e), azione:""};
+      S.failed.push({synth:"tutte"}); }
+    S.analyzed=true;
+    if (!S.ctl.signal.aborted){ setPhase("Dal documentale al campo"); setLog("Controllo della lettura, impostazione del sito, schedule preliminare e guida di campo (2-4 minuti)"); setBar(97);
+      try{ await buildGuide(S.ctl.signal); }
+      catch(e){ if (FATAL.includes(e?.code)||e?.code==="cancelled") throw e; S.guide = {...(S.guide||{}), err:[...(S.guide?.err||[]), "Guida non preparata: "+errText(e)]}; } }
+    setPhase(S.failed.length? `Completata con ${S.failed.length} lotti non riusciti` : "Completata"); setBar(100); setLog("");
+  }catch(e){ setPhase(e?.code==="cancelled"?"Interrotta":"Fermata"); setLog(errText(e)); }
+  finally{ clearInterval(hb); if ($("#beat")) $("#beat").textContent=""; if ($("#usage")) $("#usage").textContent=usageText(); S.running=false; $("#stop").hidden=true; $("#retry").hidden=!S.failed.length; updateRunBtn(); renderDocs(); renderMatrix(); renderGuide(); }
+}
+function mkSeg(d, pages, isText){ return async ()=>{
+  d.status="in lettura";
+  const take = (out)=>{
+    if (!out || typeof out!=="object") return;
+    const docs = Array.isArray(out)? out : Array.isArray(out.documenti)? out.documenti : [];
+    for (const s of docs){ if (!s || typeof s!=="object") continue; s.codice = s.codice==="FUORI_CATALOGO"? "FUORI_CATALOGO" : (normCode(s.codice) || "FUORI_CATALOGO"); s.codici_secondari=(Array.isArray(s.codici_secondari)? s.codici_secondari:[]).map(normCode).filter(Boolean); s.data=normDate(s.data); d.segs.push(s); }
+    for (const c of (Array.isArray(out.citazioni)? out.citazioni:[])){ const n=normCode(c?.codice); if (n) (d.cites=d.cites||[]).push({...c, codice:n, data:normDate(c?.data)}); }
+    (d.elems=d.elems||[]).push(...(Array.isArray(out.elementi_rilevati)? out.elementi_rilevati:[]).map(x=>String(x).trim()).filter(Boolean));
+  };
+  try{
+    if (isText){
+      try{ take(await AI.json(segPrompt(d, [], true), [], tierRead(true), S.ctl.signal)); }
+      catch(e){
+        // documento lungo: risposta troncata o non leggibile → si divide in blocchi di pagine e si prosegue
+        if (!["truncated","invalid_json"].includes(e?.code) || (d.text||[]).length<2) throw e;
+        const n=(d.text||[]).length, step=Math.max(1, Math.ceil(n/Math.ceil(n/8))); let ok=0;
+        for (let a=1;a<=n;a+=step){ setLog(`${d.id}: documento lungo, lettura a blocchi (pagine ${a}-${Math.min(n,a+step-1)})`);
+          try{ take(await AI.json(segPrompt(d, [], true, [a, Math.min(n,a+step-1)]), [], tierRead(true), S.ctl.signal)); ok++; }
+          catch(e2){ if (FATAL.includes(e2?.code)||e2?.code==="cancelled") throw e2; }
+        }
+        if (!ok) throw e;
+      }
+      for (let i=1;i<=Math.max(1,(d.text||[]).length);i++) d.read.add(i);
+    } else {
+      const imgs = await pageImages(d, pages, 1568);
+      take(await AI.json(segPrompt(d, pages||[], false), imgs, "default", S.ctl.signal));
+      (pages||[]).forEach(p=>d.read.add(p));
+    }
+  }catch(e){ if (FATAL.includes(e?.code)||e?.code==="cancelled") throw e; S.failed.push({d, pages, isText, err:errText(e)}); d.status="non letto: "+errText(e).slice(0,60); throw e; }
+}; }
+
+function buildEvidence(){
+  const ev = {}, ref = {};
+  for (const d of S.docs){
+    for (const s of (d.segs||[])){
+      const codes = [s.codice, ...(s.codici_secondari||[])].filter(c=>c && c!=="FUORI_CATALOGO");
+      codes.forEach((c,i)=>{ (ref[c]=ref[c]||[]).push({d, s, sec:i>0}); });
+    }
+    for (const c of (d.cites||[])) (ref[c.codice]=ref[c.codice]||[]).push({d, s:{pagine:"", ruolo:"citato", data:c.data, estremi:c.estremi, tipo:c.descrizione}, cite:true});
+  }
+  for (const list of Object.values(ref)) list.sort((a,b)=>{ const k=x=>{ const v=dateKey(x.s.data); return v==="99999999"?"0":v; }; return k(b).localeCompare(k(a)); });
+  for (const [c, list] of Object.entries(ref)) ev[c] = list.slice(0,8).map(x=>`${x.d.id} p.${x.s.pagine||"?"} ${x.cite?"citato":x.s.ruolo||""}${x.sec?" (secondario)":""}${x.s.data?" "+x.s.data:""}${x.s.estremi?" "+x.s.estremi:""}${x.s.completezza?" – "+x.s.completezza:""}${x.s.tipo?" – "+x.s.tipo:""}`).join("; ").slice(0,900);
+  return {ev, ref};
+}
+function buildProfile(){
+  const m = new Map();
+  for (const d of S.docs) for (const e of new Set((d.elems||[]).map(x=>String(x).toLowerCase()))) m.set(e, (m.get(e)||0)+1);
+  return [...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,60);
+}
+function baseline(ref){
+  for (const r of CAT){
+    const list = ref[r[0]]||[]; const strong = list.filter(x=>!x.cite && !x.sec && x.s.ruolo==="atto" && x.s.confidenza!=="bassa");
+    const st = strong.length? "presente" : list.length? "parziale" : "";
+    if (!S.status[r[0]]?.manual) S.status[r[0]] = {stato: st, motivazione: st? "Valutazione automatica dalle evidenze" : "", azione:""};
+  }
+}
+async function synthesize(){
+  const {ev, ref} = buildEvidence(); S.ref = ref; S.profile = buildProfile(); baseline(ref); renderMatrix();
+  const areas = [...new Set(CAT.map(r=>r[1]))]; S.crit=[];
+  const res = await pool(areas.map(a=>async ()=>{
+    setLog(`Valutazione area ${a}`);
+    const out = await AI.json(synthPrompt(a, ev, S.profile), [], tierFinal(), S.ctl.signal);
+    const voci = Array.isArray(out)? out : Array.isArray(out?.voci)? out.voci : [];
+    for (const v of voci){ if (!v) continue; const c=normCode(v.codice); if (!c || !catByCode(c) || S.status[c]?.manual) continue; S.status[c] = {stato: STATI[v.stato]? v.stato : (S.status[c]?.stato||"da_verificare"), motivazione: v.motivazione||"", azione: v.azione||""}; }
+    (Array.isArray(out?.criticita)? out.criticita:[]).forEach(x=>S.crit.push({area:a, testo:String(x)}));
+  }), 3, (dn,tot)=>{ setBar(80+dn/tot*20); renderMatrix(); });
+  guardFatal(res);
+  res.forEach((r,i)=>{ if (r?.__err) S.failed.push({synth:areas[i]}); });
+  for (const r of CAT) if (!S.status[r[0]]?.stato) S.status[r[0]] = {stato:"da_verificare", motivazione:"Valutazione non completata", azione:""};
+}
+
+/* ============ GUIDA AL SOPRALLUOGO ============ */
+/* Dopo la lettura: (A) controllo della lettura, (S) impostazione del sito e dati generali,
+   (R) schedule preliminare per la relazione, (G) guida operativa di campo costruita dalle mancanze. */
+function readCount(d){ return d.read instanceof Set? d.read.size : Array.isArray(d.read)? d.read.length : 0; }
+function readQC(){
+  const live = S.docs.filter(d=>d.kind!=="skip");
+  const nonLetti = live.filter(d=>!d.segs.length);
+  const campione = live.filter(d=>d.segs.length && d.pages>1 && readCount(d) < d.pages);
+  const bassa = []; for (const d of live) for (const s of d.segs) if (s.confidenza==="bassa") bassa.push({d,s});
+  const senzaData = CAT.filter(r=>r[5]==="Si" && (S.ref?.[r[0]]||[]).some(x=>!x.cite) && !(S.ref?.[r[0]]||[]).some(x=>!x.cite && x.s.data));
+  const fuori = live.filter(d=>d.segs.length && d.segs.every(s=>s.codice==="FUORI_CATALOGO"));
+  const esclusi = S.docs.filter(d=>d.kind==="skip" && /non leggibile|non supportato/.test(d.status||""));
+  return {tot:live.length, letti:live.length-nonLetti.length, nonLetti, campione, bassa, senzaData, fuori, esclusi};
+}
+function qcText(q){
+  const L = (a,f)=>a.slice(0,40).map(f).join("; ");
+  return [`Documenti da leggere ${q.tot}, letti ${q.letti}.`,
+    q.nonLetti.length? `Non letti (${q.nonLetti.length}): ${L(q.nonLetti, d=>`${d.id} ${d.name} (${d.status||""})`)}` : "",
+    q.campione.length? `Letti solo in parte (${q.campione.length}): ${L(q.campione, d=>`${d.id} ${readCount(d)}/${d.pages} pagine`)}` : "",
+    q.bassa.length? `Attribuzioni a confidenza bassa (${q.bassa.length}): ${L(q.bassa, x=>`${x.d.id} p.${x.s.pagine||"?"} ${x.s.codice}`)}` : "",
+    q.senzaData.length? `Voci con scadenza senza data leggibile: ${q.senzaData.map(r=>r[0]).join(", ")}` : "",
+    q.fuori.length? `Documenti interamente fuori catalogo: ${q.fuori.length}` : "",
+    q.esclusi.length? `File non leggibili o in formato non supportato: ${q.esclusi.length}` : ""].filter(Boolean).join("\n");
+}
+function factsDigest(limit){
+  const rows=[];
+  for (const d of S.docs) for (const s of (d.segs||[])){
+    const txt = `${s.tipo||""} ${s.oggetto||""} ${s.estremi||""}`;
+    if (s.codice==="FUORI_CATALOGO" && !/matricol|kw|potenz|dichiaraz|verbale|libretto|collaud|verific|certific|manutenz|registro|rapporto|contratt|locazion/i.test(txt)) continue;
+    const pr = /^(TI|PI)\./.test(s.codice)? 0 : /^EU\./.test(s.codice)? 1 : 2;
+    rows.push({pr, k:s.codice+dateKey(s.data), t:`${d.id} p.${s.pagine||"?"} | ${s.codice} | ${s.data||"s.d."} | ${s.tipo||""} | ${s.oggetto||""} | ${s.estremi||""} | ${s.emittente||""} | ${s.ruolo||""}${s.completezza?" | "+s.completezza:""}${s.confidenza==="bassa"?" | CONFIDENZA BASSA":""}`.replace(/\s+/g," ").slice(0,420)});
+  }
+  rows.sort((a,b)=>a.pr-b.pr || a.k.localeCompare(b.k));
+  let out="", n=0; for (const r of rows){ if (out.length+r.t.length>limit) break; out+=r.t+"\n"; n++; }
+  return {text:out, n, tot:rows.length};
+}
+function statusDigest(){
+  return CAT.filter(r=>["mancante","parziale","da_verificare"].includes(S.status[r[0]]?.stato)).map(r=>{ const st=S.status[r[0]]; return `${r[0]} | ${r[3]} | imp. ${r[4]} | ${STATI[st.stato]} | ${st.motivazione||""}`; }).join("\n");
+}
+function presentDigest(){ return CAT.filter(r=>S.status[r[0]]?.stato==="presente").map(r=>`${r[0]} | ${r[3]} | ${estremiText(r[0]).split("\n")[0]||""}`).join("\n"); }
+function guideHead(){ return `${ROLE}\nOggi è il ${todayIt()}. Immobile: ${$("#imCod").value||"n.d."} – ${$("#imInd").value||""} – uso ${$("#imUso").value}.${$("#context").value.trim()?` Note: ${$("#context").value.trim()}.`:""} Prospettiva: Proprietà (distingui ciò che compete al conduttore).`; }
+function ctxBlock(dg){
+  return `Profilo dell'immobile dai documenti (elemento, n. documenti): ${S.profile.map(p=>`${p[0]} (${p[1]})`).join("; ")||"n.d."}\n\nVoci PRESENTI (codice | documento | estremi):\n${presentDigest()||"nessuna"}\n\nVoci MANCANTI, PARZIALI o DA VERIFICARE (codice | documento | importanza | stato | motivazione):\n${statusDigest()||"nessuna"}\n\nCriticità:\n${S.crit.map(x=>"- "+x.testo).join("\n")||"nessuna"}\n\nEstratti dei documenti letti (id p.pagine | codice | data | tipo | oggetto | estremi | emittente | ruolo | note), ${dg.n} di ${dg.tot}, ordinati per codice:\n${dg.text}`;
+}
+const ELEMENTI = ["Impianto elettrico","Illuminazione di sicurezza","Impianto di terra e scariche atmosferiche","Rete idranti e alimentazione idrica antincendio","Estintori","Rivelazione e allarme incendio","Porte e compartimentazioni","Uscite di sicurezza","Impianti meccanici (riscaldamento e climatizzazione)","Impianto gas","Impianto idrico-sanitario e scarichi","Pedane, portoni e chiusure motorizzate","Antintrusione e videosorveglianza","Ascensori e sollevamento","Fotovoltaico","Involucro e copertura","Aree esterne"];
+const CAMPI = ["Indirizzo","Comune e provincia","Dati catastali","Proprietà","Conduttore / utilizzatore","Destinazione d'uso","Anno di costruzione","Interventi successivi","Superficie","Piani e corpi di fabbrica","Struttura e copertura","Titoli edilizi","Agibilità","Attività soggette VVF (DPR 151/2011)","Pratica VVF e ultimo atto","Fornitura elettrica","Fornitura gas","Alimentazione idrica antincendio"];
+const PERCORSO = "esterno e piazzale; involucro e copertura; consegna energia e quadri elettrici; centrale termica e impianti meccanici; antincendio (alimentazione idrica e idranti, estintori, porte e compartimentazioni, uscite e maniglioni, illuminazione di sicurezza, rivelazione); aree operative (ribalte, pedane, portoni, cancelli, lavaggio); uffici e locali tecnici";
+function promptLettura(dg, q){
+  return {sys: guideHead()+"\n\n"+ctxBlock(dg), text: `Uno strumento automatico ha letto il pacchetto documentale e ha attribuito ogni documento a una voce del catalogo. Prima di mandare il tecnico in campo devi CONTROLLARE CHE LA LETTURA SIA STATA FATTA BENE.\n\nIndicatori di qualità della lettura:\n${qcText(q)}\n\nCerca, citando sempre gli id dei documenti:\n- numeri letti in modo diverso tra documenti (pratiche, protocolli, matricole, POD/PDR), date impossibili o incoerenti (future, anteriori alla costruzione, rinnovi prima del rilascio);\n- documenti attribuiti a una voce non pertinente, o voci valutate mancanti/parziali per le quali gli estratti mostrano un documento idoneo (e il contrario);\n- dati di impianto discordanti tra documenti (numero e potenza di generatori, quantità di porte, idranti, apparecchi);\n- documenti superati da documenti più recenti, scadenze già trascorse alla data di oggi;\n- lacune di lettura che possono cambiare l'esito (documenti non letti o letti in parte su voci di importanza alta).\nNon inventare: se un punto non è dimostrabile dagli estratti, non scriverlo.\nRispondi solo con JSON: {"giudizio":"affidabile|affidabile con riserve|da integrare prima del sopralluogo","sintesi":"max 60 parole: quanto ci si può fidare della lettura e perché","punti":[{"tipo":"lettura|classificazione|valutazione|lacuna","tema":"max 6 parole","problema":"max 30 parole con i valori trovati","rif":"es. D012 p.3; D045","azione":"max 20 parole (es. rileggere a mano D012 p.3; correggere TI.03.02 in parziale)"}],"incoerenze":[{"tema":"max 6 parole","dettaglio":"max 35 parole con i valori discordanti","rif":"id documenti","come":"in campo|richiesta documentale|accesso agli atti","verifica":"max 20 parole: cosa fare per scioglierla"}]}\nMassimo 15 punti e 10 incoerenze, i più rilevanti per il giudizio sull'immobile.`};
+}
+function promptSito(dg){
+  return {sys: guideHead()+"\n\n"+ctxBlock(dg), text: `Dall'analisi documentale ricava la PRIMA IMPOSTAZIONE DEL SITO e i DATI GENERALI che compileranno la relazione tecnica da consegnare (modello Technical Due Diligence). Usa solo dati presenti negli estratti, citando gli id; se un dato non c'è lascia "valore" vuoto (sarà rilevato in campo). "certezza": documento = letto in un documento; dedotto = ricavato da più documenti o per esclusione.\n\nCampi dei dati generali, in quest'ordine: ${CAMPI.join("; ")}.\nElementi della relazione (usa esattamente questi nomi in "elemento"): ${ELEMENTI.join("; ")}.\n- "sistemi": un elemento per ogni sistema di cui i documenti provano l'esistenza o che è tipico e obbligatorio per questo uso; "componenti" con quantità, potenze, marche, matricole e anni letti; "dm37": ante = realizzato prima del 27/03/2008, post = dopo, misto = parti ante e post; "dico": presente/parziale/assente per la documentazione DM 37/08 o L.46/90; "caso" = caso preliminare di regolarizzazione (A documentato; B DICO senza allegati; C ante 2008 senza DICO → DIRI; D post 2008 senza DICO → relazione di adeguamento e nuova DICO; E non applicabile) da confermare in campo; "documenti" = paragrafo per la relazione su cosa risulta dai documenti; "da_rilevare" = cosa il tecnico deve censire in campo per completare la scheda.\n- "verifiche": verifiche periodiche obbligatorie (DPR 462/01, rinnovo periodico VVF, presidi antincendio DM 01/09/2021, centrali termiche DPR 74/2013, F-gas, ascensori DPR 162/99, porte e cancelli motorizzati) con ultima evidenza e scadenza calcolata ad oggi.\n- "zone": corpi di fabbrica, aree e locali tecnici da percorrere, come risultano dalle tavole e dai documenti.\nRispondi solo con JSON: {"immobile":[{"campo":"","valore":"max 30 parole","rif":"","certezza":"documento|dedotto|"}],"descrizione":"80-130 parole: descrizione dell'immobile per la relazione, solo da documenti","zone":["..."],"sistemi":[{"elemento":"","componenti":"max 35 parole","anno":"","dm37":"ante|post|misto|n.d.","dico":"presente|parziale|assente","caso":"A|B|C|D|E|n.d.","voci":["codici catalogo"],"documenti":"max 60 parole con id","rif":"","da_rilevare":"max 25 parole"}],"verifiche":[{"impianto":"","norma":"","ultima":"data o vuoto","scadenza":"","stato":"in corso|scaduta|non documentata","rif":""}]}`};
+}
+function promptSchedule(dg){
+  return {sys: guideHead()+"\n\n"+ctxBlock(dg), text: `Prepara la SCHEDULE PRELIMINARE e la sintesi provvisoria per la bozza della relazione tecnica (modello RICS Technical Due Diligence), basate SOLO sull'analisi documentale. Ogni riga è una carenza documentale, una scadenza o un rischio che i documenti dimostrano.\n- Semaforo provvisorio: ROSSO = obbligo scaduto o violato, o rischio per la sicurezza dimostrato dai documenti (es. rinnovo VVF scaduto, verifiche DPR 462 scadute); GIALLO = carenza documentale regolarizzabile; non usare VERDE nella schedule.\n- Orizzonte: IMMEDIATO | BREVE (entro 1 anno) | MEDIO (2-5 anni) | LUNGO (6-10 anni) | ENQUIRY (approfondimento).\n- Resp: P = proprietà, C = conduttore, P/C = da ripartire secondo contratto.\n- Le azioni sono reperimento documenti, accessi agli atti, verifiche, DIRI, relazioni di adeguamento: non proporre sostituzioni o lavori che i documenti non dimostrano necessari.\n- "conferma": cosa deve vedere il tecnico in campo per confermare, ridimensionare o chiudere la riga.\n\nRispondi solo con JSON: {"ambiti":[{"ambito":"Impianti elettrici e speciali|Prevenzione incendi|Impianti meccanici e gas|Involucro e strutture|Titoli edilizi e catasto|Ambiente e materiali pericolosi","semaforo":"ROSSO|GIALLO|VERDE|N.V.","commento":"max 25 parole"}],"rischi":["max 6 frasi: principali rischi per la Proprietà emersi dai documenti"],"schedule":[{"elemento":"nome elemento","rilievo":"max 25 parole con id","conseguenza":"max 20 parole","azione":"max 20 parole","orizzonte":"","semaforo":"ROSSO|GIALLO","resp":"P|C|P/C","voce":"codice catalogo","conferma":"max 20 parole"}],"indagini":["max 8 richieste o indagini da completare, con destinatario"]}\nMassimo 25 righe di schedule, ordinate per gravità; tutti e sei gli ambiti.`};
+}
+function promptCampo(dg){
+  return {sys: guideHead()+"\n\n"+ctxBlock(dg), text: `Prepara la GUIDA OPERATIVA DI CAMPO per il verificatore, PARTENDO DALLE MANCANZE e dalle carenze rilevate nell'analisi documentale (voci mancanti, parziali, da verificare, criticità, scadenze). Per ogni mancanza che il campo può chiarire, ridimensionare o quantificare definisci uno o più controlli; aggiungi i controlli che servono a confermare i dati chiave dei documenti (quantità, potenze, matricole) e a scoprire modifiche non documentate. Non creare controlli per voci puramente amministrative (catasto, titoli) salvo che il campo ne possa verificare il presupposto (es. opere visibili non documentate: tettoie, tunnel, ampliamenti).\n\nRegole:\n- "zona": usa l'ordine di percorso ${PERCORSO}.\n- "mancanza": la lacuna documentale o l'incoerenza da cui nasce il controllo.\n- "atteso": cosa risulta dai documenti, con dati concreti e id; "non documentato" se nulla.\n- "rilievo": cosa portare a casa (foto di targhe, conteggi, misure, dichiarazione del referente).\n- "se_difforme": come cambia la relazione (es. caso DM 37 da C a D → relazione di adeguamento; riga a ROSSO; servizio di verifica da attivare).\n- Ogni controllo verificabile a vista o con domanda in sito; prove strumentali solo "se previsto dall'incarico".\n- "focus": le 5-7 cose su cui il verificatore deve concentrarsi, perché decidono il giudizio della Proprietà.\n- Massimo 45 controlli; priorità alta solo se l'esito cambia rischio o costi.\nRispondi solo con JSON: {"focus":[{"tema":"max 6 parole","perche":"max 30 parole","portare_a_casa":"max 25 parole"}],"controlli":[{"zona":"","mancanza":"max 15 parole","voce":"codice catalogo","verifica":"max 20 parole","atteso":"max 35 parole","rif":"","rilievo":"max 20 parole","se_difforme":"max 25 parole","priorita":"alta|media|bassa"}],"da_cercare":[{"elemento":"","motivo":"max 25 parole","rif":""}],"richieste":[{"a_chi":"conduttore|proprietà|manutentore|referente in sito","richiesta":"max 25 parole","voce":"codice catalogo"}]}`};
+}
+const arrObj = v=>Array.isArray(v)? v.filter(x=>x && typeof x==="object") : [];
+const arrStr = v=>Array.isArray(v)? v.map(x=>typeof x==="string"? x : x?.testo||x?.text||"").filter(Boolean) : [];
+function numberControls(list){
+  const order=[]; for (const c of list){ const z=String(c.zona||"Altro"); if (!order.includes(z)) order.push(z); }
+  const out=[]; let n=0; for (const z of order) for (const c of list.filter(c=>String(c.zona||"Altro")===z)) out.push({...c, zona:z, id:"C"+String(++n).padStart(2,"0"), voce:normCode(c.voce)||String(c.voce||"")});
+  return out;
+}
+function normGuide(g){
+  if (!g) return g;
+  if (g.campo && !g.campo.controlli && Array.isArray(g.campo.zone)) g.campo.controlli = g.campo.zone.flatMap(z=>(z.controlli||[]).map(c=>({...c, zona:z.zona})));
+  if (g.campo){ g.campo.focus = arrObj(g.campo.focus); g.campo.da_cercare = arrObj(g.campo.da_cercare); g.campo.richieste = arrObj(g.campo.richieste); }
+  g.err = g.err||[]; return g;
+}
+async function buildGuide(signal){
+  const q = readQC(); const dg = factsDigest(AI.mode==="claude"? 70000 : 100000);
+  S.guide = {data:todayIt(), qc:{tot:q.tot, letti:q.letti, nonLetti:q.nonLetti.map(d=>`${d.id} ${d.path} – ${d.status||""}`), campione:q.campione.map(d=>`${d.id} ${d.path} – ${readCount(d)} di ${d.pages} pagine`), bassa:q.bassa.map(x=>`${x.d.id} p.${x.s.pagine||"?"} – ${x.s.codice} – ${x.s.tipo||""}`), senzaData:q.senzaData.map(r=>`${r[0]} ${r[3]}`), fuori:q.fuori.length, esclusi:q.esclusi.length, estratti:`${dg.n} di ${dg.tot}`}, lettura:null, sito:null, relazione:null, campo:null, err:[]};
+  renderGuide();
+  const jobs = [["lettura", "Controllo della lettura", promptLettura(dg,q)], ["sito", "Impostazione del sito", promptSito(dg)], ["relazione", "Schedule preliminare", promptSchedule(dg)], ["campo", "Guida operativa", promptCampo(dg)]];
+  // la prima richiesta scrive in cache il contesto comune, le altre tre lo rileggono a costo ridotto
+  const call = ([k,,p])=>AI.json(p, [], tierFinal(), signal).then(o=>{ store(k,o); renderGuide(); return o; });
+  const first = await Promise.allSettled([call(jobs[3])]);
+  const rest = await Promise.allSettled(jobs.slice(0,3).map(call));
+  const res = [...rest, ...first];
+  res.forEach((r,i)=>{ if (r.status==="rejected"){ if (FATAL.includes(r.reason?.code)||r.reason?.code==="cancelled") throw r.reason; S.guide.err.push(`${jobs[i][1]}: ${errText(r.reason)}`); } });  // res è nell'ordine di jobs
+  renderGuide();
+  function store(k, o){
+    if (!o || typeof o!=="object") throw {code:"invalid_json"};
+    if (k==="lettura") S.guide.lettura = {giudizio:String(o.giudizio||""), sintesi:String(o.sintesi||""), punti:arrObj(o.punti), incoerenze:arrObj(o.incoerenze)};
+    if (k==="sito") S.guide.sito = {immobile:arrObj(o.immobile), descrizione:String(o.descrizione||""), zone:arrStr(o.zone), sistemi:arrObj(o.sistemi).map(s=>({...s, voci:(Array.isArray(s.voci)?s.voci:[]).map(normCode).filter(Boolean)})), verifiche:arrObj(o.verifiche)};
+    if (k==="relazione"){ let n=0; S.guide.relazione = {ambiti:arrObj(o.ambiti), rischi:arrStr(o.rischi), indagini:arrStr(o.indagini), schedule:arrObj(o.schedule).map(r=>({...r, id:"D"+String(++n).padStart(2,"0"), voce:normCode(r.voce)||String(r.voce||"")}))}; }
+    if (k==="campo") S.guide.campo = {focus:arrObj(o.focus), controlli:numberControls(arrObj(o.controlli)), da_cercare:arrObj(o.da_cercare), richieste:arrObj(o.richieste)};
+  }
+}
+async function runGuide(){
+  if (S.running || !S.analyzed) return; S.running=true; S.ctl=new AbortController(); $("#guideRun").disabled=true; $("#stop").hidden=false;
+  $("#guideMsg").textContent="Preparazione in corso (2-4 minuti): controllo della lettura, impostazione del sito, schedule preliminare, guida di campo…";
+  S.usage={}; try{ await buildGuide(S.ctl.signal); $("#usage").textContent=usageText(); $("#guideMsg").textContent = S.guide.err.length? "Completata in parte: "+S.guide.err.join(" · ") : "Pronta: scarica la guida operativa e la bozza della relazione."; }
+  catch(e){ $("#guideMsg").textContent = errText(e); }
+  finally{ S.running=false; $("#stop").hidden=true; updateRunBtn(); renderGuide(); }
+}
+function controlsFor(sys){ const C=S.guide?.campo?.controlli||[]; const v=new Set(sys.voci||[]); return C.filter(c=>v.has(c.voce)).map(c=>c.id); }
+const GIUD = {"affidabile":"presente","affidabile con riserve":"parziale","da integrare prima del sopralluogo":"mancante"};
+const SEM = {ROSSO:"mancante", GIALLO:"parziale", VERDE:"presente"};
+function renderGuide(){
+  const g=normGuide(S.guide), box=$("#guideBox"); if (!box) return;
+  $("#guideRun").disabled = S.running || !S.analyzed || !AI.ready(); $("#guideRun").textContent = g? "Rigenera guida e bozza" : "Genera guida e bozza";
+  const ok = !!(g && (g.campo || g.sito || g.relazione || g.lettura)); ["#guideDocx","#guideDocx2","#relDocx","#relDocx2"].forEach(s=>{ if ($(s)) $(s).disabled=!ok; });
+  if (!g){ box.innerHTML = `<p class="muted small">${S.analyzed? "Genera la guida operativa e la bozza della relazione dai risultati della verifica." : "Guida e bozza si preparano da sole al termine della verifica. Puoi anche caricare i dati di una verifica precedente (.json)."}</p>`; return; }
+  const q=g.qc, L=g.lettura, Si=g.sito, R=g.relazione, C=g.campo; let h="";
+  const wait = t=>`<p class="muted small">${t} in preparazione…</p>`;
+  h += `<div class="tiles"><div class="tile ${q.nonLetti.length?"miss":"ok"}"><b>${q.letti}/${q.tot}</b><span>documenti letti</span></div><div class="tile ${q.campione.length?"part":"ok"}"><b>${q.campione.length}</b><span>letti solo in parte</span></div><div class="tile ${q.bassa.length?"part":"ok"}"><b>${q.bassa.length}</b><span>attribuzioni incerte</span></div><div class="tile"><b>${C? C.controlli.length : "…"}</b><span>controlli in campo</span></div><div class="tile"><b>${R? R.schedule.length : "…"}</b><span>righe di schedule preliminare</span></div></div>`;
+  if (L) h += `<div class="notice" style="margin-top:12px"><span class="st st-${GIUD[L.giudizio]||"vuoto"}">Lettura: ${esc(L.giudizio||"n.d.")}</span> ${esc(L.sintesi)}</div>`;
+  if (C?.focus.length) h += `<div class="crit" style="margin-top:12px;border-left-color:var(--acc);background:var(--rule-2)"><strong>Su cosa concentrare il sopralluogo</strong><ol>${C.focus.map(f=>`<li><strong>${esc(f.tema)}</strong> – ${esc(f.perche)}${f.portare_a_casa?` <span class="muted">Portare a casa: ${esc(f.portare_a_casa)}</span>`:""}</li>`).join("")}</ol></div>`;
+  h += `<h3 style="margin:16px 0 6px">Impostazione del sito</h3>`;
+  if (Si){
+    h += `<div class="tablebox" style="max-height:360px"><table><thead><tr><th>Dato</th><th>Valore dai documenti</th><th>Fonte</th></tr></thead><tbody>${Si.immobile.map(r=>`<tr><td>${esc(r.campo)}</td><td class="small">${r.valore? esc(r.valore) : '<span class="st st-da_verificare">da rilevare</span>'}</td><td class="mono small">${esc(r.rif||"")}${r.certezza==="dedotto"?" · dedotto":""}</td></tr>`).join("")}</tbody></table></div>`;
+    if (Si.zone.length) h += `<p class="small" style="margin-top:8px"><strong>Zone da percorrere:</strong> ${Si.zone.map(esc).join(" · ")}</p>`;
+    h += `<div class="tablebox" style="max-height:420px;margin-top:8px"><table><thead><tr><th>Sistema</th><th>Componenti dai documenti</th><th>DM 37</th><th>DICO</th><th>Caso</th><th>Da censire in campo</th><th>Controlli</th></tr></thead><tbody>${Si.sistemi.map(s=>`<tr><td>${esc(s.elemento)}</td><td class="small">${esc(s.componenti||"")}${s.anno?` · ${esc(s.anno)}`:""}</td><td class="small">${esc(s.dm37||"")}</td><td class="small">${esc(s.dico||"")}</td><td class="mono">${esc(s.caso||"")}</td><td class="small">${esc(s.da_rilevare||"")}</td><td class="mono small">${controlsFor(s).join(" ")}</td></tr>`).join("")}</tbody></table></div>`;
+  } else if (!g.err.some(e=>e.startsWith("Impostazione"))) h += wait("Impostazione del sito");
+  if (C){
+    h += `<h3 style="margin:16px 0 6px">Guida operativa: dalle mancanze ai controlli</h3><div class="tablebox" style="max-height:640px"><table><thead><tr><th>ID</th><th>Mancanza di partenza</th><th>Verifica in campo</th><th>Cosa dicono i documenti</th><th>Da rilevare</th><th>Se difforme</th><th>Pr.</th></tr></thead><tbody>`;
+    let z=""; for (const c of C.controlli){ if (c.zona!==z){ z=c.zona; h+=`<tr class="cat"><td colspan="7">${esc(z)}</td></tr>`; }
+      h += `<tr><td class="mono">${c.id}</td><td class="small">${esc(c.mancanza||"")}${c.voce?` <span class="mono">${esc(c.voce)}</span>`:""}</td><td>${esc(c.verifica||"")}</td><td class="small">${esc(c.atteso||"")}${c.rif?` <span class="mono small">${esc(c.rif)}</span>`:""}</td><td class="small">${esc(c.rilievo||"")}</td><td class="small">${esc(c.se_difforme||"")}</td><td class="imp imp-${c.priorita==="alta"?"ALTO":c.priorita==="media"?"MEDIO":"BASSO"}">${esc(c.priorita||"")}</td></tr>`; }
+    h += `</tbody></table></div>`;
+    if (C.da_cercare.length) h += `<h3 style="margin:16px 0 6px">Da cercare in sito</h3><ul class="small">${C.da_cercare.map(x=>`<li><strong>${esc(x.elemento)}</strong> – ${esc(x.motivo)}${x.rif?` <span class="mono small">${esc(x.rif)}</span>`:""}</li>`).join("")}</ul>`;
+    if (C.richieste.length) h += `<h3 style="margin:16px 0 6px">Da chiedere il giorno del sopralluogo</h3><ul class="small">${C.richieste.map(x=>`<li><strong>${esc(x.a_chi)}</strong>: ${esc(x.richiesta)}${x.voce?` <span class="mono">${esc(x.voce)}</span>`:""}</li>`).join("")}</ul>`;
+  } else if (!g.err.some(e=>e.startsWith("Guida"))) h += wait("Guida operativa");
+  if (R){
+    h += `<h3 style="margin:16px 0 6px">Bozza della relazione: sintesi e schedule preliminare</h3><div class="row" style="gap:6px;margin-bottom:8px">${R.ambiti.map(a=>`<span class="st st-${SEM[a.semaforo]||"vuoto"}" title="${esc(a.commento||"")}">${esc(a.ambito)}: ${esc(a.semaforo||"")}</span>`).join("")}</div>`;
+    h += `<div class="tablebox" style="max-height:420px"><table><thead><tr><th>ID</th><th>Elemento</th><th>Rilievo documentale</th><th>Azione</th><th>Orizzonte</th><th>Semaforo</th><th>Resp.</th><th>Da confermare in campo</th></tr></thead><tbody>${R.schedule.map(r=>`<tr><td class="mono">${r.id}</td><td>${esc(r.elemento||"")}</td><td class="small">${esc(r.rilievo||"")}</td><td class="small">${esc(r.azione||"")}</td><td class="small">${esc(r.orizzonte||"")}</td><td><span class="st st-${SEM[r.semaforo]||"vuoto"}">${esc(r.semaforo||"")}</span></td><td class="mono">${esc(r.resp||"")}</td><td class="small">${esc(r.conferma||"")}</td></tr>`).join("")}</tbody></table></div>`;
+  } else if (!g.err.some(e=>e.startsWith("Schedule"))) h += wait("Schedule preliminare");
+  if (L?.punti.length || L?.incoerenze.length){
+    h += `<details style="margin-top:14px"><summary><strong>Controllo della lettura: ${L.punti.length} punti, ${L.incoerenze.length} incoerenze</strong></summary>`;
+    if (L.punti.length) h += `<div class="tablebox" style="margin-top:8px"><table><thead><tr><th>Tipo</th><th>Tema</th><th>Problema</th><th>Documenti</th><th>Azione prima del campo</th></tr></thead><tbody>${L.punti.map(p=>`<tr><td class="small">${esc(p.tipo)}</td><td>${esc(p.tema)}</td><td class="small">${esc(p.problema)}</td><td class="mono small">${esc(p.rif)}</td><td class="small">${esc(p.azione)}</td></tr>`).join("")}</tbody></table></div>`;
+    if (L.incoerenze.length) h += `<div class="tablebox" style="margin-top:8px"><table><thead><tr><th>Incoerenza</th><th>Dettaglio</th><th>Documenti</th><th>Come</th><th>Verifica</th></tr></thead><tbody>${L.incoerenze.map(p=>`<tr><td>${esc(p.tema)}</td><td class="small">${esc(p.dettaglio)}</td><td class="mono small">${esc(p.rif)}</td><td class="small">${esc(p.come)}</td><td class="small">${esc(p.verifica)}</td></tr>`).join("")}</tbody></table></div>`;
+    h += `</details>`;
+  }
+  if (g.err.length) h += `<div class="notice warn" style="margin-top:10px">${g.err.map(esc).join("<br>")} – usa «Rigenera guida e bozza».</div>`;
+  box.innerHTML = h;
+}
+
+/* ---------- Word: helpers ---------- */
+const BOX="☐";
+function PH(t){ return new D.TextRun({text:t, highlight:"yellow"}); }
+function Hd(t, lvl){ return new D.Paragraph({heading: lvl===1? D.HeadingLevel.HEADING_1 : D.HeadingLevel.HEADING_2, keepNext:true, spacing:{before: lvl===1? 320:200, after:100}, children:[new D.TextRun({text:t, bold:true, size: lvl===1? 28:23, color: lvl===1? "1F3A44":"2E5A66", font:"Calibri"})]}); }
+function cellR(runs, o={}){ return new D.TableCell({width:o.w?{size:o.w,type:D.WidthType.PERCENTAGE}:undefined, shading:o.fill?{fill:o.fill}:undefined, children:[new D.Paragraph({spacing:{after:20}, children: (Array.isArray(runs)? runs : [T(runs,{size:o.size||17, b:o.b})])})]}); }
+function tableR(hdr, rows, widths, fills){ return new D.Table({width:{size:100,type:D.WidthType.PERCENTAGE}, columnWidths: widths? widths.map(w=>Math.round(9900*w/100)) : undefined,
+  rows:[new D.TableRow({tableHeader:true, cantSplit:true, children:hdr.map((h,i)=>cellR(h,{b:true,fill:"E1F1F1",w:widths?.[i]}))}), ...rows.map((r,ri)=>new D.TableRow({cantSplit:true, children:r.map((v,i)=>cellR(v,{w:widths?.[i], fill:fills?.[ri]?.[i]}))}))]}); }
+const SEMFILL = {ROSSO:"F4C7C3", GIALLO:"FCE8B2", VERDE:"CDE9D6"};
+const val = (v, ph="[da rilevare in campo]")=> v? [T(v,{size:17})] : [PH(ph)];
+function docHeaderFooter(title){
+  return { headers:{default:new D.Header({children:[new D.Paragraph({alignment:D.AlignmentType.RIGHT, children:[T(title,{size:16,color:"666666"})]})]})},
+           footers:{default:new D.Footer({children:[new D.Paragraph({alignment:D.AlignmentType.CENTER, children:[T("Documento riservato ad uso della Committenza · pag. ",{size:16,color:"666666"}), new D.TextRun({children:[D.PageNumber.CURRENT], size:16, color:"666666"})]})]})} };
+}
+function immTitle(){ return `${$("#imCod").value||"Immobile"}${$("#imInd").value?" – "+$("#imInd").value:""}`; }
+
+/* ---------- Word: guida operativa di campo ---------- */
+async function exportGuideDocx(){
+  const g=normGuide(S.guide); if (!g) throw new Error("genera prima la guida");
+  const ch=[], q=g.qc, L=g.lettura, C=g.campo, Si=g.sito;
+  ch.push(P([T("Guida operativa di campo",{b:true,size:34})],{after:60}));
+  ch.push(P([T(`${immTitle()} · ${$("#imUso").value}`,{size:22})],{after:40}));
+  ch.push(P([T(`Preparata il ${g.data} dall'analisi documentale (${q.letti} documenti letti su ${q.tot}). Parte dalle mancanze della base documentale e dice al verificatore cosa controllare, cosa portare a casa e come cambia la relazione se l'esito è difforme.`,{i:true,size:18})],{after:120}));
+  ch.push(table(["Verificatore","Data sopralluogo","Referente in sito","Condizioni meteo / accessi"],[["","","",""]],[25,25,25,25]));
+  let n=0; const H=t=>ch.push(Hd(`${++n}. ${t}`,1));
+  if (C?.focus.length){ H("Su cosa concentrare il sopralluogo");
+    C.focus.forEach((f,i)=>ch.push(P([T(`${i+1}. ${f.tema}. `,{b:true}), T(f.perche||""), f.portare_a_casa? T(` Portare a casa: ${f.portare_a_casa}`,{i:true}) : T("")],{indent:{left:200},after:80}))); }
+  if (Si){ H("Impostazione del sito");
+    ch.push(P([T("Dati generali ricavati dai documenti. Le righe evidenziate vanno completate in campo e confluiscono nel capitolo 3 della relazione.",{size:18,i:true})]));
+    ch.push(tableR(["Dato","Valore dai documenti","Fonte","Confermato"], Si.immobile.map(r=>[r.campo||"", val(r.valore), `${r.rif||""}${r.certezza==="dedotto"?" (dedotto)":""}`, `${BOX} sì ${BOX} no`]), [24,48,16,12]));
+    if (Si.zone.length) ch.push(P([T("Zone da percorrere: ",{b:true}), T(Si.zone.join(" · "))],{before:120}));
+    ch.push(P([T("Sistemi da censire",{b:true,size:22})],{before:160,after:60,keepNext:true}));
+    ch.push(tableR(["Sistema","Dai documenti","DM 37 · DICO · caso","Da censire in campo","Controlli"], Si.sistemi.map(s=>[s.elemento||"", `${s.componenti||""}${s.anno?" · "+s.anno:""}${s.rif?" ("+s.rif+")":""}`, `${s.dm37||"n.d."} · ${s.dico||"n.d."} · ${s.caso||"n.d."}`, s.da_rilevare||"", controlsFor(s).join(" ")]), [18,32,14,26,10])); }
+  if (L){ H("Affidabilità della lettura documentale");
+    ch.push(P([T("Giudizio: ",{b:true}),T(L.giudizio||"n.d.",{b:true}),T(" – "+(L.sintesi||""))]));
+    ch.push(table(["Indicatore","Valore"],[["Documenti letti / da leggere",`${q.letti} / ${q.tot}`],["Letti solo in parte",String(q.campione.length)],["Attribuzioni a confidenza bassa",String(q.bassa.length)],["Voci con scadenza senza data leggibile",String(q.senzaData.length)]],[60,40]));
+    if (L.punti.length){ ch.push(P([T("Da correggere o rileggere prima del campo",{b:true})],{before:140,keepNext:true})); ch.push(table(["Problema","Documenti","Azione",""], L.punti.map(p=>[`${p.tema?p.tema+": ":""}${p.problema||""}`, p.rif||"", p.azione||"", BOX]), [50,16,30,4])); }
+    if (L.incoerenze.length){ ch.push(P([T("Incoerenze da sciogliere",{b:true})],{before:140,keepNext:true})); ch.push(table(["Incoerenza","Documenti","Come","Verifica",""], L.incoerenze.map(p=>[`${p.tema?p.tema+": ":""}${p.dettaglio||""}`,p.rif||"",p.come||"",p.verifica||"",BOX]), [44,14,14,24,4])); } }
+  if (C){ H("Dalle mancanze ai controlli");
+    ch.push(P([T("Perché si fa ogni controllo e come cambia la relazione se l'esito è difforme.",{size:18,i:true})]));
+    ch.push(tableR(["ID","Mancanza di partenza","Verifica","Se difforme"], C.controlli.map(c=>[`${c.id}${c.priorita==="alta"?" ●":""}`, `${c.mancanza||""}${c.voce?" ["+c.voce+"]":""}`, c.verifica||"", c.se_difforme||""]), [8,34,30,28]));
+    H("Scheda di campo per zona");
+    ch.push(P([T("Esito: C = conforme a quanto dicono i documenti, D = difforme, NV = non visto o non accessibile. Riportare gli ID nella relazione e nella numerazione delle foto.",{size:18,i:true})]));
+    let z=""; for (const c of C.controlli){ if (c.zona!==z){ z=c.zona; ch.push(P([T(z,{b:true,size:22})],{before:160,after:60,keepNext:true})); ch.push(table(["ID","Verifica","Cosa dicono i documenti","Da rilevare","Esito","Note / foto"], C.controlli.filter(x=>x.zona===z).map(x=>[x.id+(x.priorita==="alta"?" ●":""), x.verifica||"", `${x.atteso||""}${x.rif?` (${x.rif})`:""}`, x.rilievo||"", `${BOX}C ${BOX}D ${BOX}NV`, ""]), [7,22,29,18,9,15])); } }
+    ch.push(P([T("● = priorità alta: l'esito può cambiare il giudizio di rischio o i costi.",{i:true,size:17})],{before:60}));
+    if (C.da_cercare.length){ H("Elementi da cercare in sito"); ch.push(table(["Elemento","Perché","Documenti","Presente?"], C.da_cercare.map(x=>[x.elemento||"",x.motivo||"",x.rif||"",`${BOX} sì  ${BOX} no`]), [24,46,14,16])); }
+    if (C.richieste.length){ H("Da chiedere il giorno del sopralluogo"); ch.push(table(["A chi","Richiesta","Voce","Ricevuto"], C.richieste.map(x=>[x.a_chi||"",x.richiesta||"",x.voce||"",`${BOX} sì  ${BOX} no`]), [16,56,12,16])); } }
+  if (q.nonLetti.length || q.campione.length){ ch.push(Hd("Allegato – documenti non letti o letti in parte",1));
+    ch.push(table(["Documento","Esito della lettura"], [...q.nonLetti.map(x=>[x,"non letto"]), ...q.campione.map(x=>[x,"letto in parte"])].slice(0,200), [80,20])); }
+  ch.push(P([T("Guida preparata automaticamente dai documenti letti: le indicazioni vanno validate dal verificatore. Rilievo a vista: non sostituisce DIRI, collaudi o verifiche periodiche.",{i:true,size:17})],{before:240}));
+  const doc = new D.Document({styles:{default:{document:{run:{font:"Calibri",size:20}}}}, sections:[{properties:{page:{margin:{top:850,bottom:850,left:850,right:850}}}, ...docHeaderFooter(`Guida operativa di campo · ${immTitle()}`), children:ch}]});
+  saveBlob(`Guida operativa di campo - ${baseName()}.docx`, await D.Packer.toBlob(doc));
+}
+
+/* ---------- Word: bozza della relazione tecnica (modello TDD) ---------- */
+async function exportRelazioneDocx(){
+  const g=normGuide(S.guide); if (!g) throw new Error("genera prima la guida");
+  const Si=g.sito||{immobile:[],sistemi:[],verifiche:[],zone:[],descrizione:""}, R=g.relazione||{ambiti:[],rischi:[],indagini:[],schedule:[]}, C=g.campo, c=counts();
+  const im = k=>Si.immobile.find(r=>String(r.campo||"").toLowerCase().startsWith(k.toLowerCase()))?.valore||"";
+  const ch=[]; const para=(runs,o)=>ch.push(P(runs,o)); const bullet=(runs)=>ch.push(new D.Paragraph({bullet:{level:0}, spacing:{after:40}, children:runs}));
+  // copertina
+  para([T("Technical Due Diligence – Compliance Assessment",{b:true,size:36,color:"1F3A44"})],{before:1200,after:120});
+  para([T(immTitle(),{b:true,size:28})],{after:60});
+  para([T($("#imUso").value,{size:22})],{after:400});
+  ch.push(tableR(["Voce","Contenuto"],[["Committente",[PH("[committente]")]],["Codice commessa / documento",[PH("[codice documento]")]],["Data del sopralluogo",[PH("[gg/mm/aaaa]")]],["Redatto da",[PH("[nome e qualifica]")]],["Verificato da",[PH("[nome]")]],["Revisione",`00 – bozza preimpostata dall'analisi documentale del ${g.data}`]],[35,65]));
+  para([T("Le parti evidenziate in giallo vanno completate dopo il sopralluogo. Semafori e righe della schedule sono provvisori: derivano dalla sola analisi documentale e vanno confermati con i controlli della Guida operativa di campo (ID C01…).",{i:true,size:18})],{before:300});
+  ch.push(new D.Paragraph({children:[new D.PageBreak()]}));
+  // 1
+  ch.push(Hd("1  Executive summary",1));
+  ch.push(Hd("1.1  L'immobile",2)); para(Si.descrizione? [T(Si.descrizione)] : [PH("[descrizione dell'immobile]")]); para([PH("[integrare con l'esito del sopralluogo: stato generale, uso effettivo, modifiche non documentate]")]);
+  ch.push(Hd("1.2  Sintesi per ambito",2));
+  ch.push(tableR(["Ambito","Semaforo provvisorio (documenti)","Commento","Esito dopo il sopralluogo"], R.ambiti.map(a=>[a.ambito||"", a.semaforo||"", a.commento||"", [PH("[semaforo e commento]")]]), [24,16,40,20], R.ambiti.map(a=>[null, SEMFILL[a.semaforo], null, null])));
+  ch.push(Hd("1.3  Principali rischi e azioni raccomandate",2)); R.rischi.forEach(x=>bullet([T(x)])); bullet([PH("[rischi emersi dal sopralluogo]")]);
+  ch.push(Hd("1.4  Costi stimati per orizzonte temporale",2)); para([PH("[da stimare dopo il sopralluogo, per orizzonte: immediato, entro 1 anno, 2–5 anni, 6–10 anni]")]);
+  ch.push(Hd("1.5  Indagini e richieste da completare",2)); R.indagini.forEach(x=>bullet([T(x)])); if (!R.indagini.length) para([PH("[indagini e richieste]")]);
+  // 2
+  ch.push(Hd("2  Introduzione",1));
+  ch.push(Hd("2.1  Istruzioni",2)); para([PH("[incarico, perimetro, prospettiva della Proprietà]")]);
+  ch.push(Hd("2.2  Il sopralluogo",2)); ch.push(tableR(["Voce","Contenuto"],[["Data e fascia oraria",[PH("[...]")]],["Condizioni meteo",[PH("[...]")]],["Accompagnatori",[PH("[...]")]],["Zone percorse", Si.zone.length? [T(Si.zone.join(" · "),{size:17}), PH(" [confermare]")] : [PH("[...]")]]],[35,65]));
+  ch.push(Hd("2.3  Aree ed elementi non ispezionati",2)); para([PH("[aree non accessibili e motivo]")]);
+  ch.push(Hd("2.4  Documenti esaminati",2));
+  para([T(`Sono stati esaminati ${g.qc.letti} documenti del pacchetto fornito, ricondotti al ${CAT_NAME} (${CAT.length} voci): ${c.presente} voci presenti, ${c.parziale} parziali, ${c.mancante} mancanti (${c.mancALTO||0} di importanza alta), ${c.da_verificare} da verificare, ${c.non_applicabile} non applicabili.${g.lettura?` Affidabilità della lettura: ${g.lettura.giudizio}.`:""} Il dettaglio è nella Relazione di verifica del catalogo documentale.`)]);
+  const pres = CAT.filter(r=>S.status[r[0]]?.stato==="presente").map(r=>[r[0], r[3], estremiText(r[0]).split("\n")[0]||""]);
+  if (pres.length) ch.push(tableR(["Voce","Documento","Estremi"], pres, [12,44,44]));
+  // 3
+  ch.push(Hd("3  Descrizione dell'immobile",1));
+  ch.push(tableR(["Dato","Valore","Fonte"], (Si.immobile.length? Si.immobile : CAMPI.map(k=>({campo:k}))).map(r=>[r.campo||"", val(r.valore), `${r.rif||""}${r.certezza==="dedotto"?" (dedotto)":""}`]), [26,56,18]));
+  ch.push(Hd("3.1  Impianti presenti",2));
+  ch.push(tableR(["Impianto","Caratteristiche (documenti)","Anno","Caratteristiche rilevate in campo"], Si.sistemi.map(s=>[s.elemento||"", s.componenti||"", s.anno||"", [PH("[potenze, quantità, targhe]")]]), [22,40,10,28]));
+  // 4
+  ch.push(Hd("4  Condizione per elementi",1));
+  para([T("Per ciascun elemento: quanto risulta dai documenti, quanto rilevato in campo, valutazione. I controlli indicati sono quelli della Guida operativa di campo.",{i:true,size:18})]);
+  const els = [...Si.sistemi].sort((a,b)=>ELEMENTI.indexOf(a.elemento)-ELEMENTI.indexOf(b.elemento));
+  els.forEach((s,i)=>{ ch.push(Hd(`4.${i+1}  ${s.elemento}`,2));
+    para([T("Dai documenti: ",{b:true}), T(`${s.documenti||s.componenti||"nessuna documentazione"}${s.rif?` (${s.rif})`:""}`)]);
+    para([T("Rilievo in campo: ",{b:true}), PH(`[descrizione, condizione e foto F-${String(i+1)}01…${s.da_rilevare?` – rilevare: ${s.da_rilevare}`:""}]`)]);
+    const ids = controlsFor(s); if (ids.length) para([T("Controlli di riferimento: ",{b:true}), T(ids.join(", "))]);
+    para([T("Valutazione: ",{b:true}), PH("[idoneità, vita residua, conformità; righe della schedule collegate]")]); });
+  if (!els.length) para([PH("[elementi da descrivere dopo il sopralluogo]")]);
+  // 5
+  ch.push(Hd("5  Prevenzione incendi",1));
+  para([T("Attività soggette: ",{b:true}), ...val(im("Attività soggette"), "[attività DPR 151/2011]")]);
+  para([T("Pratica e ultimo atto: ",{b:true}), ...val(im("Pratica VVF"), "[n. pratica, ultimo atto, scadenza rinnovo]")]);
+  para([T("Alimentazione idrica antincendio: ",{b:true}), ...val(im("Alimentazione idrica"), "[da rilevare]")]);
+  const sAI = R.schedule.filter(r=>/^PI\./.test(r.voce)); if (sAI.length){ para([T("Carenze documentali rilevate (righe della schedule): ",{b:true}), T(sAI.map(r=>`${r.id} ${r.elemento}`).join("; "))]); }
+  para([PH("[esito del confronto tra stato dei luoghi e progetto approvato; presidi, compartimentazioni, esodo]")]);
+  // 6
+  ch.push(Hd("6  Ambiente e materiali pericolosi",1));
+  const amb = R.ambiti.find(a=>/ambiente/i.test(a.ambito||"")); para(amb? [T(amb.commento||"")] : [PH("[...]")]); para([PH("[materiali contenenti amianto, scarichi, serbatoi, aree di lavaggio: esito del sopralluogo]")]);
+  // 7
+  ch.push(Hd("7  Conformità normativa e aspetti legali",1));
+  ch.push(Hd("7.1  Classificazione DM 37/2008",2));
+  para([T("Caso preliminare dai documenti, da confermare in campo: A documentato; B DICO priva di allegati; C ante 27/03/2008 senza DICO → Dichiarazione di Rispondenza; D post 2008 senza DICO → relazione di adeguamento e nuova DICO.",{size:18,i:true})]);
+  ch.push(tableR(["Impianto","Realizzazione","DICO","Caso preliminare","Caso confermato"], Si.sistemi.filter(s=>s.dico||s.caso).map(s=>[s.elemento||"", `${s.anno||""} ${s.dm37||""}`.trim(), s.dico||"", s.caso||"", [PH("[...]")]]), [28,18,14,18,22]));
+  ch.push(Hd("7.2  Verifiche periodiche",2));
+  ch.push(tableR(["Impianto","Riferimento","Ultima evidenza","Scadenza","Stato"], Si.verifiche.map(v=>[v.impianto||"", v.norma||"", v.ultima? `${v.ultima}${v.rif?" ("+v.rif+")":""}` : [PH("[non documentata]")], v.scadenza||"", v.stato||""]), [24,22,22,14,18], Si.verifiche.map(v=>[null,null,null,null, v.stato==="scaduta"? SEMFILL.ROSSO : v.stato==="non documentata"? SEMFILL.GIALLO : null])));
+  ch.push(Hd("7.3  Obblighi locativi e questioni per i legali",2)); para([PH("[ripartizione Proprietà/conduttore secondo contratto]")]);
+  // 8
+  ch.push(Hd("8  Certificazione",1)); para([PH("[firma del tecnico, data, limiti di affidamento]")]);
+  // Appendici
+  const iA = ch.length;
+  ch.push(Hd("Appendice A – Schedule preliminare (da analisi documentale)",1));
+  para([T("Semaforo e orizzonte provvisori. Dopo il sopralluogo: confermare, modificare o chiudere ogni riga e aggiungere i difetti rilevati in campo; stimare i costi.",{i:true,size:18})]);
+  ch.push(tableR(["ID","Elemento","Rilievo documentale","Conseguenza","Azione","Orizz.","Sem.","Resp.","Conferma in campo","Costo"],
+    R.schedule.map(r=>[r.id, r.elemento||"", r.rilievo||"", r.conseguenza||"", r.azione||"", r.orizzonte||"", r.semaforo||"", r.resp||"", r.conferma||"", [PH("[€]")]]), [5,11,16,12,14,8,7,5,15,7], R.schedule.map(r=>[null,null,null,null,null,null,SEMFILL[r.semaforo],null,null,null])));
+  const iB = ch.length;
+  ch.push(Hd("Appendice B – Piano delle prove raccomandate",1)); para([PH("[prove strumentali da prevedere: verifiche DPR 462, prova idraulica UNI 10779, verifica illuminotecnica, ecc.]")]);
+  ch.push(Hd("Appendice C – Documentazione fotografica",1)); para([PH("[foto F-xxx con riferimento agli ID dei controlli]")]);
+  ch.push(Hd("Appendice D – Perimetro del servizio e limitazioni",1));
+  para([T("La bozza è stata preimpostata con l'analisi automatica del pacchetto documentale fornito; i dati riportati sono quelli letti nei documenti e citati con il loro identificativo. Il rilievo in campo è a vista e non costituisce Dichiarazione di Rispondenza, collaudo o verifica periodica.")]);
+  const doc = new D.Document({styles:{default:{document:{run:{font:"Calibri",size:20}}}}, features:{updateFields:false},
+    sections:[[ch.slice(0,iA),false],[ch.slice(iA,iB),true],[ch.slice(iB),false]].map(([children,land])=>({properties:{page:{size: land? {orientation:D.PageOrientation.LANDSCAPE} : undefined, margin:{top:900,bottom:900,left:900,right:900}}}, ...docHeaderFooter(`Technical Due Diligence – Compliance Assessment · ${immTitle()} · Bozza`), children}))});
+  saveBlob(`Bozza relazione tecnica - ${baseName()}.docx`, await D.Packer.toBlob(doc));
+}
+
+async function importJson(file){
+  const j = JSON.parse(await file.text());
+  if (!Array.isArray(j.documenti) || !j.stati) throw new Error("file non riconosciuto: usa «Dati analisi (.json)» esportato da questo strumento");
+  $("#imCod").value = j.immobile?.codice||""; $("#imInd").value = j.immobile?.indirizzo||"";
+  if (j.immobile?.uso && [...$("#imUso").options].some(o=>o.text===j.immobile.uso)) $("#imUso").value = j.immobile.uso;
+  S.docs = j.documenti.map(x=>({id:x.id, path:x.percorso||"", name:String(x.percorso||"").split("/").pop(), pages:x.pagine||0, folderCode:x.cartella||"", status:x.stato||"", segs:Array.isArray(x.segmenti)?x.segmenti:[], cites:x.citazioni||[], elems:x.elementi||[], read:new Set(x.letti || (x.segmenti?.length? Array.from({length:x.pagine||0},(_,i)=>i+1):[])), scan:!!x.scansione, kind:/non supportato|non leggibile/.test(x.stato||"")?"skip":"imported", imported:true, done:true, text:[]}));
+  docSeq = S.docs.length;
+  S.status = j.stati; S.crit = Array.isArray(j.criticita)? j.criticita : []; S.guide = normGuide(j.guida||null);
+  const {ref} = buildEvidence(); S.ref = ref; S.profile = Array.isArray(j.profilo) && j.profilo.length? j.profilo : buildProfile(); S.analyzed = true;
+  updateCount(); updateRunBtn(); renderDocs(); renderMatrix(); renderGuide();
+}
+
+/* ============ RENDER ============ */
+let rt=null;
+function renderDocs(){ clearTimeout(rt); rt=setTimeout(()=>{
+  const rows = S.docs.map(d=>{
+    const codes = [...new Set(d.segs.map(s=>s.codice))];
+    const segs = d.segs.map(s=>{ const cat = s.codice==="FUORI_CATALOGO"? null : catByCode(s.codice);
+      return `<div style="margin-bottom:5px"><span class="mono">${esc(s.codice==="FUORI_CATALOGO"?"fuori catalogo":s.codice)}</span>${cat?` <span class="small">${esc(cat[3])}</span>`:""}`
+      + `<div class="small"><strong>${esc(s.data||"senza data")}</strong> <span class="muted">· p.${esc(s.pagine||"?")}${s.tipo?` · ${esc(s.tipo)}`:""}${s.estremi?` · ${esc(s.estremi)}`:""}</span></div></div>`; }).join("");
+    let arch = `<span class="muted small">—</span>`;
+    if (d.segs.length && d.folderCode){
+      const ok = codes.includes(d.folderCode);
+      const main = codes.find(c=>c!=="FUORI_CATALOGO");
+      arch = ok? `<span class="st st-presente">corretta</span>` : main? `<span class="st st-parziale">sposta in ${esc(main)}</span>` : `<span class="st st-non_applicabile">fuori catalogo</span>`;
+    } else if (d.segs.length && !d.folderCode){ const main = codes.find(c=>c!=="FUORI_CATALOGO"); arch = main? `<span class="chip">archivia in ${esc(main)}</span>`:`<span class="chip">fuori catalogo</span>`; }
+    return `<tr><td style="min-width:200px;overflow-wrap:anywhere"><span class="docref">${d.id}</span> ${esc(d.path)}<br><span class="muted small">${esc(d.status||"")}</span></td><td>${d.pages||""}</td><td class="mono">${esc(d.folderCode||"—")}</td><td style="min-width:260px">${segs||'<span class="muted small">—</span>'}</td><td>${arch}</td></tr>`;
+  }).join("");
+  $("#docRows").innerHTML = rows || `<tr><td colspan="5" class="muted">I documenti caricati compariranno qui con i codici di catalogo attribuiti.</td></tr>`;
+},120); }
+function counts(){
+  const c={presente:0,parziale:0,mancante:0,non_applicabile:0,da_verificare:0,mancALTO:0,mancMEDIO:0,mancBASSO:0,vuoto:0};
+  for (const r of CAT){ const st=S.status[r[0]]?.stato||""; if (!st){c.vuoto++; continue;} c[st]++; if (st==="mancante") c["manc"+r[4]]=(c["manc"+r[4]]||0)+1; }
+  return c;
+}
+function misfiled(){ return S.docs.filter(d=>d.segs.length && d.folderCode && !d.segs.some(s=>s.codice===d.folderCode)); }
+function renderMatrix(){
+  const c = counts(); const mf = misfiled().length; const fuori = S.docs.filter(d=>d.segs.length && d.segs.every(s=>s.codice==="FUORI_CATALOGO")).length;
+  $("#matSub").textContent = S.analyzed? `${CAT_NAME} · ${CAT.length} voci · verifica del ${todayIt()}` : `${CAT_NAME} · ${CAT.length} voci · avvia la verifica per compilare gli stati`;
+  $("#tiles").innerHTML = `
+    <div class="tile ok"><b>${c.presente}</b><span>presenti</span></div>
+    <div class="tile part"><b>${c.parziale}</b><span>parziali</span></div>
+    <div class="tile miss"><b>${c.mancante}</b><span>mancanti · ${c.mancALTO||0} di importanza alta</span></div>
+    <div class="tile tbd"><b>${c.da_verificare}</b><span>da verificare</span></div>
+    <div class="tile na"><b>${c.non_applicabile}</b><span>non applicabili</span></div>
+    <div class="tile"><b>${mf}</b><span>file in cartella errata${fuori?` · ${fuori} fuori catalogo`:""}</span></div>`;
+  $("#critBox").innerHTML = S.crit.length? `<div class="crit"><strong>Criticità principali</strong><ul>${S.crit.map(x=>`<li>${esc(x.testo)} <span class="muted small">(${esc(x.area.toLowerCase())})</span></li>`).join("")}</ul></div>` : "";
+  $("#profBox").innerHTML = S.profile.length? `<div><h3 style="margin-bottom:8px">Profilo dell'immobile rilevato</h3><div class="prof">${S.profile.map(p=>`<span class="chip">${esc(p[0])} · ${p[1]}</span>`).join("")}</div></div>` : "";
+  const fs=$("#fStato").value, fi=$("#fImp").value, fc=$("#fCat").value, ft=$("#fTxt").value.trim().toLowerCase();
+  let html="", lastCat="", lastTip="";
+  for (const r of CAT){
+    const st = S.status[r[0]]||{}; const refs = (S.ref?.[r[0]]||[]);
+    const docsTxt = refs.map(x=>`${x.d.id} ${x.d.name} p.${x.s.pagine||"?"}`).join(" ").toLowerCase();
+    if (fs && st.stato!==fs) continue; if (fi && r[4]!==fi) continue; if (fc && r[1]!==fc) continue;
+    if (ft && !(`${r[0]} ${r[3]} ${r[2]}`.toLowerCase().includes(ft) || docsTxt.includes(ft))) continue;
+    if (r[1]!==lastCat){ html += `<tr class="cat"><td colspan="6">${esc(r[1])}</td></tr>`; lastCat=r[1]; lastTip=""; }
+    if (r[2]!==lastTip){ html += `<tr class="grp"><td colspan="6">${esc(r[2])}</td></tr>`; lastTip=r[2]; }
+    const docs = refs.slice(0,6).map(x=>`<div><span class="docref">${x.d.id}</span> <span class="small">p.${esc(x.s.pagine||"?")}${x.cite?" · citato":x.sec?" · secondario":x.s.ruolo&&x.s.ruolo!=="atto"?" · "+esc(x.s.ruolo):""}${x.s.data?" · "+esc(x.s.data):""}</span><div class="note" style="overflow-wrap:anywhere">${esc(x.d.name)}</div></div>`).join("") + (refs.length>6?`<div class="note">+ altri ${refs.length-6}</div>`:"");
+    const sel = `<select data-code="${r[0]}" aria-label="Stato ${r[0]}"><option value="">—</option>${Object.entries(STATI).map(([k,v])=>`<option value="${k}" ${st.stato===k?"selected":""}>${v}</option>`).join("")}</select>`;
+    html += `<tr><td class="mono" style="white-space:nowrap">${r[0]}</td><td style="min-width:220px">${esc(r[3])}${r[5]==="Si"?' <span class="chip">con scadenza</span>':""}</td><td class="imp imp-${r[4]}">${esc(r[4])}</td>
+      <td><span class="st st-${st.stato||"vuoto"}">${esc(STATI[st.stato]||"—")}</span>${st.manual?' <span class="note">(modificato)</span>':""}<div style="margin-top:4px">${sel}</div></td>
+      <td style="min-width:200px">${docs||'<span class="muted small">—</span>'}</td><td style="min-width:220px" class="small">${esc(st.motivazione||"")}${st.azione?`<div class="note" style="margin-top:3px"><strong>Azione:</strong> ${esc(st.azione)}</div>`:""}</td></tr>`;
+  }
+  $("#matRows").innerHTML = html || `<tr><td colspan="6" class="muted">Nessuna voce con questi filtri.</td></tr>`;
+  document.querySelectorAll("#matRows select[data-code]").forEach(s=>s.onchange=()=>{ const c=s.dataset.code; S.status[c] = {...(S.status[c]||{}), stato:s.value, manual:true}; renderMatrix(); });
+}
+function updateRunBtn(){ $("#run").disabled = S.running || !S.docs.some(d=>d.kind!=="skip" && !d.imported) || !AI.ready(); if ($("#guideRun")) $("#guideRun").disabled = S.running || !S.analyzed || !AI.ready(); }
+
+/* ============ CATALOGO DA EXCEL ============ */
+async function loadCatalogXlsx(file){
+  const wb = XLSX.read(await file.arrayBuffer(), {type:"array"}); const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
+  let hdr = rows.findIndex(r=>r.some(c=>/^adempimento$/i.test(String(c).trim())));
+  if (hdr<0) throw new Error("Intestazione 'Adempimento' non trovata");
+  const H = rows[hdr].map(c=>String(c).trim().toLowerCase());
+  const ix = n=>H.findIndex(h=>h===n), iCat=ix("categoria adempimento"), iTip=ix("tipologia adempimento"), iCod=ix("adempimento"), iDes=ix("descrizione adempimento"), iImp=ix("livello di importanza"), iSc=ix("scadenza"), iDir=H.findIndex(h=>h.startsWith("codifica"));
+  let cat="", tip=""; const out=[];
+  for (const r of rows.slice(hdr+1)){ if (r[iCat]) cat=String(r[iCat]).trim(); if (r[iTip]) tip=String(r[iTip]).trim(); const code=normCode(r[iCod]); if (!code) continue; out.push([code, cat, tip, String(r[iDes]).replace(/\s+/g," ").trim(), String(r[iImp]||"").trim().toUpperCase(), String(r[iSc]||"").trim(), iDir>=0? String(r[iDir]||"").trim():""]); }
+  if (!out.length) throw new Error("Nessuna voce riconosciuta");
+  CAT = out; CAT_NAME = file.name.replace(/\.xlsx?$/i,""); S.status={}; S.ref=null; S.analyzed=false;
+  $("#catName").textContent = `${CAT_NAME} (${CAT.length} voci)`; fillCatFilter(); fillVvfCodes(); renderMatrix();
+}
+function fillCatFilter(){ $("#fCat").innerHTML = `<option value="">Tutte</option>` + [...new Set(CAT.map(r=>r[1]))].map(c=>`<option>${esc(c)}</option>`).join(""); }
+
+/* ============ EXPORT ============ */
+function refText(c){ return (S.ref?.[c]||[]).map(x=>`${x.d.id} ${x.d.path} p.${x.s.pagine||"?"}${x.cite?" (citato)":x.s.ruolo&&x.s.ruolo!=="atto"?` (${x.s.ruolo})`:""}`).join("\n"); }
+function estremiText(c){ return [...new Set((S.ref?.[c]||[]).map(x=>[x.s.data, x.s.estremi, x.s.emittente].filter(Boolean).join(" – ")).filter(Boolean))].join("\n"); }
+function suggestedFolder(d){ const main = d.segs.find(s=>s.codice!=="FUORI_CATALOGO")?.codice; return main? (catByCode(main)?.[6] || main) : "fuori catalogo"; }
+async function saveBlob(name, blob){
+  const dl = window.claude?.use? await window.claude.use("downloads").catch(()=>null) : null;
+  if (dl){ try{ await dl.save({filename:name, data:blob}); msg(`Pronto: ${name}`); }catch(e){ msg(e?.code==="declined"?"Download annullato.":`Download non riuscito (${e?.code||"errore"}).`, e?.code==="declined"?"":"warn"); } return; }
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},2000); msg(`Pronto: ${name}`);
+}
+function msg(t, cls){ $("#expMsg").innerHTML = t? `<div class="notice ${cls||""}">${esc(t)}</div>`:""; }
+function baseName(){ return safeName($("#imCod").value || "immobile"); }
+function exportXlsx(){
+  const wb = XLSX.utils.book_new();
+  const m = [["Categoria","Tipologia","Codice","Documento a catalogo","Importanza","Scadenza","Stato","Modificato a mano","Documenti nel pacchetto (file e pagine)","Data – estremi – emittente","Valutazione dell'esperto","Azione suggerita","Codifica cartella"]];
+  for (const r of CAT){ const st=S.status[r[0]]||{}; m.push([r[1],r[2],r[0],r[3],r[4],r[5],STATI[st.stato]||"",st.manual?"sì":"",refText(r[0]),estremiText(r[0]),st.motivazione||"",st.azione||"",r[6]]); }
+  const ws1 = XLSX.utils.aoa_to_sheet(m); ws1["!cols"]=[18,26,10,48,10,9,14,9,48,36,52,34,32].map(w=>({wch:w})); ws1["!autofilter"]={ref:`A1:M${m.length}`};
+  XLSX.utils.book_append_sheet(wb, ws1, "Matrice catalogo");
+  const d = [["ID","Percorso","Pagine","Pagine lette","Cartella attuale","Pagine","Codice attribuito","Documento a catalogo","Tipo","Data","Estremi","Emittente","Ruolo","Completezza","Confidenza","Archiviazione","Cartella suggerita"]];
+  for (const doc of S.docs){
+    const arch = !doc.segs.length? (doc.status||"") : doc.folderCode? (doc.segs.some(s=>s.codice===doc.folderCode)?"corretta":"da spostare") : "da archiviare";
+    if (!doc.segs.length) d.push([doc.id, doc.path, doc.pages||"", doc.read?.size||"", doc.folderCode||"", "", "", "", doc.status||"", "", "", "", "", "", "", arch, ""]);
+    for (const s of doc.segs) d.push([doc.id, doc.path, doc.pages||"", doc.read?.size||"", doc.folderCode||"", s.pagine||"", s.codice, catByCode(s.codice)?.[3]||"", s.tipo||"", s.data||"", s.estremi||"", s.emittente||"", s.ruolo||"", s.completezza||"", s.confidenza||"", arch, suggestedFolder(doc)]);
+  }
+  const ws2 = XLSX.utils.aoa_to_sheet(d); ws2["!cols"]=[7,60,7,7,12,8,15,40,36,11,28,28,14,36,10,14,32].map(w=>({wch:w})); ws2["!autofilter"]={ref:`A1:Q${d.length}`};
+  XLSX.utils.book_append_sheet(wb, ws2, "Documenti");
+  const c = counts();
+  const s = [["Verifica catalogo documentale"],["Immobile", $("#imCod").value],["Indirizzo",$("#imInd").value],["Destinazione d'uso",$("#imUso").value],["Catalogo", `${CAT_NAME} (${CAT.length} voci)`],["Data verifica", todayIt()],[],["Stato","Voci"],["Presenti",c.presente],["Parziali",c.parziale],["Mancanti",c.mancante],["  di cui importanza ALTO",c.mancALTO||0],["  di cui importanza MEDIO",c.mancMEDIO||0],["  di cui importanza BASSO",c.mancBASSO||0],["Da verificare",c.da_verificare],["Non applicabili",c.non_applicabile],[],["Documenti letti", S.docs.filter(x=>x.segs.length).length],["File in cartella errata", misfiled().length],[],["Criticità principali"], ...S.crit.map(x=>[x.area, x.testo]),[],["Profilo immobile rilevato"], ...S.profile.map(p=>[p[0], p[1]])];
+  const ws3 = XLSX.utils.aoa_to_sheet(s); ws3["!cols"]=[{wch:30},{wch:90}];
+  XLSX.utils.book_append_sheet(wb, ws3, "Sintesi");
+  const G = normGuide(S.guide);
+  if (G?.campo){ const gz=[["ID","Zona","Mancanza di partenza","Voce","Verifica","Cosa dicono i documenti","Documenti","Da rilevare","Se difforme","Priorità","Esito (C/D/NV)","Note / foto"]];
+    for (const c of G.campo.controlli) gz.push([c.id, c.zona, c.mancanza||"", c.voce||"", c.verifica||"", c.atteso||"", c.rif||"", c.rilievo||"", c.se_difforme||"", c.priorita||"", "", ""]);
+    const ws4 = XLSX.utils.aoa_to_sheet(gz); ws4["!cols"]=[6,24,34,11,40,50,16,30,34,9,12,30].map(w=>({wch:w})); ws4["!autofilter"]={ref:`A1:L${gz.length}`}; XLSX.utils.book_append_sheet(wb, ws4, "Guida di campo"); }
+  if (G?.sito){ const si=[["Dati generali dell'immobile"],["Dato","Valore dai documenti","Fonte","Certezza","Valore confermato in campo"], ...G.sito.immobile.map(r=>[r.campo||"", r.valore||"", r.rif||"", r.certezza||"", ""]), [], ["Zone"], ...G.sito.zone.map(z=>[z]), [], ["Sistemi da censire"], ["Sistema","Componenti dai documenti","Anno","DM 37","DICO","Caso preliminare","Voci","Documenti","Da censire in campo","Controlli"], ...G.sito.sistemi.map(x=>[x.elemento||"", x.componenti||"", x.anno||"", x.dm37||"", x.dico||"", x.caso||"", (x.voci||[]).join(" "), x.rif||"", x.da_rilevare||"", controlsFor(x).join(" ")]), [], ["Verifiche periodiche"], ["Impianto","Norma","Ultima","Scadenza","Stato","Documenti"], ...G.sito.verifiche.map(v=>[v.impianto||"", v.norma||"", v.ultima||"", v.scadenza||"", v.stato||"", v.rif||""])];
+    const ws5 = XLSX.utils.aoa_to_sheet(si); ws5["!cols"]=[30,50,14,10,10,12,18,18,36,14].map(w=>({wch:w})); XLSX.utils.book_append_sheet(wb, ws5, "Impostazione sito"); }
+  if (G?.relazione){ const sc=[["ID","Elemento","Rilievo documentale","Conseguenza","Azione","Orizzonte","Semaforo provvisorio","Resp.","Voce","Conferma in campo","Esito campo","Costo min","Costo max"], ...G.relazione.schedule.map(r=>[r.id, r.elemento||"", r.rilievo||"", r.conseguenza||"", r.azione||"", r.orizzonte||"", r.semaforo||"", r.resp||"", r.voce||"", r.conferma||"", "", "", ""])];
+    const ws6 = XLSX.utils.aoa_to_sheet(sc); ws6["!cols"]=[5,22,40,30,32,11,10,6,10,34,14,10,10].map(w=>({wch:w})); XLSX.utils.book_append_sheet(wb, ws6, "Schedule preliminare"); }
+  const out = XLSX.write(wb, {bookType:"xlsx", type:"array"});
+  saveBlob(`Verifica catalogo - ${baseName()}.xlsx`, new Blob([out], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+}
+const D = window.docx;
+function P(runs,o={}){ return new D.Paragraph({children:runs, spacing:{after:o.after??100, before:o.before??0, line:280}, alignment:o.align, indent:o.indent, keepNext:o.keepNext}); }
+function T(t,o={}){ return new D.TextRun({text:String(t??""), bold:o.b, italics:o.i, size:o.size, color:o.color}); }
+function cell(t,o={}){ return new D.TableCell({width:o.w?{size:o.w,type:D.WidthType.PERCENTAGE}:undefined, shading:o.fill?{fill:o.fill}:undefined, children:[P([T(t,{b:o.b,size:o.size||18})],{after:20})]}); }
+function table(hdr, rows, widths){ return new D.Table({width:{size:100,type:D.WidthType.PERCENTAGE}, columnWidths: widths? widths.map(w=>Math.round(15000*w/100)) : undefined, rows:[new D.TableRow({tableHeader:true, children:hdr.map((h,i)=>cell(h,{b:true,fill:"E1F1F1",w:widths?.[i]}))}), ...rows.map(r=>new D.TableRow({children:r.map((v,i)=>cell(v,{w:widths?.[i]}))}))]}); }
+async function exportDocx(){
+  const c = counts(), ch=[];
+  ch.push(P([T("Verifica del catalogo documentale",{b:true,size:34})],{after:60}));
+  ch.push(P([T(`${$("#imCod").value||"Immobile"}${$("#imInd").value?" – "+$("#imInd").value:""} · ${$("#imUso").value}`,{size:22})],{after:40}));
+  ch.push(P([T(`${CAT_NAME} (${CAT.length} voci) · verifica del ${todayIt()} · ${S.docs.filter(x=>x.segs.length).length} documenti letti`,{i:true,size:18})],{after:240}));
+  ch.push(P([T("Sintesi",{b:true,size:26})],{after:80}));
+  ch.push(table(["Presenti","Parziali","Mancanti (di cui alta)","Da verificare","Non applicabili","File in cartella errata"],[[c.presente,c.parziale,`${c.mancante} (${c.mancALTO||0})`,c.da_verificare,c.non_applicabile,misfiled().length].map(String)],[16,16,18,16,16,18]));
+  if (S.crit.length){ ch.push(P([T("Criticità principali",{b:true,size:26})],{before:240,after:80})); S.crit.forEach(x=>ch.push(P([T("– "+x.testo)],{indent:{left:300},after:40}))); }
+  if (S.guide?.lettura){ const L=S.guide.lettura, q=S.guide.qc; ch.push(P([T("Affidabilità della lettura",{b:true,size:26})],{before:240,after:80})); ch.push(P([T(`${L.giudizio}. `,{b:true}), T(`${L.sintesi} Documenti letti ${q.letti} su ${q.tot}; letti in parte ${q.campione.length}; attribuzioni incerte ${q.bassa.length}. I punti da rileggere, le incoerenze e i controlli in campo sono nella Guida operativa di campo.`)])); }
+  const sect = (title, filter)=>{
+    const rows = CAT.filter(r=>filter(S.status[r[0]]||{}, r)).map(r=>{ const st=S.status[r[0]]||{}; return [r[0], r[3], r[4], st.motivazione||"", st.azione||""]; });
+    if (!rows.length) return; ch.push(P([T(`${title} (${rows.length})`,{b:true,size:26})],{before:280,after:80,keepNext:true}));
+    ch.push(table(["Codice","Documento","Imp.","Valutazione","Azione"], rows, [10,30,8,32,20]));
+  };
+  sect("Documenti mancanti – importanza alta", (st,r)=>st.stato==="mancante" && r[4]==="ALTO");
+  sect("Documenti mancanti – importanza media e bassa", (st,r)=>st.stato==="mancante" && r[4]!=="ALTO");
+  sect("Documenti parziali", st=>st.stato==="parziale");
+  sect("Da verificare", st=>st.stato==="da_verificare");
+  const pres = CAT.filter(r=>S.status[r[0]]?.stato==="presente").map(r=>[r[0], r[3], (S.ref?.[r[0]]||[]).slice(0,3).map(x=>`${x.d.id} p.${x.s.pagine||"?"}`).join(", "), estremiText(r[0]).split("\n")[0]||""]);
+  if (pres.length){ ch.push(P([T(`Documenti presenti (${pres.length})`,{b:true,size:26})],{before:280,after:80,keepNext:true})); ch.push(table(["Codice","Documento","Riferimento nel pacchetto","Data – estremi"], pres, [10,40,25,25])); }
+  const elenco = []; for (const d of S.docs) for (const sg of d.segs) elenco.push([sg.codice==="FUORI_CATALOGO"?"fuori catalogo":sg.codice, catByCode(sg.codice)?.[3]||sg.tipo||"", sg.data||"senza data", [sg.estremi, sg.emittente].filter(Boolean).join(" – "), `${d.id} ${d.path} p.${sg.pagine||"?"}`, dateKey(sg.data)]);
+  elenco.sort((a,b)=> a[0]===b[0]? a[5].localeCompare(b[5]) : a[0]==="fuori catalogo"? 1 : b[0]==="fuori catalogo"? -1 : a[0].localeCompare(b[0]));
+  if (elenco.length){ ch.push(P([T(`Elenco dei documenti analizzati (${elenco.length})`,{b:true,size:26})],{before:280,after:80,keepNext:true})); ch.push(table(["Codice","Documento a catalogo","Data","Estremi – emittente","File e pagine"], elenco.map(r=>r.slice(0,5)), [10,30,10,22,28])); }
+  const mf = misfiled();
+  if (mf.length){ ch.push(P([T(`File archiviati in cartella errata (${mf.length})`,{b:true,size:26})],{before:280,after:80,keepNext:true})); ch.push(table(["ID","File","Cartella attuale","Contenuto","Cartella corretta"], mf.map(d=>[d.id, d.path, d.folderCode, [...new Set(d.segs.map(s=>s.tipo||s.codice))].join("; "), suggestedFolder(d)]), [7,38,12,25,18])); }
+  if (S.profile.length){ ch.push(P([T("Profilo dell'immobile rilevato dai documenti",{b:true,size:26})],{before:280,after:80})); ch.push(P([T(S.profile.map(p=>`${p[0]} (${p[1]})`).join("; "),{size:20})])); }
+  ch.push(P([T("Metodo: ogni documento è stato letto (prime pagine e campionamento sulle successive per i fascicoli lunghi) e ricondotto ai codici del catalogo per contenuto, non per nome del file. Lo stato di ogni voce tiene conto del profilo dell'immobile, delle voci alternative e delle scadenze. I risultati vanno validati da un tecnico.",{i:true,size:18})],{before:300}));
+  const doc = new D.Document({styles:{default:{document:{run:{font:"Calibri",size:21}}}}, sections:[{properties:{page:{size:{orientation:D.PageOrientation.LANDSCAPE}, margin:{top:900,bottom:900,left:900,right:900}}}, children:ch}]});
+  saveBlob(`Relazione verifica catalogo - ${baseName()}.docx`, await D.Packer.toBlob(doc));
+}
+function exportJson(){
+  const data = {immobile:{codice:$("#imCod").value, indirizzo:$("#imInd").value, uso:$("#imUso").value}, catalogo:CAT_NAME, data:todayIt(), stati:S.status, profilo:S.profile, criticita:S.crit, guida:S.guide||null,
+    documenti:S.docs.map(d=>({id:d.id, percorso:d.path, pagine:d.pages, cartella:d.folderCode, stato:d.status, segmenti:d.segs, citazioni:d.cites||[], elementi:d.elems, letti:[...(d.read||[])], scansione:!!d.scan}))};
+  saveBlob(`Dati verifica catalogo - ${baseName()}.json`, new Blob([JSON.stringify(data,null,1)],{type:"application/json"}));
+}
+
+
+/* ============ PACCHETTO CATALOGATO ============ */
+// Cartelle: Categoria / Tipologia / Codifica cartella del catalogo caricato. Nome file: CODICE_AAAA-MM-GG_prot-NNN_tipo.ext
+function isoDate(v){ const p=String(v||"").split("/"); if (p.length===3) return `${p[2]}-${p[1]}-${p[0]}`; if (p.length===2) return `${p[1]}-${p[0]}`; return /^\d{4}$/.test(v||"")? v : "sd"; }
+function protocollo(sg){
+  const t = [sg.estremi, sg.oggetto].filter(Boolean).join(" ");
+  let m = t.match(/prot(?:ocollo)?\.?\s*(?:n\.?|nr\.?|n°)?\s*[:.]?\s*([A-Za-z0-9][A-Za-z0-9\/._-]*)/i)
+       || t.match(/(?:pratica|n\.|nr\.?|n°|numero)\s*[:.]?\s*([A-Za-z0-9][A-Za-z0-9\/._-]*\d[A-Za-z0-9\/._-]*)/i)
+       || String(sg.estremi||"").match(/([A-Za-z]*\d[A-Za-z0-9\/._-]{1,})/);
+  return m? "prot-" + m[1].replace(/[\/\\]+/g,"-").replace(/[^A-Za-z0-9._-]/g,"").replace(/^[-.]+|[-.]+$/g,"").slice(0,30) : "senza-prot";
+}
+function folderOf(code){
+  if (!code || code==="FUORI_CATALOGO") return "99_FUORI CATALOGO";
+  const r = catByCode(code); if (!r) return "99_FUORI CATALOGO";
+  return [safeName(r[1]), safeName(r[2]), safeName(r[6] || `${r[0]}_${r[3]}`)].join("/");
+}
+function parsePages(txt, n){
+  const out=new Set(); const t=String(txt||"").replace(/\s/g,""); if (!t) return null;
+  for (const part of t.split(/[,;]/)){
+    let m = part.match(/^(\d+)-(\d+|\?)$/); if (m){ const a=+m[1], b= m[2]==="?"? n : +m[2]; if (!a||b<a) return null; for (let i=a;i<=Math.min(b,n);i++) out.add(i); continue; }
+    m = part.match(/^(\d+)$/); if (m){ if (+m[1]<=n) out.add(+m[1]); continue; }
+    return null;
+  }
+  return out.size? [...out].sort((a,b)=>a-b) : null;
+}
+// Nome file: nome originale invariato + protocollo + data (AAAA-MM-GG), aggiunti solo se non già presenti
+function stemExt(name){ const m=name.match(/^(.*?)((?:\.pdf)?\.p7m|\.[^.]+)?$/i); return [m[1]||name, (m[2]||"").toLowerCase()]; }
+function withProtData(name, prot, data, extra){
+  let [stem, e] = stemExt(name); const low = stem.toLowerCase(); const add=[];
+  if (extra) add.push(extra);
+  const pn = prot? prot.replace(/^prot-/,"") : "";
+  if (pn && !low.includes(pn.toLowerCase())) add.push("prot-"+pn);
+  if (data && data!=="sd" && !low.includes(data) && !low.includes(data.split("-").reverse().join("-"))) add.push(data);
+  return safeName(stem + (add.length? "_"+add.join("_") : "")) + e;
+}
+function protOf(sg){ const p = sg? protocollo(sg) : ""; return p && p!=="senza-prot"? p : ""; }
+async function exportPackage(){
+  if (!window.JSZip) throw new Error("libreria ZIP non caricata");
+  if (S.docs.some(d=>d.imported)) throw new Error("il pacchetto richiede i file originali: ricarica i documenti ed esegui la verifica");
+  const vvf = $("#pkTipo").value==="vvf";
+  const zip = new JSZip(), root = `${baseName()} - pacchetto catalogato`, used = new Set(), idx = [];
+  const put = (folder, name, data)=>{ let base=`${root}/${folder}/${name}`, k=1, path=base;
+    while (used.has(path.toLowerCase())){ k++; path = base.replace(/((?:\.pdf)?\.p7m|\.[^./]+)$/i, `_${k}$1`); if (path===base) path = base+"_"+k; }
+    used.add(path.toLowerCase()); zip.file(path, data); return path.slice(root.length+1); };
+  const catDesc = c => catByCode(c)?.[3] || "";
+  // --- dati della pratica VVF
+  let fasc = null;
+  if (vvf){
+    const all = S.docs.flatMap(d=>(d.segs||[]).map(sg=>({d, sg})));
+    const pi01 = all.filter(x=>/^PI\.01\./.test(x.sg.codice));
+    let code = $("#vvfCode").value;
+    if (!code){ const cnt={}; pi01.forEach(x=>cnt[x.sg.codice]=(cnt[x.sg.codice]||0)+1); code = Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0]?.[0] || "PI.01.02"; }
+    const main = pi01.filter(x=>x.sg.codice===code).sort((a,b)=>(a.sg.ruolo==="atto"?0:1)-(b.sg.ruolo==="atto"?0:1)).find(x=>protOf(x.sg)||x.sg.data) || pi01[0];
+    const prot = ($("#vvfProt").value.trim()? "prot-"+$("#vvfProt").value.trim().replace(/[\/\\]+/g,"-").replace(/[^A-Za-z0-9._-]/g,"") : protOf(main?.sg));
+    const data = isoDate(normDate($("#vvfData").value.trim()) || main?.sg.data || "");
+    const label = ["Fascicolo VVF", prot.replace("prot-","prot. "), data!=="sd"? "del "+data : ""].filter(Boolean).join(" ");
+    fasc = {code, prot, data, folder: `${folderOf(code)}/${safeName(label)}`};
+  }
+  let n=0; const tot=S.docs.length;
+  for (const d of S.docs){
+    n++; msg(`Preparazione pacchetto: ${n} di ${tot} file…`);
+    const segs = (d.segs||[]).filter(Boolean);
+    const main = segs.find(sg=>sg.codice!=="FUORI_CATALOGO") || segs[0];
+    // ---------- modalità VVF: il fascicolo resta integro
+    if (vvf){
+      if (!d.file){ idx.push(["", "", "", "", "", "", d.path, "", d.status||"file non disponibile"]); continue; }
+      const dir = d.path.split("/").slice(0,-1).map(safeName).filter(Boolean).filter((x,i,arr)=>i===0||x!==arr[i-1]).join("/");
+      const ownProt = protOf(main), ownData = main?.data? isoDate(main.data) : "";
+      const nm = withProtData(d.name, ownProt || fasc.prot, ownData || fasc.data);
+      const pth = put(fasc.folder + (dir? "/"+dir : ""), nm, d.file);
+      idx.push([pth, fasc.code, catDesc(fasc.code), main?.data||"", main?.estremi||"", main?.emittente||"", d.path, "", (d.dupOf? `Fascicolo VVF (duplicato di ${d.dupOf})` : "Fascicolo VVF – originale") + (segs.length? " · contiene: "+segs.map(sg=>`${sg.codice==="FUORI_CATALOGO"?"fuori catalogo":sg.codice} p.${sg.pagine||"?"}`).join(", ") : "")]);
+      // copie degli allegati nelle voci di catalogo proprie
+      if (d.dupOf) continue;
+      const altri = segs.filter(sg=>sg.codice && sg.codice!=="FUORI_CATALOGO" && sg.codice!==fasc.code && !/^PI\.01\./.test(sg.codice));
+      if (!altri.length) continue;
+      const canSplit = d.kind==="pdf" && window.PDFLib && d.pages && (segs.length>1);
+      let src=null; if (canSplit){ try{ src = await PDFLib.PDFDocument.load(await d.file.arrayBuffer(), {ignoreEncryption:true}); }catch{ src=null; } }
+      for (const sg of altri){
+        const pages = src? parsePages(sg.pagine, d.pages) : null;
+        const pr = protOf(sg) || fasc.prot, dt = sg.data? isoDate(sg.data) : fasc.data;
+        if (src && pages){
+          const out = await PDFLib.PDFDocument.create(); (await out.copyPages(src, pages.map(x=>x-1))).forEach(x=>out.addPage(x));
+          const cp = put(folderOf(sg.codice), withProtData(d.name, pr, dt, `p${pages[0]}-${pages.at(-1)}`), await out.save());
+          idx.push([cp, sg.codice, catDesc(sg.codice), sg.data||"", sg.estremi||"", sg.emittente||"", d.path, `${pages[0]}-${pages.at(-1)}`, `Copia (pagine estratte) dal fascicolo VVF: ${pth}`]);
+        } else {
+          const cp = put(folderOf(sg.codice), withProtData(d.name, pr, dt), d.file);
+          idx.push([cp, sg.codice, catDesc(sg.codice), sg.data||"", sg.estremi||"", sg.emittente||"", d.path, sg.pagine||"", `Copia dal fascicolo VVF: ${pth}`]);
+        }
+      }
+      continue;
+    }
+    // ---------- archivio dell'immobile
+    if (d.dupOf){ idx.push(["", "", "", "", "", "", d.path, "", `Escluso: duplicato di ${d.dupOf}`]); continue; }
+    if (!d.file){ idx.push(["", "", "", "", "", "", d.path, "", d.status||"file non disponibile"]); continue; }
+    if (!segs.length){ const pth = put("00_DA CLASSIFICARE", safeName(d.name), d.file); idx.push([pth, "", "", "", "", "", d.path, "", d.status||"non classificato"]); continue; }
+    let split = null;
+    if (d.kind==="pdf" && window.PDFLib && segs.length>1 && d.pages){ const ranges = segs.map(sg=>parsePages(sg.pagine, d.pages)); if (ranges.every(Boolean)) split = ranges; }
+    if (split){
+      try{
+        const src = await PDFLib.PDFDocument.load(await d.file.arrayBuffer(), {ignoreEncryption:true});
+        for (let i=0;i<segs.length;i++){ const sg=segs[i];
+          const out = await PDFLib.PDFDocument.create(); (await out.copyPages(src, split[i].map(x=>x-1))).forEach(x=>out.addPage(x));
+          const pth = put(folderOf(sg.codice), withProtData(d.name, protOf(sg), sg.data? isoDate(sg.data):"", `p${split[i][0]}-${split[i].at(-1)}`), await out.save());
+          idx.push([pth, sg.codice, catDesc(sg.codice)||sg.tipo||"", sg.data||"senza data", sg.estremi||"", sg.emittente||"", d.path, sg.pagine||"", `Estratto pagine ${split[i][0]}-${split[i].at(-1)} da ${d.id}`]);
+        }
+        continue;
+      }catch{ /* PDF non divisibile: si archivia intero */ }
+    }
+    const pth = put(folderOf(main.codice), withProtData(d.name, protOf(main), main.data? isoDate(main.data):""), d.file);
+    const altri = segs.filter(sg=>sg!==main).map(sg=>`${sg.codice==="FUORI_CATALOGO"?"fuori catalogo":sg.codice} p.${sg.pagine||"?"}${sg.data?" "+sg.data:""}`);
+    idx.push([pth, main.codice, catDesc(main.codice)||main.tipo||"", main.data||"senza data", main.estremi||"", main.emittente||"", d.path, main.pagine||"", altri.length? "Contiene anche: "+altri.join("; ") : ""]);
+  }
+  idx.sort((a,b)=> (a[0]||"~").localeCompare(b[0]||"~"));
+  if (window.XLSX){
+    const ws = XLSX.utils.aoa_to_sheet([["Percorso nel pacchetto","Codice","Documento a catalogo","Data","Protocollo / estremi","Emittente","File originale","Pagine","Note"], ...idx]);
+    ws["!cols"]=[80,10,44,11,30,28,60,10,60].map(w=>({wch:w})); ws["!autofilter"]={ref:`A1:I${idx.length+1}`};
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Indice");
+    zip.file(`${root}/00_INDICE PACCHETTO.xlsx`, XLSX.write(wb, {bookType:"xlsx", type:"array"}));
+  }
+  msg("Compressione del pacchetto…");
+  const blob = await zip.generateAsync({type:"blob", compression:"DEFLATE", compressionOptions:{level:6}});
+  await saveBlob(`${root}.zip`, blob);
+}
+
+/* ============ EVENTI ============ */
+$("#pickFiles").onclick=()=>$("#inFiles").click(); $("#pickDir").onclick=()=>$("#inDir").click(); $("#pickCat").onclick=()=>$("#inCat").click();
+$("#inFiles").onchange=e=>{ const f=[...e.target.files].map(x=>({file:x, path:x.name})); e.target.value=""; addFiles(f); };
+$("#inDir").onchange=e=>{ const f=[...e.target.files].map(x=>({file:x, path:x.webkitRelativePath||x.name})); e.target.value=""; addFiles(f); };
+$("#inCat").onchange=async e=>{ const f=e.target.files[0]; e.target.value=""; if(!f) return; try{ await loadCatalogXlsx(f); }catch(err){ $("#catName").textContent = "Catalogo non leggibile: "+(err.message||err); } };
+const drop=$("#drop");
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault(); drop.classList.add("over");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault(); drop.classList.remove("over");}));
+drop.addEventListener("drop", async e=>{ const out=[]; const en=[...(e.dataTransfer.items||[])].map(i=>i.webkitGetAsEntry?.()).filter(Boolean); if (en.length) for (const x of en) await walkEntry(x,"",out); else for (const f of e.dataTransfer.files) out.push({file:f, path:f.name}); addFiles(out); });
+$("#run").onclick=runAnalysis; $("#stop").onclick=()=>S.ctl?.abort();
+$("#retry").onclick=()=>{ const f=S.failed.splice(0); f.forEach(x=>{ if (x.d){ x.d.done=false; x.d.segs=[]; x.d.elems=[]; x.d.cites=[]; x.d.read=new Set(); } }); runAnalysis(); };
+$("#apiKey").addEventListener("input", renderMode);
+["#fStato","#fImp","#fCat"].forEach(s=>$(s).onchange=renderMatrix); $("#fTxt").oninput=renderMatrix;
+$("#xlsx").onclick=()=>{ try{ exportXlsx(); }catch(e){ msg("Export non riuscito: "+(e.message||e),"bad"); } };
+$("#docx").onclick=()=>exportDocx().catch(e=>msg("Export non riuscito: "+(e.message||e),"bad"));
+$("#json").onclick=exportJson;
+const gExp = ()=>exportGuideDocx().catch(e=>{ $("#guideMsg").textContent="Export non riuscito: "+(e.message||e); msg("Export non riuscito: "+(e.message||e),"bad"); });
+$("#guideDocx").onclick=gExp; $("#guideDocx2").onclick=gExp; $("#guideRun").onclick=runGuide;
+const memInfo = async()=>{ const n=await MEM.count(); $("#memInfo").textContent = n==null? "memoria non disponibile in questo browser" : `${n} letture in memoria`; };
+$("#memClear").onclick=async()=>{ await MEM.clear(); memInfo(); }; memInfo();
+const rExp = ()=>exportRelazioneDocx().catch(e=>{ $("#guideMsg").textContent="Export non riuscito: "+(e.message||e); msg("Export non riuscito: "+(e.message||e),"bad"); });
+$("#relDocx").onclick=rExp; $("#relDocx2").onclick=rExp;
+$("#loadJson").onclick=()=>$("#jsonIn").click();
+$("#jsonIn").onchange=async e=>{ const f=e.target.files[0]; e.target.value=""; if (!f) return; try{ await importJson(f); $("#guideMsg").textContent=`Caricata la verifica di ${S.docs.length} documenti: ${S.guide? "guida inclusa." : "ora puoi generare la guida."}`; }catch(err){ $("#guideMsg").textContent="Caricamento non riuscito: "+(err.message||err); } };
+function fillVvfCodes(){ const sel=$("#vvfCode"); const cur=sel.value; sel.innerHTML = `<option value="">Automatica (dai documenti)</option>` + CAT.filter(r=>r[0].startsWith("PI.")).map(r=>`<option value="${r[0]}">${r[0]} – ${esc(r[3].slice(0,60))}</option>`).join(""); sel.value=cur; }
+$("#pkTipo").onchange=()=>{ const on=$("#pkTipo").value==="vvf"; document.querySelectorAll(".vvfOnly").forEach(e=>e.hidden=!on); };
+fillVvfCodes();
+$("#pack").onclick=()=>exportPackage().catch(e=>msg("Pacchetto non riuscito: "+(e?.message||e),"bad"));
+fillCatFilter(); renderMatrix(); renderDocs(); renderGuide();
+/* chiave API: facoltativamente ricordata nel browser (mai nel codice) */
+const API_LS = "efm.anthropicKey";
+(function(){
+  let saved = ""; try{ saved = localStorage.getItem(API_LS) || ""; }catch{}
+  if (saved){ $("#apiKey").value = saved; $("#apiRemember").checked = true; }
+  const sync = ()=>{
+    const k = $("#apiKey").value.trim(), on = $("#apiRemember").checked;
+    try{ if (on && k) localStorage.setItem(API_LS, k); else localStorage.removeItem(API_LS); }catch{}
+    $("#apiForget").hidden = !on;
+    $("#apiNote").textContent = on ? "Salvata solo in questo browser, su questo computer. Non usarla su PC condivisi." : "Senza spunta la chiave resta solo in questa scheda.";
+  };
+  $("#apiKey").addEventListener("input", sync); $("#apiRemember").addEventListener("change", sync);
+  $("#apiForget").onclick = ()=>{ $("#apiKey").value = ""; $("#apiRemember").checked = false; sync(); renderMode(); };
+  sync();
+})();
+document.querySelectorAll(".claudeLink").forEach(a=>a.href=CLAUDE_URL);
+AI.init();
+</script>
+
+</body>
+</html>
