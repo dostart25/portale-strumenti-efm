@@ -448,12 +448,12 @@
     </div>
     <div class="project-tools">
 
-    <a class="module-card" id="card-cat" href="#" target="_blank" rel="noopener" data-keywords="edb ebd t.o. to catalogo documentale pacchetto faldoni dematerializzazione documenti mancanti presenti matrice codici eu pi ti archiviazione cartelle classificazione verifica completezza gap analysis anagrafica compliance capannoni logistica">
+    <a class="module-card" id="card-cat" href="#" target="_blank" rel="noopener" data-keywords="edb ebd t.o. to catalogo documentale guida campo sopralluogo bozza relazione tdd pacchetto faldoni dematerializzazione documenti mancanti presenti matrice codici eu pi ti archiviazione cartelle classificazione verifica completezza gap analysis anagrafica compliance capannoni logistica">
       <div class="module-step">Passo 1</div>
       <div class="module-icon ic-blue">▤</div>
       <div class="module-title">Verifica Catalogo Documentale</div>
-      <div class="module-desc">Riconduce ogni documento del pacchetto di un immobile, anche scansionato e pagina per pagina, ai codici del catalogo T.O. (EU, PI, TI). Restituisce la matrice di presenti, parziali, mancanti e non applicabili, i file nella cartella sbagliata e le azioni per reperire i documenti, in Excel e Word.</div>
-      <div class="module-cta">Apri strumento</div>
+      <div class="module-desc">Riconduce ogni documento del pacchetto di un immobile, anche scansionato e pagina per pagina, ai codici del catalogo T.O. (EU, PI, TI): matrice di presenti, parziali, mancanti e non applicabili, controllo della lettura, guida operativa di campo e bozza della relazione tecnica, in Excel e Word. Si apre in Claude con il tuo account, senza chiave API.</div>
+      <div class="module-cta">Apri in Claude</div>
     </a>
 
     <a class="module-card" id="card-atti" href="#" target="_blank" rel="noopener" data-keywords="accesso atti agli richiesta istanza vigili fuoco vvf antincendio prevenzione incendi scia cpi parere pratica pratiche comune edilizia permesso costruire agibilità agibilita suap asl arpa inail catasto planimetria planimetrie soprintendenza leasing delega manleva fascicolo archivio scansioni zip immobile due diligence 241 edb">
@@ -465,7 +465,7 @@
     </a>
 
     </div>
-    <p class="project-alt">Usali anche dentro Claude, senza chiave API: <a href="https://claude.ai/artifact/5y1v7oYEVMbPP6KJbTYBxv" target="_blank" rel="noopener">Verifica Catalogo</a> · <a href="https://claude.ai/artifact/7LgnNwfLSXycv7mwfusewh" target="_blank" rel="noopener">Accesso Atti</a> <span>(i link vanno condivisi con te)</span></p>
+    <p class="project-alt">Verifica Catalogo nel browser con chiave API (consuma crediti API, solo se serve): <a href="catalogo-edb.html" target="_blank" rel="noopener">Verifica Catalogo – API</a> · Accesso Atti dentro Claude, senza chiave API: <a href="https://claude.ai/artifact/7LgnNwfLSXycv7mwfusewh" target="_blank" rel="noopener">Accesso Atti – Claude</a> <span>(i link Claude vanno condivisi con te)</span></p>
   </section>
 
   <p class="section-label">Assistente</p>
@@ -497,7 +497,8 @@
     contract: "smart-contract-generator.html", // percorso relativo: funziona se caricato nella stessa cartella/repo
     report: "deliverable-planner.html",
     atti: "accesso-atti.html",
-    cat: "catalogo-edb.html"
+    cat: "https://claude.ai/artifact/QFNVzWQbYX2rkpoX8Tzyo1",   // versione in Claude (account, nessun credito API)
+    catApi: "catalogo-edb.html"                                  // versione nel browser con chiave API
   };
   document.getElementById('card-cat').href = TOOL_URLS.cat;
   document.getElementById('card-bnl').href = TOOL_URLS.bnl;
